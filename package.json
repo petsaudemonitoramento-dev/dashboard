@@ -6,12 +6,28 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:migrate": "node --env-file=.env.local scripts/aplicar-migracao.mjs",
+    "user:ubs": "node --env-file=.env.local scripts/criar-profissional-ubs.mjs",
+    "db:migrate:v15": "node --env-file=.env.local scripts/aplicar-migracao-v15.mjs",
+    "db:migrate:v16": "node --env-file=.env.local scripts/aplicar-migracao-v16.mjs",
+    "db:migrate:v17": "node --env-file=.env.local scripts/aplicar-migracao-v17.mjs",
+    "db:migrate:v18": "node --env-file=.env.local scripts/aplicar-migracao-v18.mjs",
+    "db:migrate:v19": "node --env-file=.env.local scripts/aplicar-migracao-v19.mjs",
+    "db:migrate:v20": "node --env-file=.env.local scripts/aplicar-migracao-v20.mjs",
+    "db:migrate:v21": "node --env-file=.env.local scripts/aplicar-migracao-v21.mjs"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.3",
+    "@supabase/supabase-js": "^2.110.7",
+    "lucide-react": "^1.25.0",
     "next": "16.2.10",
+    "pdf-lib": "^1.17.1",
+    "postcss": "^8.5.19",
+    "postgres": "^3.4.9",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

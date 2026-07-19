@@ -1,0 +1,67 @@
+/* =========================================================
+   V21 — Cadastro digitável e pequenos ajustes de governança
+   ========================================================= */
+
+.v21-birth-field {
+  display: grid;
+  gap: 7px;
+}
+
+.v21-birth-field > label {
+  color: #30294a;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.v21-date-control {
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
+
+.v21-date-control > input[type="text"] {
+  width: 100%;
+  min-height: 45px;
+  padding: 10px 48px 10px 12px;
+  border: 1px solid #d9d2e6;
+  border-radius: 10px;
+  outline: 0;
+  background: #fff;
+}
+
+.v21-date-control > input[type="text"]:focus {
+  border-color: #7a4ce0;
+  box-shadow: 0 0 0 3px rgba(122, 76, 224, .12);
+}
+
+.v21-date-control > button {
+  position: absolute;
+  z-index: 2;
+  top: 5px;
+  right: 5px;
+  display: grid;
+  width: 35px;
+  height: 35px;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  color: #615771;
+  background: #f4f1f8;
+}
+
+.v21-native-date {
+  position: absolute;
+  width: 1px !important;
+  height: 1px !important;
+  min-height: 1px !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 740px) {
+  .sidebar {
+    position: relative;
+    height: auto;
+    min-height: 0;
+  }
+}

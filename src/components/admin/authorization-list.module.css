@@ -1,0 +1,284 @@
+.card {
+  margin-top: 24px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 14px 34px rgba(57, 38, 105, .06);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 20px 22px;
+  border-bottom: 1px solid #ece8f3;
+}
+
+.header > div {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+.header h2,
+.header p {
+  margin: 0;
+}
+
+.header p {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.headerIcon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 13px;
+  color: var(--p700);
+  background: var(--p100);
+}
+
+.counter {
+  padding: 7px 11px;
+  border-radius: 999px;
+  color: #724b0f;
+  background: #fff4d6;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.bulkBar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 13px 22px;
+  border-bottom: 1px solid #ece8f3;
+  background: #faf8fd;
+}
+
+.bulkBar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.bulkBar > span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.bulkBar > div {
+  display: flex;
+  gap: 9px;
+  margin-left: auto;
+}
+
+.approve,
+.reject {
+  display: inline-flex;
+  min-height: 39px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 13px;
+  border-radius: 9px;
+  font-weight: 750;
+}
+
+.approve {
+  border: 1px solid #a6deb9;
+  color: #166534;
+  background: #effaf3;
+}
+
+.reject {
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  background: #fff5f5;
+}
+
+.message {
+  margin: 14px 22px 0;
+  padding: 11px 13px;
+  border-radius: 10px;
+  color: #43326d;
+  background: #f4effd;
+}
+
+.list {
+  display: grid;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 32px minmax(220px, .9fr) minmax(420px, 1.5fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 22px;
+  border-bottom: 1px solid #f0edf5;
+}
+
+.item:last-child {
+  border-bottom: 0;
+}
+
+.itemSelected {
+  background: #fbf9ff;
+}
+
+.checkbox input {
+  position: absolute;
+  opacity: 0;
+}
+
+.checkbox span {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border: 1px solid #aaa0bf;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.checkbox input:checked + span {
+  border-color: #7547dd;
+  background:
+    linear-gradient(135deg, transparent 43%, #fff 43% 53%, transparent 53%),
+    #7547dd;
+}
+
+.identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 11px;
+}
+
+.identity > div {
+  min-width: 0;
+}
+
+.identity strong,
+.identity small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.identity small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.avatar {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 12px;
+  color: var(--p700);
+  background: var(--p100);
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.fields label {
+  display: grid;
+  gap: 5px;
+  color: #4b4263;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.fields select {
+  min-width: 0;
+  min-height: 39px;
+  padding: 7px 9px;
+  border: 1px solid #d9d2e6;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.itemActions {
+  display: flex;
+  gap: 7px;
+}
+
+.itemActions .reject {
+  width: 40px;
+  padding: 0;
+}
+
+.empty {
+  display: grid;
+  min-height: 240px;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.empty svg {
+  color: #8b6bd4;
+}
+
+.empty strong {
+  color: #332a4d;
+}
+
+.spin {
+  animation: spin-v21 1s linear infinite;
+}
+
+@keyframes spin-v21 {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 1150px) {
+  .item {
+    grid-template-columns: 32px 1fr auto;
+  }
+
+  .fields {
+    grid-column: 2 / -1;
+  }
+}
+
+@media (max-width: 720px) {
+  .header,
+  .bulkBar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .bulkBar > div {
+    margin-left: 0;
+  }
+
+  .item {
+    grid-template-columns: 28px 1fr;
+  }
+
+  .fields,
+  .itemActions {
+    grid-column: 1 / -1;
+  }
+
+  .fields {
+    grid-template-columns: 1fr;
+  }
+}

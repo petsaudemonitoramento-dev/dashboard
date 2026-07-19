@@ -1,0 +1,877 @@
+.form {
+  display: grid;
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.contextBar {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  gap: 18px;
+  padding: 13px 16px;
+  border: 1px solid #ddd7e9;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 10px 28px rgba(61, 43, 105, 0.05);
+}
+
+.contextBar > div:first-child {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 11px;
+}
+
+.contextBar p,
+.contextBar span {
+  margin: 0;
+}
+
+.contextBar p {
+  display: grid;
+  gap: 3px;
+}
+
+.contextBar p strong {
+  overflow: hidden;
+  color: #211a3e;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contextBar p small {
+  color: #777084;
+  font-size: 11px;
+}
+
+.contextIcon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 12px;
+  color: #6f43d4;
+  background: #eee7fb;
+}
+
+.contextUbs {
+  display: flex;
+  max-width: 340px;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 12px;
+  border-left: 1px solid #e8e3ef;
+  color: #6d657b;
+}
+
+.contextUbs > span {
+  display: grid;
+  gap: 2px;
+  font-size: 10px;
+}
+
+.contextUbs strong {
+  overflow: hidden;
+  color: #2d2643;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recordCode {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+  border-radius: 999px;
+  color: #5d3cb8;
+  background: #f0eafa;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.summaryGrid article,
+.pendingSummary {
+  display: flex;
+  min-height: 82px;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 14px;
+  border: 1px solid #ddd8e7;
+  border-radius: 14px;
+  color: #6a43cf;
+  background: #ffffff;
+  text-align: left;
+}
+
+.summaryGrid article > span,
+.pendingSummary > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  color: #70697e;
+  font-size: 11px;
+}
+
+.summaryGrid strong,
+.pendingSummary strong {
+  color: #251d40;
+  font-size: 17px;
+}
+
+.summaryGrid small,
+.pendingSummary small {
+  overflow: hidden;
+  color: #8a8395;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pendingSummary {
+  width: 100%;
+  cursor: pointer;
+}
+
+.pendingSummary > svg:last-child {
+  margin-left: auto;
+  color: #8b8497;
+}
+
+.pendingSummary:hover {
+  border-color: #b9a9dd;
+  background: #fbf9ff;
+}
+
+.hasPending {
+  border-color: #ead49f;
+  color: #a36a08;
+  background: #fffbef;
+}
+
+.alertPanel {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid #ead6a8;
+  border-radius: 14px;
+  background: #fffaf0;
+}
+
+.alertPanel > div {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+}
+
+.alertPanel strong {
+  color: #715019;
+  font-size: 12px;
+}
+
+.alertPanel span,
+.alertPanel li {
+  color: #665d4f;
+  font-size: 11px;
+}
+
+.alertPanel ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.alertPanel p {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid #eee0bd;
+  color: #776b58;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.tabs {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 7px;
+  border: 1px solid #ddd8e7;
+  border-radius: 14px;
+  background: #ffffff;
+  scrollbar-width: thin;
+}
+
+.tabs button {
+  position: relative;
+  display: inline-flex;
+  min-width: max-content;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 10px;
+  color: #6d667a;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tabs button:hover {
+  color: #5530bc;
+  background: #f7f3ff;
+}
+
+.tabs .activeTab {
+  color: #ffffff;
+  background: linear-gradient(90deg, #6940d2, #8054df);
+  box-shadow: 0 6px 16px rgba(97, 58, 195, 0.2);
+}
+
+.tabs button i {
+  display: grid;
+  min-width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: 999px;
+  color: #7a5100;
+  background: #ffe6a2;
+  font-size: 9px;
+  font-style: normal;
+}
+
+.formCard {
+  min-height: 540px;
+  padding: 22px;
+  border: 1px solid #ddd8e7;
+  border-radius: 17px;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(55, 39, 94, 0.05);
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.sectionHeading > div {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: #6841ca;
+}
+
+.sectionHeading h2,
+.sectionHeading p {
+  margin: 0;
+}
+
+.sectionHeading h2 {
+  color: #241d3f;
+  font-size: 18px;
+}
+
+.sectionHeading p {
+  margin-top: 4px;
+  color: #81798e;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.trimesterBadge {
+  flex: 0 0 auto;
+  padding: 8px 11px;
+  border-radius: 999px;
+  color: #5535ad;
+  background: #eee8fa;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.fieldGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.field {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 6px;
+  color: #453e57;
+}
+
+.field > span {
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.field > span b {
+  color: #c43e50;
+}
+
+.field > small {
+  color: #8a8396;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 8px 11px;
+  border: 1px solid #d9d3e4;
+  border-radius: 10px;
+  outline: 0;
+  color: #2d2643;
+  background: #ffffff;
+  font: inherit;
+  font-size: 12px;
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: #7b4edb;
+  box-shadow: 0 0 0 3px rgba(123, 78, 219, 0.1);
+}
+
+.protectedDetails,
+.secondaryDetails {
+  margin-top: 20px;
+  border: 1px solid #e3ddec;
+  border-radius: 13px;
+  background: #fbfaff;
+}
+
+.protectedDetails summary,
+.secondaryDetails summary {
+  display: flex;
+  min-height: 51px;
+  align-items: center;
+  gap: 9px;
+  padding: 0 14px;
+  color: #554d66;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 750;
+  list-style: none;
+}
+
+.protectedDetails summary::-webkit-details-marker,
+.secondaryDetails summary::-webkit-details-marker,
+.examItem summary::-webkit-details-marker {
+  display: none;
+}
+
+.protectedDetails summary small,
+.secondaryDetails summary small {
+  margin-left: auto;
+  color: #8a8295;
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.protectedDetails[open],
+.secondaryDetails[open] {
+  background: #ffffff;
+}
+
+.protectedDetails[open] > .fieldGrid,
+.secondaryDetails[open] > .fieldGrid {
+  padding: 16px;
+  border-top: 1px solid #e8e3ef;
+}
+
+.divider {
+  height: 1px;
+  margin: 22px 0;
+  background: #ece8f1;
+}
+
+.calculationBox {
+  display: flex;
+  max-width: 430px;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 14px;
+  border-radius: 13px;
+  color: #6840c9;
+  background: #f3eefc;
+}
+
+.calculationBox > div {
+  display: grid;
+  gap: 3px;
+}
+
+.calculationBox span {
+  color: #716881;
+  font-size: 10px;
+}
+
+.calculationBox strong {
+  color: #2d2249;
+  font-size: 13px;
+}
+
+.consultationComposer {
+  display: grid;
+  grid-template-columns: 160px 180px minmax(220px, 1fr) 120px;
+  align-items: end;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 13px;
+  background: #f8f6fc;
+}
+
+.addButton {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 10px;
+  color: #ffffff;
+  background: #7044d5;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.consultationList {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.consultationList article {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 9px;
+  min-height: 55px;
+  padding: 8px 11px;
+  border: 1px solid #e4dfea;
+  border-radius: 11px;
+}
+
+.consultationList article > svg {
+  color: #7248d2;
+}
+
+.consultationList article > span {
+  display: grid;
+  gap: 3px;
+}
+
+.consultationList strong {
+  color: #312947;
+  font-size: 11px;
+}
+
+.consultationList small {
+  color: #827b8e;
+  font-size: 10px;
+  text-transform: capitalize;
+}
+
+.consultationList button {
+  display: grid;
+  width: 31px;
+  height: 31px;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  color: #a13b49;
+  background: #fff0f2;
+}
+
+.emptyInline {
+  padding: 20px;
+  border: 1px dashed #d9d2e3;
+  border-radius: 11px;
+  color: #8b8495;
+  text-align: center;
+  font-size: 11px;
+}
+
+.trimesterTabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 13px;
+}
+
+.trimesterTabs button {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 43px;
+  border: 1px solid #ddd7e7;
+  border-radius: 10px;
+  color: #6f687c;
+  background: #ffffff;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.trimesterTabs button small {
+  padding: 3px 7px;
+  border-radius: 999px;
+  color: #236a4d;
+  background: #e7f7ef;
+  font-size: 8px;
+}
+
+.trimesterTabs .activeTrimester {
+  border-color: #8d6ed7;
+  color: #5d35bd;
+  background: #f5f0ff;
+}
+
+.examList,
+.vaccineList {
+  display: grid;
+  gap: 8px;
+}
+
+.examItem {
+  border: 1px solid #e2ddea;
+  border-radius: 12px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.examItem summary {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto 18px;
+  align-items: center;
+  gap: 10px;
+  min-height: 60px;
+  padding: 8px 13px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.examItem summary > div {
+  display: grid;
+  gap: 3px;
+}
+
+.examItem summary strong {
+  color: #312a47;
+  font-size: 11px;
+}
+
+.examItem summary small {
+  color: #8a8395;
+  font-size: 9px;
+}
+
+.statusDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #aaa3b3;
+}
+
+.statusLabel {
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: #5e5769;
+  background: #f0edf3;
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.examStatus_pendente,
+.examStatus_solicitado,
+.vaccineStatus_pendente,
+.vaccineStatus_agendada {
+  background: #d79b28;
+}
+
+.examStatus_realizado,
+.vaccineStatus_realizada {
+  background: #37a16e;
+}
+
+.examStatus_resultado_alterado {
+  background: #d24b58;
+}
+
+.examStatus_nao_se_aplica,
+.vaccineStatus_nao_se_aplica {
+  background: #5882a2;
+}
+
+.examFields {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 11px;
+  padding: 14px;
+  border-top: 1px solid #e9e4ef;
+  background: #fcfbfe;
+}
+
+.dischargeBox {
+  padding: 17px;
+  border: 1px solid #dfe0e7;
+  border-radius: 14px;
+  background: #fafbfc;
+}
+
+.dischargeActive {
+  border-color: #a9cce4;
+  background: #f1f8fc;
+}
+
+.dischargeToggle {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  cursor: pointer;
+}
+
+.dischargeToggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: #397ea9;
+}
+
+.dischargeToggle > span {
+  display: grid;
+  gap: 3px;
+}
+
+.dischargeToggle strong {
+  color: #2a3440;
+  font-size: 12px;
+}
+
+.dischargeToggle small {
+  color: #73818c;
+  font-size: 10px;
+}
+
+.dischargeActive .fieldGrid {
+  margin-top: 17px;
+  padding-top: 17px;
+  border-top: 1px solid #cfe0eb;
+}
+
+.message {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 11px;
+}
+
+.message a {
+  margin-left: auto;
+  font-weight: 800;
+  text-decoration: underline;
+}
+
+.messageSuccess {
+  border: 1px solid #b8e0c8;
+  color: #216b45;
+  background: #effaf4;
+}
+
+.messageError {
+  border: 1px solid #f0bdc2;
+  color: #a32c3b;
+  background: #fff2f3;
+}
+
+.actionBar {
+  position: sticky;
+  bottom: 10px;
+  z-index: 5;
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  gap: 15px;
+  padding: 10px 13px;
+  border: 1px solid #d7d0e3;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 12px 36px rgba(49, 35, 85, 0.13);
+  backdrop-filter: blur(12px);
+}
+
+.actionBar > span {
+  min-width: 0;
+  flex: 1;
+  color: #857e90;
+  font-size: 9px;
+  text-align: center;
+}
+
+.cancelButton,
+.saveButton {
+  display: inline-flex;
+  min-height: 43px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 17px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.cancelButton {
+  border: 1px solid #d3cce0;
+  color: #625a70;
+  background: #ffffff;
+}
+
+.saveButton {
+  min-width: 190px;
+  border: 0;
+  color: #ffffff;
+  background: linear-gradient(90deg, #6840d1, #8254e0);
+  box-shadow: 0 8px 20px rgba(100, 59, 205, 0.22);
+}
+
+.saveButton:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.spin {
+  animation: spin 800ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 1180px) {
+  .fieldGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .examFields {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .consultationComposer {
+    grid-template-columns: 150px 170px 1fr;
+  }
+
+  .consultationComposer .addButton {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 900px) {
+  .contextBar {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .contextUbs {
+    max-width: none;
+    flex: 1 1 300px;
+    border-left: 0;
+    border-top: 1px solid #e8e3ef;
+  }
+
+  .summaryGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fieldGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .examFields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sectionHeading {
+    flex-direction: column;
+  }
+
+  .alertPanel {
+    grid-template-columns: 1fr;
+  }
+
+  .alertPanel p {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 620px) {
+  .formCard {
+    padding: 15px;
+  }
+
+  .summaryGrid,
+  .fieldGrid,
+  .examFields,
+  .consultationComposer {
+    grid-template-columns: 1fr;
+  }
+
+  .trimesterTabs {
+    flex-direction: column;
+  }
+
+  .examItem summary {
+    grid-template-columns: 12px minmax(0, 1fr) 18px;
+  }
+
+  .statusLabel {
+    display: none;
+  }
+
+  .actionBar {
+    position: static;
+    flex-direction: column;
+  }
+
+  .cancelButton,
+  .saveButton {
+    width: 100%;
+  }
+
+  .actionBar > span {
+    order: 3;
+  }
+}

@@ -1,0 +1,335 @@
+.summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 22px;
+  padding: 13px 15px;
+  border: 1px solid #d9d2e2;
+  border-radius: 13px;
+  color: #5e5668;
+  background: #fff;
+}
+
+.summary svg {
+  color: #7547d2;
+}
+
+.summary p {
+  margin: 0;
+  font-size: 12px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 15px;
+  margin-top: 16px;
+}
+
+.card {
+  display: flex;
+  min-height: 330px;
+  flex-direction: column;
+  padding: 17px;
+  border: 1px solid #ddd7e5;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 10px 26px rgba(55, 38, 90, .05);
+}
+
+.card header {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 11px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #eeeaf2;
+}
+
+.avatar {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 12px;
+  color: #7850cd;
+  background: #eee8fa;
+}
+
+.card h2 {
+  overflow: hidden;
+  margin: 0;
+  color: #2c243c;
+  font-family: inherit;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card header small {
+  display: block;
+  margin-top: 3px;
+  color: #857e90;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+
+.card dl {
+  display: grid;
+  gap: 9px;
+  margin: 15px 0;
+}
+
+.card dl > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+}
+
+.card dt {
+  color: #857d8f;
+}
+
+.card dd {
+  margin: 0;
+  color: #373042;
+  font-weight: 700;
+  text-align: right;
+}
+
+.deadline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding: 10px 11px;
+  border-radius: 10px;
+  color: #7c5815;
+  background: #fff7e2;
+  font-size: 11px;
+}
+
+.card footer {
+  display: grid;
+  grid-template-columns: .9fr 1.45fr;
+  gap: 8px;
+  margin-top: 13px;
+}
+
+.restoreButton,
+.deleteButton {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.restoreButton {
+  border: 1px solid #a98ede;
+  color: #6540bd;
+  background: #fff;
+}
+
+.deleteButton {
+  border: 1px solid #efb7bd;
+  color: #aa2b39;
+  background: #fff5f6;
+}
+
+.emptyState {
+  display: grid;
+  min-height: 270px;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  margin-top: 22px;
+  border: 1px dashed #d5cddd;
+  border-radius: 16px;
+  color: #82798c;
+  background: #fff;
+}
+
+.emptyState strong {
+  color: #40374d;
+}
+
+.modalBackdrop {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(25, 18, 39, .48);
+  backdrop-filter: blur(3px);
+}
+
+.modalCard {
+  position: relative;
+  width: min(520px, 100%);
+  padding: 25px;
+  border: 1px solid #e1dae7;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 28px 80px rgba(28, 19, 48, .28);
+}
+
+.modalClose {
+  position: absolute;
+  top: 13px;
+  right: 13px;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  color: #71697c;
+  background: #f4f1f6;
+  cursor: pointer;
+}
+
+.dangerIcon,
+.restoreIcon {
+  display: grid;
+  width: 50px;
+  height: 50px;
+  place-items: center;
+  border-radius: 14px;
+}
+
+.dangerIcon {
+  color: #b52f3e;
+  background: #fdecef;
+}
+
+.restoreIcon {
+  color: #4f34a8;
+  background: #eee8fa;
+}
+
+.modalCard h2 {
+  margin: 16px 0 8px;
+  color: #2d243b;
+  font-family: inherit;
+  font-size: 20px;
+}
+
+.modalCard p {
+  margin: 0;
+  color: #6d6576;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.confirmCheck {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 17px;
+  padding: 13px;
+  border: 1px solid #efc2c7;
+  border-radius: 11px;
+  color: #733842;
+  background: #fff5f6;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.confirmCheck input {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  margin-top: 1px;
+  accent-color: #b93140;
+}
+
+.errorBox {
+  margin-top: 13px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  color: #aa2735;
+  background: #fff0f1;
+  font-size: 12px;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.cancelButton,
+.confirmDelete,
+.confirmRestore {
+  display: inline-flex;
+  min-height: 43px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 15px;
+  border-radius: 10px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.cancelButton {
+  border: 1px solid #d9d2e1;
+  color: #5e5668;
+  background: #fff;
+}
+
+.confirmDelete {
+  border: 0;
+  color: #fff;
+  background: #b93140;
+}
+
+.confirmRestore {
+  border: 0;
+  color: #fff;
+  background: #6d3fcf;
+}
+
+.cancelButton:disabled,
+.confirmDelete:disabled,
+.confirmRestore:disabled,
+.modalClose:disabled {
+  cursor: not-allowed;
+  opacity: .58;
+}
+
+@media (max-width: 1050px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .card footer {
+    grid-template-columns: 1fr;
+  }
+
+  .modalActions {
+    flex-direction: column-reverse;
+  }
+
+  .cancelButton,
+  .confirmDelete,
+  .confirmRestore {
+    width: 100%;
+  }
+}

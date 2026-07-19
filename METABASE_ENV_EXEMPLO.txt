@@ -1,0 +1,7 @@
+# Acrescente estas variáveis ao arquivo C:\dashboard2_0\.env.local
+# O painel local funciona mesmo sem estas variáveis.
+
+METABASE_SITE_URL=https://SEU-METABASE.example.com
+METABASE_EMBED_SECRET=SEGREDO_DE_EMBEDDING_GERADO_NO_METABASE
+METABASE_UBS_DASHBOARD_ID=1
+METABASE_PROFESSIONAL_DASHBOARD_ID=2

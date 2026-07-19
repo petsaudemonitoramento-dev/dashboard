@@ -1,0 +1,1 @@
+import {LoginBrandPanel} from "@/components/auth/login-brand-panel";import {LoginForm} from "@/components/auth/login-form";export default function Page(){return <main className="login-page"><LoginBrandPanel/><section className="access"><LoginForm/></section></main>}

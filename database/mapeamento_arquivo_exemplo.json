@@ -1,0 +1,14 @@
+{
+  "arquivo_analisado": "Planilha ANONIMIZADA (2).xlsx",
+  "aba": "acompanhamento-condicao-saude_2",
+  "linha_cabecalho": 26,
+  "primeira_linha_dados": 27,
+  "total_colunas_observadas": 60,
+  "estrategia": [
+    "detectar cabeçalho entre as primeiras 100 linhas",
+    "pontuar a linha pela quantidade de aliases reconhecidos",
+    "normalizar acentos, símbolos e espaços",
+    "preservar colunas clínicas desconhecidas em dados_extras",
+    "excluir possíveis identificadores de dados_extras"
+  ]
+}

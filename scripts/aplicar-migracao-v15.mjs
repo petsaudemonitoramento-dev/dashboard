@@ -1,0 +1,29 @@
+import { readFile } from "node:fs/promises";
+import postgres from "postgres";
+
+const databaseUrl = process.env.SUPABASE_DATABASE_URL;
+
+if (!databaseUrl) {
+  throw new Error("Configure SUPABASE_DATABASE_URL no arquivo .env.local.");
+}
+
+const sql = postgres(databaseUrl, {
+  ssl: "require",
+  max: 1,
+  prepare: false,
+});
+
+try {
+  const migration = await readFile(
+    new URL(
+      "../database/002_gestantes_cards_identidade.sql",
+      import.meta.url
+    ),
+    "utf8"
+  );
+
+  await sql.unsafe(migration);
+  console.log("Migração V15 aplicada com sucesso.");
+} finally {
+  await sql.end();
+}
