@@ -1,6 +1,7 @@
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { getPostgresClient } from "@/lib/db/postgres";
+import { isPublicRequestableProfile } from "@/lib/auth/roles";
 import {
   isUuid,
   normalizeBirthDate,
@@ -8,13 +9,6 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const ALLOWED_PROFILES = new Set([
-  "administrador",
-  "profissional_ubs",
-  "acs",
-  "aluno",
-]);
 
 export async function POST(request: Request) {
   let createdUserId: string | null = null;
@@ -61,7 +55,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!ALLOWED_PROFILES.has(perfilSolicitado)) {
+    if (!isPublicRequestableProfile(perfilSolicitado)) {
       return NextResponse.json(
         { error: "Perfil solicitado inválido." },
         { status: 400 }

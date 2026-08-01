@@ -3,14 +3,7 @@
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { LogOut, Search } from "lucide-react";
-
-const PROFILE_LABELS: Record<string, string> = {
-  administrador: "Gestão",
-  profissional_ubs: "Profissional UBS",
-  equipe_ubs: "Equipe UBS",
-  acs: "ACS",
-  aluno: "Aluno",
-};
+import { profileLabel } from "@/lib/auth/roles";
 
 export function AppHeader({
   name,
@@ -40,7 +33,7 @@ export function AppHeader({
       <div className="user">
         <span>
           <b>{name}</b>
-          <small>{PROFILE_LABELS[profile] ?? profile}</small>
+          <small>{profileLabel(profile)}</small>
         </span>
 
         <button

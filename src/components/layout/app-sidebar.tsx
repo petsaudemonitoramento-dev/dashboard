@@ -15,21 +15,15 @@ import {
   Map,
   MapPinned,
   Settings,
-  ShieldCheck,
   Stethoscope,
   Trash2,
   UserCheck,
   Users,
 } from "lucide-react";
 import { APP_CONFIG } from "@/config/app";
+import type { UserProfile } from "@/lib/auth/roles";
 
-type SidebarProfile =
-  | "administrador"
-  | "profissional_ubs"
-  | "equipe_ubs"
-  | "acs"
-  | "aluno"
-  | string;
+type SidebarProfile = UserProfile | string;
 
 type NavigationItem = {
   href: string;
@@ -43,13 +37,13 @@ const items: NavigationItem[] = [
     href: "/dashboard",
     label: "Início",
     icon: Home,
-    roles: ["administrador", "profissional_ubs", "equipe_ubs", "acs", "aluno"],
+    roles: ["administrador", "gestao_municipal", "equipe_ubs", "acs", "aluno"],
   },
   {
     href: "/dashboard/indicadores",
     label: "Indicadores",
     icon: LayoutDashboard,
-    roles: ["administrador", "profissional_ubs", "equipe_ubs", "aluno"],
+    roles: ["gestao_municipal", "equipe_ubs", "aluno"],
   },
   {
     href: "/dashboard/territorio",
@@ -61,13 +55,13 @@ const items: NavigationItem[] = [
     href: "/dashboard/cadastro-clinico",
     label: "Cadastro clínico",
     icon: FilePlus2,
-    roles: ["profissional_ubs", "equipe_ubs"],
+    roles: ["equipe_ubs"],
   },
   {
     href: "/dashboard/classificacao-risco",
     label: "Classificar risco",
     icon: HeartPulse,
-    roles: ["profissional_ubs", "equipe_ubs"],
+    roles: ["equipe_ubs"],
   },
   {
     href: "/dashboard/importacoes",
@@ -79,55 +73,55 @@ const items: NavigationItem[] = [
     href: "/dashboard/gestantes",
     label: "Gestantes",
     icon: Baby,
-    roles: ["profissional_ubs", "equipe_ubs"],
+    roles: ["equipe_ubs"],
   },
   {
     href: "/dashboard/lixeira",
     label: "Lixeira",
     icon: Trash2,
-    roles: ["profissional_ubs", "equipe_ubs"],
+    roles: ["equipe_ubs"],
   },
   {
     href: "/dashboard/atendimentos",
     label: "Atendimentos",
     icon: Stethoscope,
-    roles: ["profissional_ubs", "equipe_ubs"],
+    roles: ["equipe_ubs"],
   },
   {
     href: "/dashboard/visitas",
     label: "Visitas",
     icon: ClipboardList,
-    roles: ["profissional_ubs", "equipe_ubs"],
+    roles: ["equipe_ubs"],
   },
   {
     href: "/dashboard/autorizacoes",
     label: "Autorizações",
     icon: UserCheck,
-    roles: ["administrador"],
+    roles: ["gestao_municipal"],
   },
   {
     href: "/dashboard/usuarios",
     label: "Usuários",
     icon: Users,
-    roles: ["administrador"],
+    roles: ["gestao_municipal"],
   },
   {
     href: "/dashboard/ubs",
     label: "UBS e microáreas",
     icon: Building2,
-    roles: ["administrador"],
+    roles: ["administrador", "gestao_municipal"],
   },
   {
     href: "/dashboard/mapa",
     label: "Mapa",
     icon: Map,
-    roles: ["profissional_ubs", "equipe_ubs"],
+    roles: ["equipe_ubs"],
   },
   {
     href: "/dashboard/configuracoes",
     label: "Configurações",
     icon: Settings,
-    roles: ["administrador", "profissional_ubs", "equipe_ubs", "acs", "aluno"],
+    roles: ["administrador", "gestao_municipal", "equipe_ubs", "acs", "aluno"],
   },
 ];
 

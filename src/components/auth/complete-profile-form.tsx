@@ -8,6 +8,10 @@ import {
 } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { BirthDateField } from "@/components/auth/birth-date-field";
+import {
+  PROFILE_LABELS,
+  PUBLIC_REQUESTABLE_PROFILES,
+} from "@/lib/auth/roles";
 
 type UbsOption = {
   id: string;
@@ -110,10 +114,11 @@ export function CompleteProfileForm({
                 <option disabled value="">
                   Selecione
                 </option>
-                <option value="administrador">Gestão (administrador)</option>
-                <option value="profissional_ubs">Profissional da UBS</option>
-                <option value="acs">ACS</option>
-                <option value="aluno">Aluno</option>
+                {PUBLIC_REQUESTABLE_PROFILES.map((profile) => (
+                  <option key={profile} value={profile}>
+                    {PROFILE_LABELS[profile]}
+                  </option>
+                ))}
               </select>
             </div>
 

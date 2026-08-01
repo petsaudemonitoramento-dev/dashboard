@@ -10,13 +10,13 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { profileLabel } from "@/lib/auth/roles";
 import styles from "./authorization-list.module.css";
 
 export type AuthorizationRow = {
   id: string;
   nomeCompleto: string;
   email: string;
-  dataNascimento: string | null;
   perfilSolicitado: string;
   ubsSolicitadaId: string | null;
   ubsSolicitadaNome: string | null;
@@ -41,21 +41,6 @@ type Draft = {
   ubsId: string;
   microareaId: string;
 };
-
-const PROFILE_LABELS: Record<string, string> = {
-  administrador: "Gestão",
-  profissional_ubs: "Profissional da UBS",
-  acs: "ACS",
-  aluno: "Aluno",
-};
-
-function formatDate(value: string | null): string {
-  if (!value) return "Não informada";
-
-  return new Intl.DateTimeFormat("pt-BR").format(
-    new Date(`${value.slice(0, 10)}T12:00:00`)
-  );
-}
 
 export function AuthorizationList({
   rows,
@@ -82,7 +67,7 @@ export function AuthorizationList({
       microareas.find((item) => item.ubsId === ubsId)?.id ?? "";
 
     return {
-      perfil: row.perfilSolicitado || "profissional_ubs",
+      perfil: row.perfilSolicitado || "aluno",
       ubsId,
       microareaId: firstMicroarea,
     };
@@ -140,6 +125,16 @@ export function AuthorizationList({
   ) {
     if (targetRows.length === 0) {
       setMessage("Selecione pelo menos uma solicitação.");
+      return;
+    }
+
+    if (
+      action === "approve" &&
+      targetRows.some((row) => row.perfilSolicitado === "equipe_ubs")
+    ) {
+      setMessage(
+        "A equipe UBS só pode ser aprovada depois da validação de CRM ou COREN."
+      );
       return;
     }
 
@@ -289,29 +284,14 @@ export function AuthorizationList({
                 <div>
                   <strong>{row.nomeCompleto}</strong>
                   <small>{row.email}</small>
-                  <small>
-                    Nascimento: {formatDate(row.dataNascimento)} ·{" "}
-                    {row.origemCadastro}
-                  </small>
+                  <small>{row.origemCadastro}</small>
                 </div>
               </div>
 
               <div className={styles.fields}>
                 <label>
                   Perfil
-                  <select
-                    onChange={(event) =>
-                      updateDraft(row, { perfil: event.target.value })
-                    }
-                    value={draft.perfil}
-                  >
-                    <option value="administrador">Gestão</option>
-                    <option value="profissional_ubs">
-                      Profissional da UBS
-                    </option>
-                    <option value="acs">ACS</option>
-                    <option value="aluno">Aluno</option>
-                  </select>
+                  <strong>{profileLabel(row.perfilSolicitado)}</strong>
                 </label>
 
                 <label>

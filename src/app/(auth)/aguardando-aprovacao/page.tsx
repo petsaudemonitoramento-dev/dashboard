@@ -3,15 +3,9 @@ import { redirect } from "next/navigation";
 import { ApprovalActions } from "@/components/auth/approval-actions";
 import { getPostgresClient } from "@/lib/db/postgres";
 import { createClient } from "@/lib/supabase/server";
+import { profileLabel } from "@/lib/auth/roles";
 
 export const dynamic = "force-dynamic";
-
-const PROFILE_LABELS: Record<string, string> = {
-  administrador: "Gestão (administrador)",
-  profissional_ubs: "Profissional da UBS",
-  acs: "ACS",
-  aluno: "Aluno",
-};
 
 export default async function PendingApprovalPage() {
   const supabase = await createClient();
@@ -73,8 +67,7 @@ export default async function PendingApprovalPage() {
           <div>
             <span>Perfil solicitado</span>
             <strong>
-              {PROFILE_LABELS[profile.perfil_solicitado] ??
-                profile.perfil_solicitado}
+              {profileLabel(String(profile.perfil_solicitado ?? ""))}
             </strong>
           </div>
           <div>

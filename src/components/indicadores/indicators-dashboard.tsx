@@ -408,8 +408,7 @@ export function IndicatorsDashboard({
   const [refreshing, startRefresh] = useTransition();
 
   const studentLimited = profile === "aluno";
-  const hasProfessionalScope =
-    profile === "profissional_ubs" || profile === "equipe_ubs";
+  const hasProfessionalScope = profile === "equipe_ubs";
   const resolvedScope =
     !hasProfessionalScope && scope === "profissional" ? "ubs" : scope;
   const data =
@@ -566,8 +565,8 @@ export function IndicatorsDashboard({
           <>
             <BarList
               description={
-                profile === "administrador"
-                  ? "Distribuição completa para a gestão da UBS."
+                profile === "gestao_municipal"
+                  ? "Distribuição municipal completa para a gestão."
                   : resolvedScope === "ubs"
                     ? "Contagens pequenas são agrupadas para reduzir risco de identificação."
                     : "Distribuição das suas gestantes por território."
@@ -586,7 +585,7 @@ export function IndicatorsDashboard({
         )}
       </section>
 
-      {!studentLimited && (
+      {profile === "equipe_ubs" && (
         <MetabasePanel
           config={metabaseConfig}
           refreshVersion={refreshVersion}

@@ -1,17 +1,10 @@
 import { NextResponse } from "next/server";
-import { getPostgresClient } from "@/lib/db/postgres";
-import { createClient } from "@/lib/supabase/server";
+import { getManagementContext } from "@/lib/auth/guards";
+import { isPublicRequestableProfile } from "@/lib/auth/roles";
 import { isUuid } from "@/lib/validation/profile-input";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const ALLOWED_PROFILES = new Set([
-  "administrador",
-  "profissional_ubs",
-  "acs",
-  "aluno",
-]);
 
 type ApprovalRequest = {
   targetId: string;
@@ -22,26 +15,11 @@ type ApprovalRequest = {
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const context = await getManagementContext();
 
-    if (!user) {
+    if (!context) {
       return NextResponse.json(
-        { error: "Sessão expirada." },
-        { status: 401 }
-      );
-    }
-
-    const sql = getPostgresClient();
-    const permission = await sql`
-      select private.usuario_admin_v20(${user.id}::uuid) as autorizado
-    `;
-
-    if (!permission[0]?.autorizado) {
-      return NextResponse.json(
-        { error: "Apenas a gestão pode autorizar perfis." },
+        { error: "Apenas a gestão municipal pode autorizar perfis." },
         { status: 403 }
       );
     }
@@ -52,11 +30,8 @@ export async function POST(request: Request) {
       ? (body.items as ApprovalRequest[])
       : [];
 
-    if (!["approve", "reject"].includes(action)) {
-      return NextResponse.json(
-        { error: "Ação inválida." },
-        { status: 400 }
-      );
+    if (!new Set(["approve", "reject"]).has(action)) {
+      return NextResponse.json({ error: "Ação inválida." }, { status: 400 });
     }
 
     if (items.length === 0 || items.length > 100) {
@@ -71,9 +46,13 @@ export async function POST(request: Request) {
     for (const item of items) {
       const targetId = String(item.targetId ?? "").trim();
 
-      if (!isUuid(targetId) || uniqueIds.has(targetId)) {
+      if (
+        !isUuid(targetId) ||
+        uniqueIds.has(targetId) ||
+        targetId === context.user.id
+      ) {
         return NextResponse.json(
-          { error: "Existe uma solicitação inválida ou repetida." },
+          { error: "Existe uma solicitação inválida, repetida ou própria." },
           { status: 400 }
         );
       }
@@ -85,39 +64,61 @@ export async function POST(request: Request) {
         const ubsId = String(item.ubsId ?? "").trim();
         const microareaId = String(item.microareaId ?? "").trim();
 
-        if (!ALLOWED_PROFILES.has(perfil) || !isUuid(ubsId)) {
+        if (!isPublicRequestableProfile(perfil) || !isUuid(ubsId)) {
           return NextResponse.json(
             { error: "Revise o perfil e a UBS das solicitações." },
             { status: 400 }
           );
         }
 
-        if (perfil === "acs" && !isUuid(microareaId)) {
+        if (perfil === "equipe_ubs") {
           return NextResponse.json(
             {
               error:
-                "Toda ACS precisa receber uma microárea antes da aprovação.",
+                "A aprovação da equipe UBS depende da validação de CRM ou COREN.",
             },
+            { status: 400 }
+          );
+        }
+
+        if (perfil === "acs" && !isUuid(microareaId)) {
+          return NextResponse.json(
+            { error: "Toda ACS precisa receber uma microárea." },
             { status: 400 }
           );
         }
       }
     }
 
-    await sql.begin(async (transaction) => {
+    await context.sql.begin(async (transaction) => {
       for (const item of items) {
         const targetId = String(item.targetId).trim();
         const beforeRows = await transaction`
-          select to_jsonb(p.*) as dados
+          select
+            p.perfil_solicitado,
+            jsonb_build_object(
+              'perfil', p.perfil::text,
+              'perfilSolicitado', p.perfil_solicitado,
+              'aprovacaoStatus', p.aprovacao_status,
+              'ativo', p.ativo,
+              'ubsId', p.ubs_id,
+              'ubsSolicitadaId', p.ubs_solicitada_id,
+              'microareaId', p.microarea_id
+            ) as dados
           from public.perfis p
           where p.id = ${targetId}::uuid
             and p.aprovacao_status = 'pendente'
-          limit 1
+            and p.status = 'ativo'
+            and p.ativo = true
+            and p.cadastro_completo = true
+            and p.perfil_solicitado in ('equipe_ubs', 'acs', 'aluno')
+          for update
         `;
+        const before = beforeRows[0];
 
-        if (!beforeRows[0]) {
+        if (!before) {
           throw new Error(
-            "Uma das solicitações não está mais pendente. Atualize a página."
+            "Uma solicitação não está mais pendente. Atualize a página."
           );
         }
 
@@ -130,7 +131,7 @@ export async function POST(request: Request) {
               microarea_id = null,
               aprovacao_status = 'rejeitado',
               aprovado_em = null,
-              aprovado_por = ${user.id}::uuid
+              aprovado_por = ${context.user.id}::uuid
             where id = ${targetId}::uuid
           `;
         } else {
@@ -138,12 +139,17 @@ export async function POST(request: Request) {
           const ubsId = String(item.ubsId).trim();
           const microareaId = String(item.microareaId ?? "").trim();
 
+          if (before.perfil_solicitado !== perfil) {
+            throw new Error(
+              "O perfil solicitado mudou. Atualize a página antes de decidir."
+            );
+          }
+
           const ubsRows = await transaction`
             select id
             from public.ubs
             where id = ${ubsId}::uuid
               and ativa = true
-            limit 1
           `;
 
           if (!ubsRows[0]) {
@@ -157,13 +163,10 @@ export async function POST(request: Request) {
               where id = ${microareaId}::uuid
                 and ubs_id = ${ubsId}::uuid
                 and ativa = true
-              limit 1
             `;
 
             if (!microRows[0]) {
-              throw new Error(
-                "A microárea escolhida não pertence à UBS da ACS."
-              );
+              throw new Error("A microárea não pertence à UBS da ACS.");
             }
           }
 
@@ -171,18 +174,12 @@ export async function POST(request: Request) {
             update public.perfis
             set
               perfil = ${perfil}::public.perfil_usuario,
-              perfil_solicitado = ${perfil},
               ubs_id = ${ubsId}::uuid,
               ubs_solicitada_id = ${ubsId}::uuid,
-              microarea_id = ${
-                perfil === "acs" ? microareaId : null
-              }::uuid,
+              microarea_id = ${perfil === "acs" ? microareaId : null}::uuid,
               aprovacao_status = 'aprovado',
-              cadastro_completo = true,
-              status = 'ativo',
-              ativo = true,
               aprovado_em = now(),
-              aprovado_por = ${user.id}::uuid,
+              aprovado_por = ${context.user.id}::uuid,
               perfil_excluido_em = null,
               perfil_excluido_por = null
             where id = ${targetId}::uuid
@@ -190,10 +187,17 @@ export async function POST(request: Request) {
         }
 
         const afterRows = await transaction`
-          select to_jsonb(p.*) as dados
+          select jsonb_build_object(
+            'perfil', p.perfil::text,
+            'perfilSolicitado', p.perfil_solicitado,
+            'aprovacaoStatus', p.aprovacao_status,
+            'ativo', p.ativo,
+            'ubsId', p.ubs_id,
+            'ubsSolicitadaId', p.ubs_solicitada_id,
+            'microareaId', p.microarea_id
+          ) as dados
           from public.perfis p
           where p.id = ${targetId}::uuid
-          limit 1
         `;
 
         await transaction`
@@ -205,11 +209,11 @@ export async function POST(request: Request) {
             depois
           )
           values (
-            ${user.id}::uuid,
+            ${context.user.id}::uuid,
             ${targetId}::uuid,
             ${action === "approve" ? "aprovar_lote_v21" : "rejeitar_lote_v21"},
-            ${sql.json(beforeRows[0].dados)},
-            ${sql.json(afterRows[0]?.dados ?? {})}
+            ${context.sql.json(before.dados)},
+            ${context.sql.json(afterRows[0]?.dados ?? {})}
           )
         `;
       }

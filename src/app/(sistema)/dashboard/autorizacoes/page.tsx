@@ -5,8 +5,7 @@ import {
   type AuthorizationRow,
   type AuthorizationUbs,
 } from "@/components/admin/authorization-list";
-import { getPostgresClient } from "@/lib/db/postgres";
-import { createClient } from "@/lib/supabase/server";
+import { getManagementContext } from "@/lib/auth/guards";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -15,7 +14,6 @@ type DatabaseAuthorization = {
   id: string;
   nome_completo: string;
   email: string;
-  data_nascimento: string | Date | null;
   perfil_solicitado: string | null;
   ubs_solicitada_id: string | null;
   ubs_solicitada_nome: string | null;
@@ -23,34 +21,18 @@ type DatabaseAuthorization = {
   origem_cadastro: string;
 };
 
-function toIsoDate(value: string | Date | null): string | null {
-  if (!value) return null;
-
-  return value instanceof Date
-    ? value.toISOString().slice(0, 10)
-    : String(value).slice(0, 10);
-}
-
 function toIso(value: string | Date): string {
   return value instanceof Date ? value.toISOString() : String(value);
 }
 
 export default async function AutorizacoesPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const context = await getManagementContext();
 
-  if (!user) redirect("/login");
-
-  const sql = getPostgresClient();
-  const allowed = await sql`
-    select private.usuario_admin_v20(${user.id}::uuid) as autorizado
-  `;
-
-  if (!allowed[0]?.autorizado) {
+  if (!context) {
     redirect("/dashboard");
   }
+
+  const { sql } = context;
 
   const [rows, ubsRows, microareaRows] = await Promise.all([
     sql<DatabaseAuthorization[]>`
@@ -58,7 +40,6 @@ export default async function AutorizacoesPage() {
         p.id,
         p.nome_completo,
         p.email,
-        p.data_nascimento,
         p.perfil_solicitado,
         p.ubs_solicitada_id,
         u.nome as ubs_solicitada_nome,
@@ -69,6 +50,7 @@ export default async function AutorizacoesPage() {
         on u.id = p.ubs_solicitada_id
       where p.aprovacao_status = 'pendente'
         and p.perfil_excluido_em is null
+        and p.perfil_solicitado in ('equipe_ubs', 'acs', 'aluno')
       order by p.solicitado_em, p.nome_completo
     `,
     sql<AuthorizationUbs[]>`
@@ -96,8 +78,7 @@ export default async function AutorizacoesPage() {
     id: row.id,
     nomeCompleto: row.nome_completo,
     email: row.email,
-    dataNascimento: toIsoDate(row.data_nascimento),
-    perfilSolicitado: row.perfil_solicitado ?? "profissional_ubs",
+    perfilSolicitado: row.perfil_solicitado ?? "aluno",
     ubsSolicitadaId: row.ubs_solicitada_id,
     ubsSolicitadaNome: row.ubs_solicitada_nome,
     solicitadoEm: toIso(row.solicitado_em),

@@ -3,8 +3,7 @@ import {
   UbsManager,
   type ManagedUbs,
 } from "@/components/admin/ubs-manager";
-import { getPostgresClient } from "@/lib/db/postgres";
-import { createClient } from "@/lib/supabase/server";
+import { getActiveProfileContext } from "@/lib/auth/guards";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -24,21 +23,16 @@ type MicroareaRow = {
 };
 
 export default async function UbsPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const context = await getActiveProfileContext();
 
-  if (!user) redirect("/login");
-
-  const sql = getPostgresClient();
-  const allowed = await sql`
-    select private.usuario_admin_v20(${user.id}::uuid) as autorizado
-  `;
-
-  if (!allowed[0]?.autorizado) {
+  if (
+    !context ||
+    !["administrador", "gestao_municipal"].includes(context.profile.perfil)
+  ) {
     redirect("/dashboard");
   }
+
+  const { profile, sql } = context;
 
   const [ubsRows, microareaRows] = await Promise.all([
     sql<UbsRow[]>`
@@ -77,7 +71,10 @@ export default async function UbsPage() {
         </span>
       </section>
 
-      <UbsManager units={units} />
+      <UbsManager
+        readOnly={profile.perfil === "gestao_municipal"}
+        units={units}
+      />
     </>
   );
 }

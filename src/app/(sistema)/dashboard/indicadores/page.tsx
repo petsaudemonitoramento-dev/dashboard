@@ -57,25 +57,32 @@ export default async function IndicadoresPage() {
     redirect("/dashboard/territorio");
   }
 
-  if (!["administrador", "profissional_ubs", "equipe_ubs", "aluno"].includes(profile.perfil)) {
+  if (!["gestao_municipal", "equipe_ubs", "aluno"].includes(profile.perfil)) {
     redirect("/dashboard");
   }
 
+  let payload: Pick<
+    Parameters<typeof IndicatorsDashboard>[0],
+    "ubsData" | "professionalData" | "metabase"
+  > | null = null;
+  let loadError: unknown;
+
   try {
-    const [ubsRows, professionalRows] = await Promise.all([
-      sql<IndicatorRow[]>`
-        select private.obter_indicadores_v21(
-          ${user.id}::uuid,
-          'ubs'
-        ) as dados
-      `,
-      sql<IndicatorRow[]>`
+    const ubsRows = await sql<IndicatorRow[]>`
+      select private.obter_indicadores_v21(
+        ${user.id}::uuid,
+        'ubs'
+      ) as dados
+    `;
+    const professionalRows =
+      profile.perfil === "equipe_ubs"
+        ? await sql<IndicatorRow[]>`
         select private.obter_indicadores_v21(
           ${user.id}::uuid,
           'profissional'
         ) as dados
-      `,
-    ]);
+      `
+        : ubsRows;
 
     const ubsData = ubsRows[0]?.dados;
     const professionalData = professionalRows[0]?.dados;
@@ -84,7 +91,7 @@ export default async function IndicadoresPage() {
       throw new Error("Os indicadores não foram retornados pelo banco.");
     }
 
-    const allowMetabase = profile.perfil !== "aluno";
+    const allowMetabase = profile.perfil === "equipe_ubs";
 
     const metabase = {
       ubs: allowMetabase
@@ -115,28 +122,13 @@ export default async function IndicadoresPage() {
           },
     };
 
-    return (
-      <>
-        <section className="heading">
-          <p>PET-Saúde UFCG</p>
-          <h1>Indicadores de acompanhamento</h1>
-          <span>
-            Métricas agregadas da UBS e visão exclusiva das gestantes sob
-            sua responsabilidade.
-          </span>
-        </section>
-
-        <IndicatorsDashboard
-          metabase={metabase}
-          professionalData={professionalData}
-          profile={profile.perfil}
-          ubsData={ubsData}
-        />
-      </>
-    );
+    payload = { metabase, professionalData, ubsData };
   } catch (error) {
     console.error("Erro ao carregar indicadores V21:", error);
+    loadError = error;
+  }
 
+  if (!payload) {
     return (
       <>
         <section className="heading">
@@ -146,11 +138,30 @@ export default async function IndicadoresPage() {
         </section>
 
         <div className="pec-error">
-          {error instanceof Error
-            ? error.message
+          {loadError instanceof Error
+            ? loadError.message
             : "Erro desconhecido ao consultar os indicadores."}
         </div>
       </>
     );
   }
+
+  return (
+    <>
+      <section className="heading">
+        <p>PET-Saúde UFCG</p>
+        <h1>Indicadores de acompanhamento</h1>
+        <span>
+          Indicadores compatíveis com o escopo autorizado para este perfil.
+        </span>
+      </section>
+
+      <IndicatorsDashboard
+        metabase={payload.metabase}
+        professionalData={payload.professionalData}
+        profile={profile.perfil}
+        ubsData={payload.ubsData}
+      />
+    </>
+  );
 }

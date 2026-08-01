@@ -5,17 +5,15 @@ import {
   RotateCcw,
   ShieldCheck,
   Trash2,
-  UserCheck,
-  UserX,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { profileLabel } from "@/lib/auth/roles";
 
 export type AdminProfileRow = {
   id: string;
   nomeCompleto: string;
   email: string;
-  dataNascimento: string | null;
   perfilAtual: string;
   perfilSolicitado: string | null;
   aprovacaoStatus: string;
@@ -29,27 +27,6 @@ export type AdminProfileRow = {
   perfilExcluidoEm: string | null;
 };
 
-type UbsOption = {
-  id: string;
-  nome: string;
-};
-
-const PROFILE_LABELS: Record<string, string> = {
-  administrador: "Gestão",
-  profissional_ubs: "Profissional UBS",
-  equipe_ubs: "Equipe UBS",
-  acs: "ACS",
-  aluno: "Aluno",
-};
-
-function formatDate(value: string | null): string {
-  if (!value) return "Não informada";
-
-  return new Intl.DateTimeFormat("pt-BR").format(
-    new Date(`${value.slice(0, 10)}T12:00:00`)
-  );
-}
-
 function statusClass(status: string): string {
   if (status === "aprovado") return "v20-badge v20-badge-approved";
   if (status === "pendente") return "v20-badge v20-badge-pending";
@@ -57,21 +34,14 @@ function statusClass(status: string): string {
 }
 
 export function AdminProfiles({
-  currentUserId,
   profiles,
-  ubsOptions,
 }: {
-  currentUserId: string;
   profiles: AdminProfileRow[];
-  ubsOptions: UbsOption[];
 }) {
   const router = useRouter();
   const [workingId, setWorkingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [filters, setFilters] = useState<"todos" | "desativados">("todos");
-  const [drafts, setDrafts] = useState<
-    Record<string, { perfil: string; ubsId: string }>
-  >({});
 
   const visibleProfiles = useMemo(() => {
     if (filters === "desativados") {
@@ -83,59 +53,15 @@ export function AdminProfiles({
     return profiles;
   }, [filters, profiles]);
 
-  function draftFor(profile: AdminProfileRow) {
-    return (
-      drafts[profile.id] ?? {
-        perfil:
-          profile.perfilSolicitado ??
-          profile.perfilAtual ??
-          "profissional_ubs",
-        ubsId:
-          profile.ubsSolicitadaId ??
-          profile.ubsId ??
-          ubsOptions[0]?.id ??
-          "",
-      }
-    );
-  }
-
-  function updateDraft(
-    profileId: string,
-    patch: Partial<{ perfil: string; ubsId: string }>
-  ) {
-    const profile = profiles.find((item) => item.id === profileId);
-    if (!profile) return;
-
-    setDrafts((current) => ({
-      ...current,
-      [profileId]: {
-        ...draftFor(profile),
-        ...patch,
-      },
-    }));
-  }
-
   async function act(
     profile: AdminProfileRow,
-    action: "approve" | "reject" | "deactivate" | "reactivate"
+    action: "deactivate" | "reactivate"
   ) {
-    if (
-      action === "deactivate" &&
-      profile.id === currentUserId
-    ) {
-      setMessage("A gestão não pode excluir o próprio acesso.");
-      return;
-    }
-
-    const draft = draftFor(profile);
     const confirmation =
-      action === "deactivate"
-        ? window.confirm(
-            `Excluir o acesso de ${profile.nomeCompleto}? Os registros de auditoria serão preservados.`
-          )
-        : action === "reject"
-          ? window.confirm(`Rejeitar a solicitação de ${profile.nomeCompleto}?`)
-          : true;
+      action !== "deactivate" ||
+      window.confirm(
+        `Excluir o acesso de ${profile.nomeCompleto}? Os registros de auditoria serão preservados.`
+      );
 
     if (!confirmation) return;
 
@@ -146,12 +72,7 @@ export function AdminProfiles({
       const response = await fetch("/api/admin/perfis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action,
-          targetId: profile.id,
-          perfil: draft.perfil,
-          ubsId: draft.ubsId,
-        }),
+        body: JSON.stringify({ action, targetId: profile.id }),
       });
       const body = await response.json();
 
@@ -178,9 +99,7 @@ export function AdminProfiles({
         <div className="v20-page-heading">
           <div>
             <h2>Perfis e permissões</h2>
-            <p>
-              Gerencie acessos já aprovados, rejeitados ou desativados.
-            </p>
+            <p>Gerencie acessos já aprovados, rejeitados ou desativados.</p>
           </div>
 
           <div className="v20-admin-actions">
@@ -209,14 +128,15 @@ export function AdminProfiles({
           </div>
         </div>
 
-        {message && <div className="v20-message v20-message-success">{message}</div>}
+        {message && (
+          <div className="v20-message v20-message-success">{message}</div>
+        )}
 
         <div className="v20-admin-table-wrap">
           <table className="v20-admin-table">
             <thead>
               <tr>
                 <th>Profissional</th>
-                <th>Nascimento</th>
                 <th>Solicitação</th>
                 <th>UBS</th>
                 <th>Situação</th>
@@ -225,7 +145,6 @@ export function AdminProfiles({
             </thead>
             <tbody>
               {visibleProfiles.map((profile) => {
-                const draft = draftFor(profile);
                 const disabled = workingId === profile.id;
 
                 return (
@@ -235,12 +154,10 @@ export function AdminProfiles({
                       <br />
                       <small>{profile.email}</small>
                     </td>
-                    <td>{formatDate(profile.dataNascimento)}</td>
                     <td>
-                      {PROFILE_LABELS[profile.perfilSolicitado ?? ""] ??
-                        profile.perfilSolicitado ??
-                        PROFILE_LABELS[profile.perfilAtual] ??
-                        profile.perfilAtual}
+                      {profileLabel(
+                        profile.perfilSolicitado ?? profile.perfilAtual
+                      )}
                       <br />
                       <small>{profile.origemCadastro}</small>
                     </td>
@@ -255,71 +172,15 @@ export function AdminProfiles({
                       </span>
                     </td>
                     <td>
-                      {profile.aprovacaoStatus === "pendente" ? (
-                        <div className="v20-admin-actions">
-                          <select
-                            className="v20-admin-select"
-                            onChange={(event) =>
-                              updateDraft(profile.id, {
-                                perfil: event.target.value,
-                              })
-                            }
-                            value={draft.perfil}
-                          >
-                            <option value="administrador">Gestão</option>
-                            <option value="profissional_ubs">
-                              Profissional UBS
-                            </option>
-                            <option value="acs">ACS</option>
-                            <option value="aluno">Aluno</option>
-                          </select>
-
-                          <select
-                            className="v20-admin-select"
-                            onChange={(event) =>
-                              updateDraft(profile.id, {
-                                ubsId: event.target.value,
-                              })
-                            }
-                            value={draft.ubsId}
-                          >
-                            {ubsOptions.map((ubs) => (
-                              <option key={ubs.id} value={ubs.id}>
-                                {ubs.nome}
-                              </option>
-                            ))}
-                          </select>
-
-                          <button
-                            className="v20-success-button"
-                            disabled={disabled}
-                            onClick={() => void act(profile, "approve")}
-                            type="button"
-                          >
-                            <UserCheck size={15} />
-                            Aprovar
-                          </button>
-
-                          <button
-                            className="v20-danger-button"
-                            disabled={disabled}
-                            onClick={() => void act(profile, "reject")}
-                            type="button"
-                          >
-                            <UserX size={15} />
-                            Rejeitar
-                          </button>
-                        </div>
-                      ) : profile.aprovacaoStatus === "aprovado" ? (
+                      {profile.aprovacaoStatus === "aprovado" ? (
                         <div className="v20-admin-actions">
                           <span className="v20-badge v20-badge-approved">
                             <ShieldCheck size={13} />
-                            {PROFILE_LABELS[profile.perfilAtual] ??
-                              profile.perfilAtual}
+                            {profileLabel(profile.perfilAtual)}
                           </span>
                           <button
                             className="v20-danger-button"
-                            disabled={disabled || profile.id === currentUserId}
+                            disabled={disabled}
                             onClick={() => void act(profile, "deactivate")}
                             type="button"
                           >
@@ -345,7 +206,7 @@ export function AdminProfiles({
 
               {visibleProfiles.length === 0 && (
                 <tr>
-                  <td colSpan={6} style={{ padding: 32, textAlign: "center" }}>
+                  <td colSpan={5} style={{ padding: 32, textAlign: "center" }}>
                     <CheckCircle2 size={22} />
                     <br />
                     Nenhum perfil nesta situação.

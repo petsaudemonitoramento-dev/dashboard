@@ -26,7 +26,13 @@ export type ManagedUbs = {
   microareas: ManagedMicroarea[];
 };
 
-export function UbsManager({ units }: { units: ManagedUbs[] }) {
+export function UbsManager({
+  units,
+  readOnly = false,
+}: {
+  units: ManagedUbs[];
+  readOnly?: boolean;
+}) {
   const router = useRouter();
   const [message, setMessage] = useState<string | null>(null);
   const [working, setWorking] = useState<string | null>(null);
@@ -88,7 +94,7 @@ export function UbsManager({ units }: { units: ManagedUbs[] }) {
 
   return (
     <div className="v20-admin-page">
-      <section className="v20-admin-card">
+      {!readOnly && <section className="v20-admin-card">
         <div className="v20-page-heading">
           <div>
             <h2>Adicionar UBS</h2>
@@ -109,7 +115,7 @@ export function UbsManager({ units }: { units: ManagedUbs[] }) {
         </form>
 
         {message && <div className="v20-message v20-message-success">{message}</div>}
-      </section>
+      </section>}
 
       {units.map((unit) => (
         <section className="v20-admin-card" key={unit.id}>
@@ -119,7 +125,7 @@ export function UbsManager({ units }: { units: ManagedUbs[] }) {
                 <Building2 size={20} />
               </span>
 
-              {editingUbs === unit.id ? (
+              {!readOnly && editingUbs === unit.id ? (
                 <form
                   className="v20-inline-form"
                   onSubmit={(event) => {
@@ -150,7 +156,7 @@ export function UbsManager({ units }: { units: ManagedUbs[] }) {
               )}
             </div>
 
-            <div className="v20-admin-actions">
+            {!readOnly && <div className="v20-admin-actions">
               <button
                 className="v20-secondary-button"
                 onClick={() => setEditingUbs(unit.id)}
@@ -173,13 +179,13 @@ export function UbsManager({ units }: { units: ManagedUbs[] }) {
                 <Power size={15} />
                 {unit.ativa ? "Desativar" : "Reativar"}
               </button>
-            </div>
+            </div>}
           </header>
 
           <div className="v20-microarea-list">
             {unit.microareas.map((microarea) => (
               <div className="v20-microarea-row" key={microarea.id}>
-                {editingMicroarea === microarea.id ? (
+                {!readOnly && editingMicroarea === microarea.id ? (
                   <form
                     className="v20-inline-form v20-inline-form-grow"
                     onSubmit={(event) => {
@@ -228,15 +234,15 @@ export function UbsManager({ units }: { units: ManagedUbs[] }) {
                       >
                         {microarea.ativa ? "Ativa" : "Removida"}
                       </span>
-                      <button
+                      {!readOnly && <button
                         className="v20-secondary-button"
                         onClick={() => setEditingMicroarea(microarea.id)}
                         type="button"
                       >
                         <Pencil size={14} />
                         Editar
-                      </button>
-                      <button
+                      </button>}
+                      {!readOnly && <button
                         className={
                           microarea.ativa
                             ? "v20-danger-button"
@@ -253,7 +259,7 @@ export function UbsManager({ units }: { units: ManagedUbs[] }) {
                       >
                         <Power size={14} />
                         {microarea.ativa ? "Remover" : "Restaurar"}
-                      </button>
+                      </button>}
                     </div>
                   </>
                 )}
@@ -267,7 +273,7 @@ export function UbsManager({ units }: { units: ManagedUbs[] }) {
             )}
           </div>
 
-          <form
+          {!readOnly && <form
             className="v20-inline-form v20-add-microarea"
             onSubmit={(event) => createMicroarea(event, unit.id)}
           >
@@ -284,7 +290,7 @@ export function UbsManager({ units }: { units: ManagedUbs[] }) {
               <Plus size={16} />
               Adicionar microárea
             </button>
-          </form>
+          </form>}
         </section>
       ))}
     </div>

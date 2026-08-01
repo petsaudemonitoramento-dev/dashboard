@@ -4,7 +4,7 @@ import {
   type HomeData,
 } from "@/components/home/home-dashboard";
 import { getPostgresClient } from "@/lib/db/postgres";
-import { createClient } from "@/lib/supabase/server";
+import { getActiveProfileContext } from "@/lib/auth/guards";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -14,52 +14,58 @@ type ResultRow = {
   dados: HomeData;
 };
 
-type UbsOption = {
-  id: string;
-  nome: string;
-};
-
 export default async function DashboardPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const context = await getActiveProfileContext();
 
-  if (!user) {
+  if (!context) {
     redirect("/login");
+  }
+
+  const { profile, user } = context;
+
+  if (profile.perfil === "administrador") {
+    return (
+      <>
+        <section className="heading">
+          <p>PET-Saúde UFCG</p>
+          <h1>Administração técnica</h1>
+          <span>
+            Acesse configurações, unidades, integrações e diagnóstico. Dados
+            clínicos e rotinas de gestão de usuários não ficam disponíveis
+            para este perfil.
+          </span>
+        </section>
+
+        <div className="pec-empty">
+          O perfil técnico não consulta indicadores, prontuários, importações
+          PEC ou lixeira clínica.
+        </div>
+      </>
+    );
   }
 
   const sql = getPostgresClient();
 
-  try {
-    const [resultRows, ubsRows] = await Promise.all([
-      sql<ResultRow[]>`
-        select private.obter_inicio_v21(${user.id}::uuid) as dados
-      `,
-      sql<UbsOption[]>`
-        select id, nome
-        from public.ubs
-        where ativa = true
-        order by nome
-      `,
-    ]);
+  let data: HomeData | null = null;
+  let loadError: unknown;
 
-    const data = resultRows[0]?.dados;
+  try {
+    const resultRows = await sql<ResultRow[]>`
+      select private.obter_inicio_v21(${user.id}::uuid) as dados
+    `;
+
+    data = resultRows[0]?.dados ?? null;
 
     if (!data) {
       throw new Error("Não foi possível montar o resumo inicial.");
     }
 
-    return (
-      <HomeDashboard
-        canManageNotices={data.perfil === "administrador"}
-        data={data}
-        ubsOptions={ubsRows}
-      />
-    );
   } catch (error) {
     console.error("Erro ao carregar início V21:", error);
+    loadError = error;
+  }
 
+  if (!data) {
     return (
       <>
         <section className="heading">
@@ -69,11 +75,18 @@ export default async function DashboardPage() {
         </section>
 
         <div className="pec-error">
-          {error instanceof Error
-            ? error.message
+          {loadError instanceof Error
+            ? loadError.message
             : "Erro desconhecido ao consultar a página inicial."}
         </div>
       </>
     );
   }
+
+  return (
+    <HomeDashboard
+      canManageNotices={data.perfil === "gestao_municipal"}
+      data={data}
+    />
+  );
 }

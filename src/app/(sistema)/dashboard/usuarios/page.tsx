@@ -3,8 +3,7 @@ import {
   AdminProfiles,
   type AdminProfileRow,
 } from "@/components/admin/admin-profiles";
-import { getPostgresClient } from "@/lib/db/postgres";
-import { createClient } from "@/lib/supabase/server";
+import { getManagementContext } from "@/lib/auth/guards";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -13,7 +12,6 @@ type DatabaseProfile = {
   id: string;
   nome_completo: string;
   email: string;
-  data_nascimento: string | Date | null;
   perfil_atual: string;
   perfil_solicitado: string | null;
   aprovacao_status: string;
@@ -27,42 +25,25 @@ type DatabaseProfile = {
   perfil_excluido_em: string | Date | null;
 };
 
-function toIsoDate(value: string | Date | null): string | null {
-  if (!value) return null;
-  return value instanceof Date
-    ? value.toISOString().slice(0, 10)
-    : String(value).slice(0, 10);
-}
-
 function toIso(value: string | Date | null): string | null {
   if (!value) return null;
   return value instanceof Date ? value.toISOString() : String(value);
 }
 
 export default async function UsuariosPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const context = await getManagementContext();
 
-  if (!user) redirect("/login");
-
-  const sql = getPostgresClient();
-  const allowed = await sql`
-    select private.usuario_admin_v20(${user.id}::uuid) as autorizado
-  `;
-
-  if (!allowed[0]?.autorizado) {
+  if (!context) {
     redirect("/dashboard");
   }
 
-  const [rows, ubsOptions] = await Promise.all([
-    sql<DatabaseProfile[]>`
+  const { sql } = context;
+
+  const rows = await sql<DatabaseProfile[]>`
       select
         p.id,
         p.nome_completo,
         p.email,
-        p.data_nascimento,
         p.perfil::text as perfil_atual,
         p.perfil_solicitado,
         p.aprovacao_status,
@@ -78,24 +59,17 @@ export default async function UsuariosPage() {
       left join public.ubs u on u.id = p.ubs_id
       left join public.ubs us on us.id = p.ubs_solicitada_id
       where p.aprovacao_status <> 'pendente'
+        and p.perfil::text in ('equipe_ubs', 'acs', 'aluno')
       order by
         case when p.aprovacao_status = 'pendente' then 0 else 1 end,
         p.solicitado_em desc,
         p.nome_completo
-    `,
-    sql<{ id: string; nome: string }[]>`
-      select id, nome
-      from public.ubs
-      where ativa = true
-      order by nome
-    `,
-  ]);
+    `;
 
   const profiles: AdminProfileRow[] = rows.map((row) => ({
     id: row.id,
     nomeCompleto: row.nome_completo,
     email: row.email,
-    dataNascimento: toIsoDate(row.data_nascimento),
     perfilAtual: row.perfil_atual,
     perfilSolicitado: row.perfil_solicitado,
     aprovacaoStatus: row.aprovacao_status,
@@ -119,11 +93,7 @@ export default async function UsuariosPage() {
         </span>
       </section>
 
-      <AdminProfiles
-        currentUserId={user.id}
-        profiles={profiles}
-        ubsOptions={ubsOptions}
-      />
+      <AdminProfiles profiles={profiles} />
     </>
   );
 }

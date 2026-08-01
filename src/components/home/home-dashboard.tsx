@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
+import { profileLabel } from "@/lib/auth/roles";
 import styles from "./home-dashboard.module.css";
 
 export type HomeNotice = {
@@ -51,26 +52,12 @@ export type HomeData = {
   aniversariantes: BirthdayItem[];
 };
 
-type UbsOption = {
-  id: string;
-  nome: string;
-};
-
 type Props = {
   data: HomeData;
   canManageNotices: boolean;
-  ubsOptions: UbsOption[];
 };
 
 type Tab = "resumo" | "avisos";
-
-const PROFILE_LABELS: Record<string, string> = {
-  administrador: "Gestão",
-  profissional_ubs: "Profissional UBS",
-  equipe_ubs: "Equipe UBS",
-  acs: "ACS",
-  aluno: "Aluno",
-};
 
 const AUDIENCE_LABELS: Record<string, string> = {
   todos: "Todos os perfis",
@@ -107,7 +94,6 @@ function formatNoticeDate(value: string): string {
 export function HomeDashboard({
   data,
   canManageNotices,
-  ubsOptions,
 }: Props) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("resumo");
@@ -165,7 +151,6 @@ export function HomeDashboard({
           titulo: String(form.get("titulo") ?? ""),
           mensagem: String(form.get("mensagem") ?? ""),
           tipo: String(form.get("tipo") ?? "informativo"),
-          ubsId: String(form.get("ubsId") ?? ""),
           publico: String(form.get("publico") ?? "todos"),
         }),
       });
@@ -225,7 +210,7 @@ export function HomeDashboard({
             {greeting()}, {firstName(data.nome)}!
           </h1>
           <p>
-            {PROFILE_LABELS[data.perfil] ?? data.perfil}
+            {profileLabel(data.perfil)}
             {data.ubsNome ? ` · ${data.ubsNome}` : ""}
           </p>
         </div>
@@ -449,27 +434,9 @@ export function HomeDashboard({
             </div>
 
             <h2 id="notice-modal-title">Publicar aviso</h2>
-            <p>O aviso ficará visível para os profissionais da UBS escolhida.</p>
+            <p>O aviso municipal ficará visível para o público selecionado.</p>
 
             <form onSubmit={publishNotice}>
-              <label>
-                UBS
-                <select
-                  defaultValue={data.ubsId ?? ""}
-                  name="ubsId"
-                  required
-                >
-                  <option disabled value="">
-                    Selecione a UBS
-                  </option>
-                  {ubsOptions.map((ubs) => (
-                    <option key={ubs.id} value={ubs.id}>
-                      {ubs.nome}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
               <label>
                 Título
                 <input
