@@ -1,189 +1,151 @@
 import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { getPostgresClient } from "@/lib/db/postgres";
-import { parsePecFile } from "@/lib/pec/columns";
+import type { ParsedPecFile } from "@/lib/pec/columns";
+import type { PecContainer, PecExtension } from "@/lib/pec/limits";
+import {
+  isEligiblePecImporter,
+  PecRequestError,
+  readLimitedMultipartFormData,
+  validateContentLength,
+  validateUploadFile,
+} from "@/lib/pec/policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MAX_FILE_SIZE = 20 * 1024 * 1024;
-const MAX_REQUEST_SIZE = MAX_FILE_SIZE + 1024 * 1024;
-
-const ALLOWED_MIME_TYPES: Record<string, ReadonlySet<string>> = {
-  csv: new Set([
-    "text/csv",
-    "application/csv",
-    "text/plain",
-    "application/vnd.ms-excel",
-  ]),
-  xlsx: new Set([
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  ]),
-  xls: new Set(["application/vnd.ms-excel"]),
+type AuthenticatedImporter = { userId: string; ubsId: string };
+type PersistInput = {
+  ubsId: string;
+  userId: string;
+  filename: string;
+  hash: string;
+  parsed: ParsedPecFile;
 };
 
-function hasExpectedSignature(buffer: Buffer, extension: string) {
-  if (extension === "xlsx") {
-    return (
-      buffer.length >= 4 &&
-      buffer[0] === 0x50 &&
-      buffer[1] === 0x4b &&
-      buffer[2] === 0x03 &&
-      buffer[3] === 0x04
+export type PecRouteDependencies = {
+  authenticate: () => Promise<AuthenticatedImporter>;
+  parse: (
+    buffer: Buffer,
+    filename: string,
+    extension: PecExtension,
+    container: PecContainer
+  ) => Promise<ParsedPecFile>;
+  persist: (input: PersistInput) => Promise<Record<string, unknown>>;
+  logError: (event: { event: "pec_import_failed"; code: string }) => void;
+};
+
+async function authenticateImporter(): Promise<AuthenticatedImporter> {
+  const { createClient } = await import("@/lib/supabase/server");
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new PecRequestError(401, "Sessão expirada. Entre novamente.", "UNAUTHENTICATED");
+  }
+
+  const { data: profile, error } = await supabase
+    .from("perfis")
+    .select("perfil, ubs_id, status, ativo, cadastro_completo, aprovacao_status")
+    .eq("id", user.id)
+    .single();
+
+  if (error || !isEligiblePecImporter(profile)) {
+    throw new PecRequestError(
+      403,
+      "Usuário sem permissão para importar arquivos PEC.",
+      "IMPORT_FORBIDDEN"
     );
   }
 
-  if (extension === "xls") {
-    const oleSignature = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
-    return (
-      buffer.length >= oleSignature.length &&
-      oleSignature.every((byte, index) => buffer[index] === byte)
-    );
-  }
-
-  return !buffer.subarray(0, Math.min(buffer.length, 4096)).includes(0x00);
+  return { userId: user.id, ubsId: profile.ubs_id };
 }
 
-export async function POST(request: Request) {
+async function parseInWorker(
+  buffer: Buffer,
+  filename: string,
+  extension: PecExtension,
+  container: PecContainer
+): Promise<ParsedPecFile> {
+  const { parsePecFile } = await import("@/lib/pec/columns");
+  return await parsePecFile(buffer, filename, extension, container);
+}
+
+async function persistImport(input: PersistInput): Promise<Record<string, unknown>> {
+  const { getPostgresClient } = await import("@/lib/db/postgres");
+  const sql = getPostgresClient();
+  const result = await sql`
+    select private.importar_pec(
+      ${input.ubsId}::uuid,
+      ${input.userId}::uuid,
+      ${input.filename},
+      ${input.hash},
+      ${input.parsed.headerRow},
+      ${sql.json(input.parsed.mapping)},
+      ${sql.json(input.parsed.rows)},
+      ${sql.json(input.parsed.warnings)}
+    ) as resultado
+  `;
+  return (result[0]?.resultado ?? {}) as Record<string, unknown>;
+}
+
+const defaultDependencies: PecRouteDependencies = {
+  authenticate: authenticateImporter,
+  parse: parseInWorker,
+  persist: persistImport,
+  logError: ({ event, code }) => console.error(event, code),
+};
+
+function previewOf(parsed: ParsedPecFile) {
+  return parsed.rows.slice(0, 8).map((row) => ({
+    linha: row.linha,
+    microarea: row.canonical.microarea ?? "-",
+    idade: row.canonical.idade_texto ?? "-",
+    risco: row.canonical.risco_gestacional ?? "-",
+    dpp: row.canonical.dpp_dum ?? row.canonical.dpp_ecografia ?? "-",
+    camposExtras: Object.keys(row.extras),
+  }));
+}
+
+function safeErrorCode(error: unknown): string {
+  if (
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    typeof error.code === "string"
+  ) {
+    return error.code.replace(/[^A-Z0-9_]/gi, "_").slice(0, 64);
+  }
+  return error instanceof Error ? error.name.slice(0, 64) : "UNKNOWN_ERROR";
+}
+
+export async function handlePecPost(
+  request: Request,
+  dependencies: PecRouteDependencies = defaultDependencies
+): Promise<NextResponse> {
   try {
-    const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
-    if (!contentType.startsWith("multipart/form-data")) {
-      return NextResponse.json(
-        { error: "Envie o arquivo como formulário multipart." },
-        { status: 415 }
-      );
-    }
-
-    const contentLengthHeader = request.headers.get("content-length");
-    const contentLength = contentLengthHeader
-      ? Number.parseInt(contentLengthHeader, 10)
-      : null;
-
-    if (
-      contentLength !== null &&
-      (!Number.isFinite(contentLength) ||
-        contentLength < 0 ||
-        contentLength > MAX_REQUEST_SIZE)
-    ) {
-      return NextResponse.json(
-        { error: "A requisição ultrapassa o limite permitido." },
-        { status: 413 }
-      );
-    }
-
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json(
-        { error: "Sessão expirada. Entre novamente." },
-        { status: 401 }
-      );
-    }
-
-    const { data: profile, error: profileError } = await supabase
-      .from("perfis")
-      .select(
-        "perfil, ubs_id, status, ativo, cadastro_completo, aprovacao_status"
-      )
-      .eq("id", user.id)
-      .single();
-
-    if (
-      profileError ||
-      !profile ||
-      !profile.ativo ||
-      profile.status !== "ativo" ||
-      !profile.cadastro_completo ||
-      profile.aprovacao_status !== "aprovado" ||
-      profile.perfil !== "equipe_ubs"
-    ) {
-      return NextResponse.json(
-        { error: "Usuário sem permissão para importar arquivos PEC." },
-        { status: 403 }
-      );
-    }
-
-    const ubsId = profile.ubs_id;
-
-    if (!ubsId) {
-      return NextResponse.json(
-        { error: "O usuário não está vinculado a uma UBS." },
-        { status: 403 }
-      );
-    }
-
-    const formData = await request.formData();
+    validateContentLength(request.headers.get("content-length"));
+    const importer = await dependencies.authenticate();
+    const formData = await readLimitedMultipartFormData(request);
     const file = formData.get("file");
     const mode = String(formData.get("mode") ?? "preview");
 
     if (!(file instanceof File)) {
-      return NextResponse.json(
-        { error: "Selecione um arquivo CSV, XLSX ou XLS." },
-        { status: 400 }
+      throw new PecRequestError(
+        400,
+        "Selecione um arquivo CSV, XLSX ou XLS.",
+        "FILE_MISSING"
       );
     }
-
-    if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        { error: "O arquivo ultrapassa o limite de 20 MB." },
-        { status: 413 }
-      );
-    }
-
-    const extension = file.name.toLowerCase().split(".").pop();
-
-    if (!extension || !["csv", "xlsx", "xls"].includes(extension)) {
-      return NextResponse.json(
-        { error: "Formato não suportado. Use CSV, XLSX ou XLS." },
-        { status: 400 }
-      );
-    }
-
-    const normalizedMime = file.type.toLowerCase();
-    const allowedMimeTypes = ALLOWED_MIME_TYPES[extension];
-    if (
-      normalizedMime &&
-      normalizedMime !== "application/octet-stream" &&
-      !allowedMimeTypes.has(normalizedMime)
-    ) {
-      return NextResponse.json(
-        { error: "O tipo do arquivo não corresponde ao formato informado." },
-        { status: 400 }
-      );
-    }
-
     if (mode !== "preview" && mode !== "import") {
-      return NextResponse.json(
-        { error: "Modo de operação inválido." },
-        { status: 400 }
-      );
+      throw new PecRequestError(400, "Modo de operação inválido.", "INVALID_MODE");
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    if (!hasExpectedSignature(buffer, extension)) {
-      return NextResponse.json(
-        { error: "O conteúdo do arquivo não corresponde ao formato informado." },
-        { status: 400 }
-      );
-    }
-
-    const parsed = parsePecFile(buffer, file.name);
-
-    const preview = parsed.rows.slice(0, 8).map((row) => ({
-      linha: row.linha,
-      microarea: row.canonical.microarea ?? "-",
-      idade: row.canonical.idade_texto ?? "-",
-      risco: row.canonical.risco_gestacional ?? "-",
-      dpp:
-        row.canonical.dpp_dum ??
-        row.canonical.dpp_ecografia ??
-        "-",
-      camposExtras: Object.keys(row.extras),
-    }));
+    const { extension, container } = validateUploadFile(file, buffer);
+    const parsed = await dependencies.parse(buffer, file.name, extension, container);
+    const preview = previewOf(parsed);
 
     if (mode === "preview") {
       return NextResponse.json({
@@ -196,37 +158,40 @@ export async function POST(request: Request) {
       });
     }
 
-    const hash = createHash("sha256").update(buffer).digest("hex");
-    const sql = getPostgresClient();
-
-    const result = await sql`
-      select private.importar_pec(
-        ${ubsId}::uuid,
-        ${user.id}::uuid,
-        ${file.name},
-        ${hash},
-        ${parsed.headerRow},
-        ${sql.json(parsed.mapping)},
-        ${sql.json(parsed.rows)},
-        ${sql.json(parsed.warnings)}
-      ) as resultado
-    `;
+    const result = await dependencies.persist({
+      ubsId: importer.ubsId,
+      userId: importer.userId,
+      filename: file.name,
+      hash: createHash("sha256").update(buffer).digest("hex"),
+      parsed,
+    });
 
     return NextResponse.json({
-      ...result[0]?.resultado,
+      ...result,
       headerRow: parsed.headerRow,
       mapping: parsed.mapping,
       warnings: parsed.warnings,
     });
   } catch (error) {
-    console.error(
-      "Erro ao importar PEC:",
-      error instanceof Error ? error.name : "erro desconhecido"
-    );
+    if (error instanceof PecRequestError) {
+      return NextResponse.json({ error: error.clientMessage }, { status: error.status });
+    }
 
+    const code = safeErrorCode(error);
+    dependencies.logError({ event: "pec_import_failed", code });
+    const isParserError =
+      error instanceof Error && error.name === "PecParseError";
     return NextResponse.json(
-      { error: "Não foi possível processar o arquivo." },
-      { status: 500 }
+      {
+        error: isParserError
+          ? "O arquivo é inválido, inseguro ou não suportado."
+          : "Não foi possível processar o arquivo.",
+      },
+      { status: isParserError ? 400 : 500 }
     );
   }
+}
+
+export async function POST(request: Request): Promise<NextResponse> {
+  return await handlePecPost(request);
 }
