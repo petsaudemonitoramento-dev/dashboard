@@ -8,33 +8,67 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
+const MAX_REQUEST_SIZE = MAX_FILE_SIZE + 1024 * 1024;
+
+const ALLOWED_MIME_TYPES: Record<string, ReadonlySet<string>> = {
+  csv: new Set([
+    "text/csv",
+    "application/csv",
+    "text/plain",
+    "application/vnd.ms-excel",
+  ]),
+  xlsx: new Set([
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ]),
+  xls: new Set(["application/vnd.ms-excel"]),
+};
+
+function hasExpectedSignature(buffer: Buffer, extension: string) {
+  if (extension === "xlsx") {
+    return (
+      buffer.length >= 4 &&
+      buffer[0] === 0x50 &&
+      buffer[1] === 0x4b &&
+      buffer[2] === 0x03 &&
+      buffer[3] === 0x04
+    );
+  }
+
+  if (extension === "xls") {
+    const oleSignature = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
+    return (
+      buffer.length >= oleSignature.length &&
+      oleSignature.every((byte, index) => buffer[index] === byte)
+    );
+  }
+
+  return !buffer.subarray(0, Math.min(buffer.length, 4096)).includes(0x00);
+}
 
 export async function POST(request: Request) {
   try {
-    const formData = await request.formData();
-    const file = formData.get("file");
-    const mode = String(formData.get("mode") ?? "preview");
-
-    if (!(file instanceof File)) {
+    const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
+    if (!contentType.startsWith("multipart/form-data")) {
       return NextResponse.json(
-        { error: "Selecione um arquivo CSV, XLSX ou XLS." },
-        { status: 400 }
+        { error: "Envie o arquivo como formulário multipart." },
+        { status: 415 }
       );
     }
 
-    if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        { error: "O arquivo ultrapassa o limite de 20 MB." },
-        { status: 400 }
-      );
-    }
+    const contentLengthHeader = request.headers.get("content-length");
+    const contentLength = contentLengthHeader
+      ? Number.parseInt(contentLengthHeader, 10)
+      : null;
 
-    const extension = file.name.toLowerCase().split(".").pop();
-
-    if (!extension || !["csv", "xlsx", "xls"].includes(extension)) {
+    if (
+      contentLength !== null &&
+      (!Number.isFinite(contentLength) ||
+        contentLength < 0 ||
+        contentLength > MAX_REQUEST_SIZE)
+    ) {
       return NextResponse.json(
-        { error: "Formato não suportado. Use CSV, XLSX ou XLS." },
-        { status: 400 }
+        { error: "A requisição ultrapassa o limite permitido." },
+        { status: 413 }
       );
     }
 
@@ -52,7 +86,9 @@ export async function POST(request: Request) {
 
     const { data: profile, error: profileError } = await supabase
       .from("perfis")
-      .select("perfil, ubs_id, status, ativo")
+      .select(
+        "perfil, ubs_id, status, ativo, cadastro_completo, aprovacao_status"
+      )
       .eq("id", user.id)
       .single();
 
@@ -60,19 +96,18 @@ export async function POST(request: Request) {
       profileError ||
       !profile ||
       !profile.ativo ||
-      profile.status !== "ativo"
+      profile.status !== "ativo" ||
+      !profile.cadastro_completo ||
+      profile.aprovacao_status !== "aprovado" ||
+      profile.perfil !== "equipe_ubs"
     ) {
       return NextResponse.json(
-        { error: "Perfil inativo ou não encontrado." },
+        { error: "Usuário sem permissão para importar arquivos PEC." },
         { status: 403 }
       );
     }
 
-    const requestedUbsId = String(formData.get("ubs_id") ?? "");
-    const ubsId =
-      profile.perfil === "administrador" && requestedUbsId
-        ? requestedUbsId
-        : profile.ubs_id;
+    const ubsId = profile.ubs_id;
 
     if (!ubsId) {
       return NextResponse.json(
@@ -81,7 +116,61 @@ export async function POST(request: Request) {
       );
     }
 
+    const formData = await request.formData();
+    const file = formData.get("file");
+    const mode = String(formData.get("mode") ?? "preview");
+
+    if (!(file instanceof File)) {
+      return NextResponse.json(
+        { error: "Selecione um arquivo CSV, XLSX ou XLS." },
+        { status: 400 }
+      );
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: "O arquivo ultrapassa o limite de 20 MB." },
+        { status: 413 }
+      );
+    }
+
+    const extension = file.name.toLowerCase().split(".").pop();
+
+    if (!extension || !["csv", "xlsx", "xls"].includes(extension)) {
+      return NextResponse.json(
+        { error: "Formato não suportado. Use CSV, XLSX ou XLS." },
+        { status: 400 }
+      );
+    }
+
+    const normalizedMime = file.type.toLowerCase();
+    const allowedMimeTypes = ALLOWED_MIME_TYPES[extension];
+    if (
+      normalizedMime &&
+      normalizedMime !== "application/octet-stream" &&
+      !allowedMimeTypes.has(normalizedMime)
+    ) {
+      return NextResponse.json(
+        { error: "O tipo do arquivo não corresponde ao formato informado." },
+        { status: 400 }
+      );
+    }
+
+    if (mode !== "preview" && mode !== "import") {
+      return NextResponse.json(
+        { error: "Modo de operação inválido." },
+        { status: 400 }
+      );
+    }
+
     const buffer = Buffer.from(await file.arrayBuffer());
+    if (!hasExpectedSignature(buffer, extension)) {
+      return NextResponse.json(
+        { error: "O conteúdo do arquivo não corresponde ao formato informado." },
+        { status: 400 }
+      );
+    }
+
     const parsed = parsePecFile(buffer, file.name);
 
     const preview = parsed.rows.slice(0, 8).map((row) => ({
@@ -107,13 +196,6 @@ export async function POST(request: Request) {
       });
     }
 
-    if (mode !== "import") {
-      return NextResponse.json(
-        { error: "Modo de operação inválido." },
-        { status: 400 }
-      );
-    }
-
     const hash = createHash("sha256").update(buffer).digest("hex");
     const sql = getPostgresClient();
 
@@ -137,15 +219,13 @@ export async function POST(request: Request) {
       warnings: parsed.warnings,
     });
   } catch (error) {
-    console.error("Erro ao importar PEC:", error);
+    console.error(
+      "Erro ao importar PEC:",
+      error instanceof Error ? error.name : "erro desconhecido"
+    );
 
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Não foi possível processar o arquivo.",
-      },
+      { error: "Não foi possível processar o arquivo." },
       { status: 500 }
     );
   }
