@@ -36,13 +36,7 @@ type ImportResponse = {
   warnings?: string[];
 };
 
-export function ImportacaoPecForm({
-  ubsId,
-  ubsName,
-}: {
-  ubsId: string;
-  ubsName: string;
-}) {
+export function ImportacaoPecForm({ ubsName }: { ubsName: string }) {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
   const [result, setResult] = useState<ImportResponse | null>(null);
@@ -69,7 +63,6 @@ export function ImportacaoPecForm({
     const formData = new FormData();
     formData.set("file", file);
     formData.set("mode", mode);
-    formData.set("ubs_id", ubsId);
 
     try {
       const response = await fetch("/api/importacoes/pec", {

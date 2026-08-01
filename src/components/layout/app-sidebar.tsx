@@ -73,7 +73,7 @@ const items: NavigationItem[] = [
     href: "/dashboard/importacoes",
     label: "Importar PEC",
     icon: FileSpreadsheet,
-    roles: ["profissional_ubs", "equipe_ubs"],
+    roles: ["equipe_ubs"],
   },
   {
     href: "/dashboard/gestantes",

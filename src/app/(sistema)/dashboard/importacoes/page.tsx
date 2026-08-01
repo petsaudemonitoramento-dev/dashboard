@@ -14,7 +14,9 @@ export default async function ImportacoesPage() {
 
   const { data: profile } = await supabase
     .from("perfis")
-    .select("perfil, ubs_id, ubs:ubs_id(id, nome)")
+    .select(
+      "perfil, ubs_id, status, ativo, cadastro_completo, aprovacao_status, ubs:ubs_id(id, nome)"
+    )
     .eq("id", user.id)
     .single();
 
@@ -22,13 +24,23 @@ export default async function ImportacoesPage() {
     ? profile.ubs[0]
     : profile?.ubs;
 
-  if (!profile?.ubs_id || !ubsRelation) {
+  const canImport =
+    profile?.perfil === "equipe_ubs" &&
+    profile.ativo === true &&
+    profile.status === "ativo" &&
+    profile.cadastro_completo === true &&
+    profile.aprovacao_status === "aprovado" &&
+    Boolean(profile.ubs_id) &&
+    Boolean(ubsRelation);
+
+  if (!canImport || !ubsRelation) {
     return (
       <section className="module-page">
         <p>Importação PEC</p>
-        <h1>Usuário sem UBS vinculada</h1>
+        <h1>Acesso não autorizado</h1>
         <span>
-          Vincule o profissional a uma UBS antes de importar o relatório.
+          Este recurso está disponível somente para integrantes autorizados
+          da equipe da UBS.
         </span>
       </section>
     );
@@ -44,10 +56,7 @@ export default async function ImportacoesPage() {
         </span>
       </section>
 
-      <ImportacaoPecForm
-        ubsId={profile.ubs_id}
-        ubsName={ubsRelation.nome}
-      />
+      <ImportacaoPecForm ubsName={ubsRelation.nome} />
     </>
   );
 }
