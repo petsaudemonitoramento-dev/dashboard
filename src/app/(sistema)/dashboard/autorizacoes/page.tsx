@@ -11,14 +11,22 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 type DatabaseAuthorization = {
-  id: string;
+  usuario_id: string;
   nome_completo: string;
   email: string;
+  cargo_funcao: string | null;
   perfil_solicitado: string | null;
   ubs_solicitada_id: string | null;
   ubs_solicitada_nome: string | null;
   solicitado_em: string | Date;
   origem_cadastro: string;
+  credencial_id: string | null;
+  conselho: string | null;
+  uf: string | null;
+  numero_registro: string | null;
+  categoria: string | null;
+  credencial_situacao: string | null;
+  credencial_submetida_em: string | Date | null;
 };
 
 function toIso(value: string | Date): string {
@@ -36,22 +44,8 @@ export default async function AutorizacoesPage() {
 
   const [rows, ubsRows, microareaRows] = await Promise.all([
     sql<DatabaseAuthorization[]>`
-      select
-        p.id,
-        p.nome_completo,
-        p.email,
-        p.perfil_solicitado,
-        p.ubs_solicitada_id,
-        u.nome as ubs_solicitada_nome,
-        p.solicitado_em,
-        p.origem_cadastro
-      from public.perfis p
-      left join public.ubs u
-        on u.id = p.ubs_solicitada_id
-      where p.aprovacao_status = 'pendente'
-        and p.perfil_excluido_em is null
-        and p.perfil_solicitado in ('equipe_ubs', 'acs', 'aluno')
-      order by p.solicitado_em, p.nome_completo
+      select *
+      from private.listar_solicitacoes_perfil_v22(${context.user.id}::uuid)
     `,
     sql<AuthorizationUbs[]>`
       select id, nome
@@ -75,7 +69,7 @@ export default async function AutorizacoesPage() {
   ]);
 
   const authorizations: AuthorizationRow[] = rows.map((row) => ({
-    id: row.id,
+    id: row.usuario_id,
     nomeCompleto: row.nome_completo,
     email: row.email,
     perfilSolicitado: row.perfil_solicitado ?? "aluno",
@@ -83,6 +77,16 @@ export default async function AutorizacoesPage() {
     ubsSolicitadaNome: row.ubs_solicitada_nome,
     solicitadoEm: toIso(row.solicitado_em),
     origemCadastro: row.origem_cadastro,
+    cargoFuncao: row.cargo_funcao,
+    credencialId: row.credencial_id,
+    conselho: row.conselho,
+    conselhoUf: row.uf,
+    numeroRegistro: row.numero_registro,
+    categoriaConselho: row.categoria,
+    credencialSituacao: row.credencial_situacao,
+    credencialSubmetidaEm: row.credencial_submetida_em
+      ? toIso(row.credencial_submetida_em)
+      : null,
   }));
 
   const microareas: AuthorizationMicroarea[] = microareaRows.map((row) => ({

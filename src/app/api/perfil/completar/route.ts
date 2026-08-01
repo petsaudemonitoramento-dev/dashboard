@@ -2,6 +2,10 @@ import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { getPostgresClient } from "@/lib/db/postgres";
 import { isPublicRequestableProfile } from "@/lib/auth/roles";
+import {
+  parseProfessionalCredential,
+  type ProfessionalCredentialInput,
+} from "@/lib/auth/professional-credentials";
 import { createClient } from "@/lib/supabase/server";
 import {
   isUuid,
@@ -24,6 +28,8 @@ export async function POST(request: Request) {
         { status: 401 }
       );
     }
+
+    const userEmail = user.email.toLowerCase();
 
     const body = await request.json();
     const nomeCompleto = String(body.nomeCompleto ?? "")
@@ -57,6 +63,22 @@ export async function POST(request: Request) {
       );
     }
 
+    let credential: ProfessionalCredentialInput | null;
+
+    try {
+      credential = parseProfessionalCredential(body, perfilSolicitado);
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Credencial profissional inválida.",
+        },
+        { status: 400 }
+      );
+    }
+
     if (!isUuid(ubsId)) {
       return NextResponse.json(
         { error: "Selecione uma UBS válida." },
@@ -83,8 +105,9 @@ export async function POST(request: Request) {
       );
     }
 
-    await sql`
-      insert into public.perfis (
+    await sql.begin(async (transaction) => {
+      await transaction`
+        insert into public.perfis (
         id,
         nome_completo,
         email,
@@ -100,12 +123,13 @@ export async function POST(request: Request) {
         ubs_solicitada_id,
         origem_cadastro,
         solicitado_em,
-        microarea_id
-      )
-      values (
+          microarea_id,
+          cargo_funcao
+        )
+        values (
         ${user.id}::uuid,
         ${nomeCompleto},
-        ${user.email.toLowerCase()},
+        ${userEmail},
         'aluno'::public.perfil_usuario,
         'ativo',
         true,
@@ -118,10 +142,11 @@ export async function POST(request: Request) {
         ${ubsId}::uuid,
         'google',
         now(),
-        null
-      )
-      on conflict (id)
-      do update set
+          null,
+          ${credential?.cargoFuncao ?? null}
+        )
+        on conflict (id)
+        do update set
         nome_completo = excluded.nome_completo,
         email = excluded.email,
         perfil = 'aluno'::public.perfil_usuario,
@@ -140,8 +165,23 @@ export async function POST(request: Request) {
         aprovado_por = null,
         perfil_excluido_em = null,
         perfil_excluido_por = null,
-        microarea_id = null
-    `;
+          microarea_id = null,
+          cargo_funcao = excluded.cargo_funcao
+      `;
+
+      if (credential) {
+        await transaction`
+          select private.submeter_credencial_profissional_v22(
+            ${user.id}::uuid,
+            ${credential.cargoFuncao},
+            ${credential.conselho},
+            ${credential.uf},
+            ${credential.numeroRegistro},
+            ${credential.categoria}
+          )
+        `;
+      }
+    });
 
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const secret = process.env.SUPABASE_SECRET_KEY;
@@ -165,15 +205,12 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ ok: true });
-  } catch (error) {
-    console.error("Erro ao completar perfil:", error);
+  } catch {
+    console.error("Erro ao completar perfil pendente.");
 
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Não foi possível completar o perfil.",
+        error: "Não foi possível completar o perfil.",
       },
       { status: 500 }
     );

@@ -3,6 +3,10 @@ import { NextResponse } from "next/server";
 import { getPostgresClient } from "@/lib/db/postgres";
 import { isPublicRequestableProfile } from "@/lib/auth/roles";
 import {
+  parseProfessionalCredential,
+  type ProfessionalCredentialInput,
+} from "@/lib/auth/professional-credentials";
+import {
   isUuid,
   normalizeBirthDate,
 } from "@/lib/validation/profile-input";
@@ -58,6 +62,22 @@ export async function POST(request: Request) {
     if (!isPublicRequestableProfile(perfilSolicitado)) {
       return NextResponse.json(
         { error: "Perfil solicitado inválido." },
+        { status: 400 }
+      );
+    }
+
+    let credential: ProfessionalCredentialInput | null;
+
+    try {
+      credential = parseProfessionalCredential(body, perfilSolicitado);
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Credencial profissional inválida.",
+        },
         { status: 400 }
       );
     }
@@ -127,8 +147,9 @@ export async function POST(request: Request) {
 
     createdUserId = data.user.id;
 
-    await sql`
-      insert into public.perfis (
+    await sql.begin(async (transaction) => {
+      await transaction`
+        insert into public.perfis (
         id,
         nome_completo,
         email,
@@ -144,9 +165,10 @@ export async function POST(request: Request) {
         ubs_solicitada_id,
         origem_cadastro,
         solicitado_em,
-        microarea_id
-      )
-      values (
+          microarea_id,
+          cargo_funcao
+        )
+        values (
         ${data.user.id}::uuid,
         ${nomeCompleto},
         ${email},
@@ -162,10 +184,11 @@ export async function POST(request: Request) {
         ${ubsId}::uuid,
         'email',
         now(),
-        null
-      )
-      on conflict (id)
-      do update set
+          null,
+          ${credential?.cargoFuncao ?? null}
+        )
+        on conflict (id)
+        do update set
         nome_completo = excluded.nome_completo,
         email = excluded.email,
         perfil = 'aluno'::public.perfil_usuario,
@@ -184,12 +207,27 @@ export async function POST(request: Request) {
         aprovado_por = null,
         perfil_excluido_em = null,
         perfil_excluido_por = null,
-        microarea_id = null
-    `;
+          microarea_id = null,
+          cargo_funcao = excluded.cargo_funcao
+      `;
+
+      if (credential) {
+        await transaction`
+          select private.submeter_credencial_profissional_v22(
+            ${data.user.id}::uuid,
+            ${credential.cargoFuncao},
+            ${credential.conselho},
+            ${credential.uf},
+            ${credential.numeroRegistro},
+            ${credential.categoria}
+          )
+        `;
+      }
+    });
 
     return NextResponse.json({ ok: true });
-  } catch (error) {
-    console.error("Erro ao criar conta:", error);
+  } catch {
+    console.error("Erro ao criar conta pendente.");
 
     if (createdUserId) {
       try {
@@ -206,17 +244,14 @@ export async function POST(request: Request) {
 
           await admin.auth.admin.deleteUser(createdUserId);
         }
-      } catch (cleanupError) {
-        console.error("Erro ao desfazer usuário incompleto:", cleanupError);
+      } catch {
+        console.error("Erro ao desfazer usuário incompleto.");
       }
     }
 
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Não foi possível criar a conta.",
+        error: "Não foi possível criar a conta.",
       },
       { status: 500 }
     );

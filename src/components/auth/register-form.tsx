@@ -14,6 +14,11 @@ import {
   PROFILE_LABELS,
   PUBLIC_REQUESTABLE_PROFILES,
 } from "@/lib/auth/roles";
+import {
+  BRAZILIAN_STATES,
+  credentialForPosition,
+  type ProfessionalPosition,
+} from "@/lib/auth/professional-credentials";
 
 type UbsOption = {
   id: string;
@@ -24,6 +29,9 @@ export function RegisterForm({ ubsOptions }: { ubsOptions: UbsOption[] }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [requestedProfile, setRequestedProfile] = useState("");
+  const [position, setPosition] = useState<ProfessionalPosition>("medico");
+  const credential = credentialForPosition(position);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -51,6 +59,13 @@ export function RegisterForm({ ubsOptions }: { ubsOptions: UbsOption[] }) {
           password,
           perfilSolicitado: String(form.get("perfilSolicitado") ?? ""),
           ubsId: String(form.get("ubsId") ?? ""),
+          cargoFuncao: String(form.get("cargoFuncao") ?? ""),
+          conselho: String(form.get("conselho") ?? ""),
+          conselhoUf: String(form.get("conselhoUf") ?? ""),
+          numeroRegistro: String(form.get("numeroRegistro") ?? ""),
+          categoriaConselho: String(
+            form.get("categoriaConselho") ?? ""
+          ),
         }),
       });
 
@@ -129,7 +144,13 @@ export function RegisterForm({ ubsOptions }: { ubsOptions: UbsOption[] }) {
 
             <div className="v20-field">
               <label htmlFor="perfilSolicitado">Perfil solicitado</label>
-              <select id="perfilSolicitado" name="perfilSolicitado" required>
+              <select
+                id="perfilSolicitado"
+                name="perfilSolicitado"
+                onChange={(event) => setRequestedProfile(event.target.value)}
+                required
+                value={requestedProfile}
+              >
                 <option disabled value="">
                   Selecione
                 </option>
@@ -140,6 +161,57 @@ export function RegisterForm({ ubsOptions }: { ubsOptions: UbsOption[] }) {
                 ))}
               </select>
             </div>
+
+            {requestedProfile === "equipe_ubs" && (
+              <>
+                <div className="v20-field">
+                  <label htmlFor="cargoFuncao">Função profissional</label>
+                  <select
+                    id="cargoFuncao"
+                    name="cargoFuncao"
+                    onChange={(event) =>
+                      setPosition(event.target.value as ProfessionalPosition)
+                    }
+                    value={position}
+                  >
+                    <option value="medico">Médico</option>
+                    <option value="enfermeiro">Enfermeiro</option>
+                  </select>
+                </div>
+
+                <div className="v20-field">
+                  <label htmlFor="conselhoUf">UF do {credential.conselho}</label>
+                  <select defaultValue="PB" id="conselhoUf" name="conselhoUf">
+                    {BRAZILIAN_STATES.map((state) => (
+                      <option key={state} value={state}>
+                        {state}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="v20-field v20-field-wide">
+                  <label htmlFor="numeroRegistro">
+                    Número do {credential.conselho}
+                  </label>
+                  <input
+                    autoComplete="off"
+                    id="numeroRegistro"
+                    inputMode="numeric"
+                    maxLength={20}
+                    name="numeroRegistro"
+                    placeholder="Somente o número do registro"
+                    required
+                  />
+                  <input name="conselho" type="hidden" value={credential.conselho} />
+                  <input
+                    name="categoriaConselho"
+                    type="hidden"
+                    value={credential.categoria}
+                  />
+                </div>
+              </>
+            )}
 
             <div className="v20-field v20-field-wide">
               <label htmlFor="ubsId">UBS</label>

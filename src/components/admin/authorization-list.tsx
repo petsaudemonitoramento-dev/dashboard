@@ -22,6 +22,14 @@ export type AuthorizationRow = {
   ubsSolicitadaNome: string | null;
   solicitadoEm: string;
   origemCadastro: string;
+  cargoFuncao: string | null;
+  credencialId: string | null;
+  conselho: string | null;
+  conselhoUf: string | null;
+  numeroRegistro: string | null;
+  categoriaConselho: string | null;
+  credencialSituacao: string | null;
+  credencialSubmetidaEm: string | null;
 };
 
 export type AuthorizationUbs = {
@@ -130,7 +138,11 @@ export function AuthorizationList({
 
     if (
       action === "approve" &&
-      targetRows.some((row) => row.perfilSolicitado === "equipe_ubs")
+      targetRows.some(
+        (row) =>
+          row.perfilSolicitado === "equipe_ubs" &&
+          row.credencialSituacao !== "validado"
+      )
     ) {
       setMessage(
         "A equipe UBS só pode ser aprovada depois da validação de CRM ou COREN."
@@ -183,6 +195,66 @@ export function AuthorizationList({
         error instanceof Error
           ? error.message
           : "Não foi possível processar as solicitações."
+      );
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  async function decideCredential(
+    row: AuthorizationRow,
+    action: "validate" | "reject"
+  ) {
+    if (!row.credencialId || !row.conselho) {
+      setMessage("A solicitação não possui credencial profissional válida.");
+      return;
+    }
+
+    const reason =
+      action === "reject"
+        ? window.prompt(
+            "Informe um motivo objetivo. Não inclua CPF ou dados pessoais."
+          )?.trim() ?? ""
+        : "";
+
+    if (action === "reject" && reason.length < 3) return;
+
+    if (
+      action === "validate" &&
+      !window.confirm(
+        `Confirma a consulta oficial e a regularidade do ${row.conselho}?`
+      )
+    ) {
+      return;
+    }
+
+    setWorking(true);
+    setMessage(null);
+
+    try {
+      const response = await fetch("/api/admin/credenciais", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          credentialId: row.credencialId,
+          source: row.conselho === "CRM" ? "portal_cfm" : "consulta_cofen",
+          reason,
+        }),
+      });
+      const body = await response.json();
+
+      if (!response.ok) {
+        throw new Error(body.error ?? "Não foi possível validar a credencial.");
+      }
+
+      setMessage("Decisão da credencial registrada com auditoria.");
+      router.refresh();
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível validar a credencial."
       );
     } finally {
       setWorking(false);
@@ -336,12 +408,63 @@ export function AuthorizationList({
                     </select>
                   </label>
                 )}
+
+                {row.perfilSolicitado === "equipe_ubs" && (
+                  <div>
+                    <strong>
+                      {row.cargoFuncao === "medico" ? "Médico" : "Enfermeiro"}
+                    </strong>
+                    <small>
+                      {row.conselho ?? "Conselho ausente"}/{row.conselhoUf ?? "--"}{" "}
+                      {row.numeroRegistro ?? "Registro ausente"} ·{" "}
+                      {row.categoriaConselho ?? "Categoria ausente"}
+                    </small>
+                    <small>
+                      Situação: {row.credencialSituacao ?? "não submetida"}
+                    </small>
+                    {row.credencialSituacao === "pendente" && (
+                      <div className={styles.itemActions}>
+                        <a
+                          href={
+                            row.conselho === "CRM"
+                              ? "https://portal.cfm.org.br/busca-medicos/"
+                              : "https://consultapublica.cofen.gov.br/"
+                          }
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          Consultar fonte oficial
+                        </a>
+                        <button
+                          className={styles.approve}
+                          disabled={working}
+                          onClick={() => void decideCredential(row, "validate")}
+                          type="button"
+                        >
+                          Validar credencial
+                        </button>
+                        <button
+                          className={styles.reject}
+                          disabled={working}
+                          onClick={() => void decideCredential(row, "reject")}
+                          type="button"
+                        >
+                          Rejeitar credencial
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className={styles.itemActions}>
                 <button
                   className={styles.approve}
-                  disabled={working}
+                  disabled={
+                    working ||
+                    (row.perfilSolicitado === "equipe_ubs" &&
+                      row.credencialSituacao !== "validado")
+                  }
                   onClick={() => void send("approve", [row])}
                   type="button"
                 >
