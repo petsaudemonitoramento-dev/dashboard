@@ -267,7 +267,7 @@ describe("separação clínica e território", () => {
       "p.aprovacao_status = 'aprovado'",
       "p.perfil_excluido_em IS NULL",
       "c.situacao = 'validado'",
-      "c.validado_em IS NOT NULL",
+      "c.decidido_em IS NOT NULL",
     ]) {
       expect(eligibility).toContain(condition);
     }

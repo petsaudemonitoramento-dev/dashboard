@@ -32,7 +32,9 @@ DECLARE
     'private.auditoria_exclusoes_gestantes',
     'private.auditoria_avisos_v20',
     'private.auditoria_perfis_v20',
-    'private.auditoria_visitas_acs_v21'
+    'private.auditoria_visitas_acs_v21',
+    'private.credenciais_profissionais',
+    'private.auditoria_credenciais_profissionais'
   ];
   v_legacy text[] := ARRAY[
     'public.gestantes',
@@ -182,6 +184,7 @@ $verify_rls$;
 DO $verify_privileges$
 DECLARE
   v_bad text;
+  v_managed text;
 BEGIN
   SELECT string_agg(
     format('%I:%I.%I:%s', r.rolname, n.nspname, c.relname, p.privilege),
@@ -202,21 +205,54 @@ BEGIN
   END IF;
 
   SELECT string_agg(
-    format('%s:%I:%s', coalesce(grantee.rolname, 'PUBLIC'), n.nspname, acl.privilege_type),
-    ', '
+    format(
+      'owner=%I schema=%s grantee=%s privilege=%s',
+      pg_get_userbyid(d.defaclrole),
+      coalesce(n.nspname, '*global*'),
+      coalesce(grantee.rolname, 'PUBLIC'),
+      acl.privilege_type
+    ),
+    ', ' ORDER BY pg_get_userbyid(d.defaclrole), n.nspname,
+      coalesce(grantee.rolname, 'PUBLIC'), acl.privilege_type
   )
   INTO v_bad
   FROM pg_default_acl d
-  JOIN pg_namespace n ON n.oid = d.defaclnamespace
+  LEFT JOIN pg_namespace n ON n.oid = d.defaclnamespace
   CROSS JOIN LATERAL aclexplode(d.defaclacl) acl
   LEFT JOIN pg_roles grantee ON grantee.oid = acl.grantee
   WHERE d.defaclobjtype = 'r'
-    AND n.nspname IN ('public', 'private', 'analytics')
+    AND (d.defaclnamespace = 0 OR n.nspname IN ('public', 'private', 'analytics'))
+    AND pg_get_userbyid(d.defaclrole) <> 'supabase_admin'
     AND (acl.grantee = 0 OR grantee.rolname IN ('anon', 'authenticated'))
     AND acl.privilege_type IN ('TRUNCATE', 'TRIGGER', 'REFERENCES', 'MAINTAIN');
 
   IF v_bad IS NOT NULL THEN
-    RAISE EXCEPTION 'Default privilege perigoso detectado: %', v_bad;
+    RAISE EXCEPTION 'Default privilege perigoso não gerenciado detectado: %', v_bad;
+  END IF;
+
+  SELECT string_agg(
+    format(
+      'owner=%I schema=%s grantee=%s privilege=%s',
+      pg_get_userbyid(d.defaclrole),
+      coalesce(n.nspname, '*global*'),
+      coalesce(grantee.rolname, 'PUBLIC'),
+      acl.privilege_type
+    ),
+    ', ' ORDER BY n.nspname, coalesce(grantee.rolname, 'PUBLIC'), acl.privilege_type
+  )
+  INTO v_managed
+  FROM pg_default_acl d
+  LEFT JOIN pg_namespace n ON n.oid = d.defaclnamespace
+  CROSS JOIN LATERAL aclexplode(d.defaclacl) acl
+  LEFT JOIN pg_roles grantee ON grantee.oid = acl.grantee
+  WHERE d.defaclobjtype = 'r'
+    AND (d.defaclnamespace = 0 OR n.nspname IN ('public', 'private', 'analytics'))
+    AND pg_get_userbyid(d.defaclrole) = 'supabase_admin'
+    AND (acl.grantee = 0 OR grantee.rolname IN ('anon', 'authenticated'))
+    AND acl.privilege_type IN ('TRUNCATE', 'TRIGGER', 'REFERENCES', 'MAINTAIN');
+
+  IF v_managed IS NOT NULL THEN
+    RAISE WARNING 'WARNING_MANAGED_DEFAULT_PRIVILEGES: %', v_managed;
   END IF;
 
   SELECT string_agg(
@@ -261,6 +297,78 @@ BEGIN
 END
 $verify_schema_create$;
 
+DO $verify_application_owners$
+DECLARE
+  v_bad text;
+BEGIN
+  SELECT string_agg(
+    format(
+      'schema:%I owner=%I esperado=%I',
+      n.nspname,
+      pg_get_userbyid(n.nspowner),
+      expected.owner_name
+    ),
+    ', ' ORDER BY n.nspname
+  )
+  INTO v_bad
+  FROM pg_namespace n
+  JOIN (
+    VALUES
+      ('public', 'pg_database_owner'),
+      ('private', 'postgres'),
+      ('security', 'postgres'),
+      ('analytics', 'postgres')
+  ) AS expected(schema_name, owner_name) ON expected.schema_name = n.nspname
+  WHERE pg_get_userbyid(n.nspowner) IS DISTINCT FROM expected.owner_name;
+
+  IF v_bad IS NOT NULL THEN
+    RAISE EXCEPTION 'Owner inesperado em schema da aplicação: %', v_bad;
+  END IF;
+
+  SELECT string_agg(object_name, ', ' ORDER BY object_name)
+  INTO v_bad
+  FROM (
+    SELECT format(
+      'relation:%I.%I owner=%I', n.nspname, c.relname, pg_get_userbyid(c.relowner)
+    ) AS object_name
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname IN ('public', 'private', 'analytics')
+      AND c.relkind IN ('r', 'p', 'v', 'm', 'f', 'S')
+      AND pg_get_userbyid(c.relowner) IS DISTINCT FROM 'postgres'
+
+    UNION ALL
+
+    SELECT format(
+      'function:%I.%I(%s) owner=%I',
+      n.nspname,
+      p.proname,
+      pg_get_function_identity_arguments(p.oid),
+      pg_get_userbyid(p.proowner)
+    )
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname IN ('public', 'private', 'security')
+      AND pg_get_userbyid(p.proowner) IS DISTINCT FROM 'postgres'
+
+    UNION ALL
+
+    SELECT format(
+      'type:%I.%I owner=%I', n.nspname, t.typname, pg_get_userbyid(t.typowner)
+    )
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE n.nspname IN ('public', 'private', 'security', 'analytics')
+      AND t.typtype IN ('e', 'd')
+      AND pg_get_userbyid(t.typowner) IS DISTINCT FROM 'postgres'
+  ) AS unexpected;
+
+  IF v_bad IS NOT NULL THEN
+    RAISE EXCEPTION 'Objeto próprio da aplicação com owner inesperado: %', v_bad;
+  END IF;
+END
+$verify_application_owners$;
+
 DO $verify_private_execution$
 DECLARE
   v_bad text;
@@ -274,6 +382,7 @@ BEGIN
   CROSS JOIN pg_proc p
   JOIN pg_namespace n ON n.oid = p.pronamespace
   WHERE r.rolname IN ('anon', 'authenticated')
+    AND n.nspname IN ('public', 'private', 'security')
     AND (
       n.nspname = 'private'
       OR p.prorettype = 'pg_catalog.trigger'::regtype
@@ -389,12 +498,26 @@ BEGIN
      OR to_regprocedure('private.obter_indicadores_aluno_v1(uuid)') IS NULL
      OR to_regprocedure('private.obter_indicadores_v18(uuid,text,uuid)') IS NULL
      OR to_regprocedure('private.obter_indicadores_v21(uuid,text,uuid)') IS NULL
-     OR to_regprocedure('private.esvaziar_lixeira_v19(uuid)') IS NULL THEN
+     OR to_regprocedure('private.esvaziar_lixeira_v19(uuid)') IS NULL
+     OR to_regprocedure('private.listar_lixeira_gestantes_v19(uuid,boolean)') IS NULL
+     OR to_regprocedure('private.usuario_equipe_clinica_elegivel_v23(uuid,uuid)') IS NULL
+     OR to_regprocedure('security.usuario_equipe_clinica_elegivel_v23(uuid)') IS NULL
+     OR to_regprocedure('security.usuario_pode_acessar_gestante_v18(uuid)') IS NULL
+     OR to_regprocedure('private.importar_pec(uuid,uuid,text,text,integer,jsonb,jsonb,jsonb)') IS NULL
+     OR to_regprocedure('private.importar_pec_impl_v22(uuid,uuid,text,text,integer,jsonb,jsonb,jsonb)') IS NULL
+     OR to_regprocedure('private.validar_importacao_pec_v23()') IS NULL
+     OR to_regprocedure('private.submeter_credencial_profissional_v22(uuid,text,text,text,text,text)') IS NULL
+     OR to_regprocedure('private.decidir_credencial_profissional_v22(uuid,uuid,text,text,text)') IS NULL
+     OR to_regprocedure('private.listar_solicitacoes_perfil_v22(uuid)') IS NULL
+     OR to_regprocedure('private.processar_solicitacao_perfil_v22(uuid,uuid,text,uuid,uuid,text)') IS NULL THEN
     RAISE EXCEPTION 'Uma ou mais assinaturas privadas esperadas estão ausentes';
   END IF;
 
   IF to_regprocedure('private.indicador_contagem_segura_v1(integer)') IS NOT NULL
-     OR to_regprocedure('private.obter_indicadores_v21(uuid,text)') IS NOT NULL THEN
+     OR to_regprocedure('private.obter_indicadores_v21(uuid,text)') IS NOT NULL
+     OR to_regprocedure('private.esvaziar_lixeira_v19()') IS NOT NULL
+     OR to_regprocedure('private.usuario_equipe_clinica_elegivel_v23(uuid)') IS NOT NULL
+     OR to_regprocedure('security.usuario_equipe_clinica_elegivel_v23(uuid,uuid)') IS NOT NULL THEN
     RAISE EXCEPTION 'Assinatura obsoleta de indicador ainda presente';
   END IF;
 
@@ -404,6 +527,29 @@ BEGIN
     'EXECUTE'
   ) THEN
     RAISE EXCEPTION 'GRANT EXECUTE exato ausente para obter_indicadores_v21(uuid,text,uuid)';
+  END IF;
+
+  IF NOT has_function_privilege(
+       'service_role',
+       'private.importar_pec(uuid,uuid,text,text,integer,jsonb,jsonb,jsonb)',
+       'EXECUTE'
+     )
+     OR has_function_privilege(
+       'service_role',
+       'private.importar_pec_impl_v22(uuid,uuid,text,text,integer,jsonb,jsonb,jsonb)',
+       'EXECUTE'
+     )
+     OR has_function_privilege(
+       'authenticated',
+       'private.importar_pec_impl_v22(uuid,uuid,text,text,integer,jsonb,jsonb,jsonb)',
+       'EXECUTE'
+     )
+     OR has_function_privilege(
+       'anon',
+       'private.importar_pec_impl_v22(uuid,uuid,text,text,integer,jsonb,jsonb,jsonb)',
+       'EXECUTE'
+     ) THEN
+    RAISE EXCEPTION 'Matriz EXECUTE da importação PEC está divergente';
   END IF;
 END
 $verify_function_signatures_and_grants$;
