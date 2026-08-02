@@ -60,6 +60,10 @@ export default async function DashboardPage() {
       throw new Error("Não foi possível montar o resumo inicial.");
     }
 
+    if (profile.perfil === "equipe_ubs") {
+      data = { ...data, escopo: "Equipe da UBS" };
+    }
+
   } catch (error) {
     console.error("Erro ao carregar início V21:", error);
     loadError = error;

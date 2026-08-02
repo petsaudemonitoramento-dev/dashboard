@@ -3,8 +3,7 @@ import {
   TrashBin,
   type TrashItem,
 } from "@/components/lixeira/trash-bin";
-import { getPostgresClient } from "@/lib/db/postgres";
-import { createClient } from "@/lib/supabase/server";
+import { getClinicalTeamContext } from "@/lib/auth/guards";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -26,45 +25,25 @@ function toIso(value: string | Date): string {
 }
 
 export default async function LixeiraPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const context = await getClinicalTeamContext();
+  if (!context) redirect("/dashboard");
 
-  if (!user) {
-    redirect("/login");
-  }
-
-  const { data: profile } = await supabase
-    .from("perfis")
-    .select("perfil, status, ativo")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile || !profile.ativo || profile.status !== "ativo") {
-    redirect("/login");
-  }
-
-  const canShowIdentity = [
-    "administrador",
-    "profissional_ubs",
-    "equipe_ubs",
-  ].includes(String(profile.perfil));
+  const { sql, user } = context;
+  let items: TrashItem[] | null = null;
+  let loadError: unknown;
 
   try {
-    const sql = getPostgresClient();
-
-    await sql`select private.esvaziar_lixeira_v19()`;
+    await sql`select private.esvaziar_lixeira_v19(${user.id}::uuid)`;
 
     const rows = await sql<DatabaseRow[]>`
       select *
       from private.listar_lixeira_gestantes_v19(
         ${user.id}::uuid,
-        ${canShowIdentity}
+        true
       )
     `;
 
-    const items: TrashItem[] = rows.map((row) => ({
+    items = rows.map((row) => ({
       id: row.gestante_id,
       codigo: row.codigo,
       nomeVisual: row.nome_visual,
@@ -75,23 +54,12 @@ export default async function LixeiraPage() {
       motivo: row.exclusao_motivo,
     }));
 
-    return (
-      <>
-        <section className="heading">
-          <p>PET-Saúde UFCG</p>
-          <h1>Lixeira</h1>
-          <span>
-            Cadastros removidos ficam disponíveis por 10 dias antes da
-            exclusão definitiva.
-          </span>
-        </section>
-
-        <TrashBin items={items} />
-      </>
-    );
   } catch (error) {
     console.error("Erro ao carregar lixeira:", error);
+    loadError = error;
+  }
 
+  if (!items) {
     return (
       <>
         <section className="heading">
@@ -100,11 +68,26 @@ export default async function LixeiraPage() {
           <span>Não foi possível consultar os registros removidos.</span>
         </section>
         <div className="pec-error">
-          {error instanceof Error
-            ? error.message
+          {loadError instanceof Error
+            ? loadError.message
             : "Erro desconhecido ao consultar a lixeira."}
         </div>
       </>
     );
   }
+
+  return (
+    <>
+      <section className="heading">
+        <p>PET-Saúde UFCG</p>
+        <h1>Lixeira</h1>
+        <span>
+          Cadastros removidos ficam disponíveis por 10 dias antes da
+          exclusão definitiva.
+        </span>
+      </section>
+
+      <TrashBin items={items} />
+    </>
+  );
 }

@@ -7,8 +7,7 @@ import type {
   UbsOption,
   VaccineConfig,
 } from "@/components/cadastro-clinico/types";
-import { getPostgresClient } from "@/lib/db/postgres";
-import { createClient } from "@/lib/supabase/server";
+import { getClinicalTeamContext } from "@/lib/auth/guards";
 
 type PageProps = {
   searchParams: Promise<{
@@ -140,33 +139,24 @@ export default async function CadastroClinicoPage({
   const params = await searchParams;
   const gestanteId = firstParam(params.gestante);
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const context = await getClinicalTeamContext();
+  if (!context || !context.profile.ubs_id) redirect("/dashboard");
 
-  if (!user) {
-    redirect("/login");
-  }
-
-  const { data: profileData, error: profileError } = await supabase
-    .from("perfis")
-    .select("nome_completo, perfil, ubs_id")
-    .eq("id", user.id)
-    .single();
-
-  const profile = profileData as ProfileRow | null;
-
-  if (profileError || !profile) {
-    redirect("/login");
-  }
-
-  const sql = getPostgresClient();
+  const { sql, user } = context;
+  const profileRows = await sql<ProfileRow[]>`
+    select nome_completo, perfil::text as perfil, ubs_id
+    from public.perfis
+    where id = ${user.id}::uuid
+    limit 1
+  `;
+  const profile = profileRows[0];
+  if (!profile) redirect("/dashboard");
 
   const ubsRows = await sql<UbsRow[]>`
     select id, nome
     from public.ubs
-    where ativa = true
+    where id = ${profile.ubs_id}::uuid
+      and ativa = true
     order by nome
   `;
 
@@ -189,15 +179,8 @@ export default async function CadastroClinicoPage({
         join public.perfis p on p.id = ${user.id}::uuid
         where g.id = ${gestanteId}::uuid
           and g.excluida_em is null
-          and p.ativo = true
-          and p.status = 'ativo'
-          and (
-            p.perfil = 'administrador'
-            or (
-              g.ubs_id = p.ubs_id
-              and g.profissional_responsavel_id = p.id
-            )
-          )
+          and g.ubs_id = p.ubs_id
+          and private.usuario_equipe_clinica_elegivel_v23(p.id, g.ubs_id)
       ) as autorizado
     `;
 

@@ -1,39 +1,10 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { ImportacaoPecForm } from "@/components/importacao-pec/importacao-pec-form";
+import { getClinicalTeamContext } from "@/lib/auth/guards";
 
 export default async function ImportacoesPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  const { data: profile } = await supabase
-    .from("perfis")
-    .select(
-      "perfil, ubs_id, status, ativo, cadastro_completo, aprovacao_status, ubs:ubs_id(id, nome)"
-    )
-    .eq("id", user.id)
-    .single();
-
-  const ubsRelation = Array.isArray(profile?.ubs)
-    ? profile.ubs[0]
-    : profile?.ubs;
-
-  const canImport =
-    profile?.perfil === "equipe_ubs" &&
-    profile.ativo === true &&
-    profile.status === "ativo" &&
-    profile.cadastro_completo === true &&
-    profile.aprovacao_status === "aprovado" &&
-    Boolean(profile.ubs_id) &&
-    Boolean(ubsRelation);
-
-  if (!canImport || !ubsRelation) {
+  const context = await getClinicalTeamContext();
+  if (!context || !context.profile.ubs_id) {
     return (
       <section className="module-page">
         <p>Importação PEC</p>
@@ -46,6 +17,16 @@ export default async function ImportacoesPage() {
     );
   }
 
+  const ubsRows = await context.sql<{ nome: string }[]>`
+    select nome
+    from public.ubs
+    where id = ${context.profile.ubs_id}::uuid
+      and ativa = true
+    limit 1
+  `;
+  const ubs = ubsRows[0];
+  if (!ubs) redirect("/dashboard");
+
   return (
     <>
       <section className="heading">
@@ -56,7 +37,7 @@ export default async function ImportacoesPage() {
         </span>
       </section>
 
-      <ImportacaoPecForm ubsName={ubsRelation.nome} />
+      <ImportacaoPecForm ubsName={ubs.nome} />
     </>
   );
 }

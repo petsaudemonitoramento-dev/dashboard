@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { getPostgresClient } from "@/lib/db/postgres";
+import { getClinicalTeamContext } from "@/lib/auth/guards";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,15 +12,11 @@ type RequestBody = {
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    const context = await getClinicalTeamContext();
+    if (!context) {
       return NextResponse.json(
-        { error: "Sessão expirada. Entre novamente." },
-        { status: 401 }
+        { error: "Acesso à lixeira permitido somente à equipe elegível da UBS." },
+        { status: 403 }
       );
     }
 
@@ -36,7 +31,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const sql = getPostgresClient();
+    const { sql, user } = context;
 
     if (action === "trash") {
       const rows = await sql`

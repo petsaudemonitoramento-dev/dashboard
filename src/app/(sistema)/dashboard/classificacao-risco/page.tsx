@@ -6,8 +6,7 @@ import type {
   RiskPageData,
   RiskPatient,
 } from "@/components/classificacao-risco/types";
-import { getPostgresClient } from "@/lib/db/postgres";
-import { createClient } from "@/lib/supabase/server";
+import { getClinicalTeamContext } from "@/lib/auth/guards";
 
 const INSTRUMENT_VERSION =
   "SES-PB — Instrumento de Classificação de Risco Gestacional na APS — outubro de 2024";
@@ -124,11 +123,10 @@ export default async function ClassificacaoRiscoPage({ searchParams }: PageProps
     ? params.gestante[0]
     : params.gestante;
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const context = await getClinicalTeamContext();
+  if (!context || !context.profile.ubs_id) redirect("/dashboard");
 
-  const sql = getPostgresClient();
+  const { sql, user } = context;
   const profileRows = await sql<{
     id: string;
     nome: string;
@@ -156,7 +154,8 @@ export default async function ClassificacaoRiscoPage({ searchParams }: PageProps
   const ubsOptions = await sql<{ id: string; nome: string }[]>`
     select id, nome
     from public.ubs
-    where ativa = true
+    where id = ${context.profile.ubs_id}::uuid
+      and ativa = true
     order by nome
   `;
 
@@ -187,15 +186,8 @@ export default async function ClassificacaoRiscoPage({ searchParams }: PageProps
         join public.perfis p on p.id = ${user.id}::uuid
         where g.id = ${gestanteIdValue}::uuid
           and g.excluida_em is null
-          and p.ativo = true
-          and p.status = 'ativo'
-          and (
-            p.perfil = 'administrador'
-            or (
-              g.ubs_id = p.ubs_id
-              and g.profissional_responsavel_id = p.id
-            )
-          )
+          and g.ubs_id = p.ubs_id
+          and private.usuario_equipe_clinica_elegivel_v23(p.id, g.ubs_id)
       ) as autorizado
     `;
 

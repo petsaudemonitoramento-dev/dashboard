@@ -35,23 +35,22 @@ export type PecRouteDependencies = {
 };
 
 async function authenticateImporter(): Promise<AuthenticatedImporter> {
-  const { createClient } = await import("@/lib/supabase/server");
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { getClinicalTeamContext } = await import("@/lib/auth/guards");
+  const context = await getClinicalTeamContext();
+  const ubsId = context?.profile.ubs_id;
 
-  if (!user) {
-    throw new PecRequestError(401, "Sessão expirada. Entre novamente.", "UNAUTHENTICATED");
-  }
-
-  const { data: profile, error } = await supabase
-    .from("perfis")
-    .select("perfil, ubs_id, status, ativo, cadastro_completo, aprovacao_status")
-    .eq("id", user.id)
-    .single();
-
-  if (error || !isEligiblePecImporter(profile)) {
+  if (
+    !context ||
+    !ubsId ||
+    !isEligiblePecImporter({
+      perfil: context.profile.perfil,
+      ubs_id: ubsId,
+      status: "ativo",
+      ativo: true,
+      cadastro_completo: true,
+      aprovacao_status: "aprovado",
+    })
+  ) {
     throw new PecRequestError(
       403,
       "Usuário sem permissão para importar arquivos PEC.",
@@ -59,7 +58,7 @@ async function authenticateImporter(): Promise<AuthenticatedImporter> {
     );
   }
 
-  return { userId: user.id, ubsId: profile.ubs_id };
+  return { userId: context.user.id, ubsId };
 }
 
 async function parseInWorker(

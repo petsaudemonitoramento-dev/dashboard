@@ -54,3 +54,23 @@ export async function getManagementContext() {
   const context = await getActiveProfileContext();
   return context?.profile.perfil === "gestao_municipal" ? context : null;
 }
+
+export async function getClinicalTeamContext() {
+  const context = await getActiveProfileContext();
+
+  if (
+    context?.profile.perfil !== "equipe_ubs" ||
+    !context.profile.ubs_id
+  ) {
+    return null;
+  }
+
+  const rows = await context.sql<{ autorizado: boolean }[]>`
+    select private.usuario_equipe_clinica_elegivel_v23(
+      ${context.user.id}::uuid,
+      ${context.profile.ubs_id}::uuid
+    ) as autorizado
+  `;
+
+  return rows[0]?.autorizado ? context : null;
+}

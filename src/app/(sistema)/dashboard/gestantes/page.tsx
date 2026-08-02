@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
 import { GestantesGrid } from "@/components/gestantes/gestantes-grid";
 import type { GestanteCardData } from "@/components/gestantes/gestantes-grid";
-import { getPostgresClient } from "@/lib/db/postgres";
-import { createClient } from "@/lib/supabase/server";
+import { getClinicalTeamContext } from "@/lib/auth/guards";
 
 type PageProps = {
   searchParams: Promise<{
@@ -83,41 +82,15 @@ export default async function GestantesPage({
     : params.modo;
   const presentationMode = modeValue === "apresentacao";
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const context = await getClinicalTeamContext();
+  if (!context) redirect("/dashboard");
 
-  if (!user) {
-    redirect("/login");
-  }
-
-  const { data: profile } = await supabase
-    .from("perfis")
-    .select("perfil, status, ativo")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile || !profile.ativo || profile.status !== "ativo") {
-    redirect("/login");
-  }
-
-  const normalizedProfile = String(profile.perfil);
-  const canAccessGestantes = [
-    "administrador",
-    "profissional_ubs",
-    "equipe_ubs",
-  ].includes(normalizedProfile);
-
-  if (!canAccessGestantes) {
-    redirect(normalizedProfile === "acs" ? "/dashboard/territorio" : "/dashboard");
-  }
-
-  const canShowIdentity = canAccessGestantes;
-  const identifiedView = canShowIdentity && !presentationMode;
+  const { sql, user } = context;
+  const identifiedView = !presentationMode;
+  let gestantes: GestanteCardData[] | null = null;
+  let loadError: unknown;
 
   try {
-    const sql = getPostgresClient();
     const rows = await sql<DatabaseRow[]>`
       select *
       from private.listar_gestantes_autorizadas_v16(
@@ -126,7 +99,7 @@ export default async function GestantesPage({
       )
     `;
 
-    const gestantes: GestanteCardData[] = rows.map((row) => ({
+    gestantes = rows.map((row) => ({
       id: row.gestante_id,
       codigo: row.codigo,
       nomeVisual: row.nome_visual,
@@ -163,26 +136,12 @@ export default async function GestantesPage({
       atualizadoEm: dateTimeToIso(row.atualizado_em),
     }));
 
-    return (
-      <>
-        <section className="heading">
-          <p>PET-Saúde UFCG</p>
-          <h1>Gestantes monitoradas</h1>
-          <span>
-            Cards assistenciais com acesso direto ao cadastro clínico.
-          </span>
-        </section>
-
-        <GestantesGrid
-          gestantes={gestantes}
-          presentationMode={presentationMode || !canShowIdentity}
-          canShowIdentity={canShowIdentity}
-        />
-      </>
-    );
   } catch (error) {
     console.error("Erro ao consultar gestantes:", error);
+    loadError = error;
+  }
 
+  if (!gestantes) {
     return (
       <>
         <section className="heading">
@@ -192,11 +151,29 @@ export default async function GestantesPage({
         </section>
 
         <div className="pec-error">
-          {error instanceof Error
-            ? error.message
+          {loadError instanceof Error
+            ? loadError.message
             : "Erro desconhecido ao consultar as gestantes."}
         </div>
       </>
     );
   }
+
+  return (
+    <>
+      <section className="heading">
+        <p>PET-Saúde UFCG</p>
+        <h1>Gestantes monitoradas</h1>
+        <span>
+          Cards assistenciais com acesso direto ao cadastro clínico.
+        </span>
+      </section>
+
+      <GestantesGrid
+        gestantes={gestantes}
+        presentationMode={presentationMode}
+        canShowIdentity
+      />
+    </>
+  );
 }

@@ -1,21 +1,16 @@
 import { NextResponse } from "next/server";
-import { getPostgresClient } from "@/lib/db/postgres";
-import { createClient } from "@/lib/supabase/server";
+import { getClinicalTeamContext } from "@/lib/auth/guards";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    const context = await getClinicalTeamContext();
+    if (!context) {
       return NextResponse.json(
-        { error: "Sessão expirada. Entre novamente." },
-        { status: 401 }
+        { error: "Acesso clínico permitido somente à equipe elegível da UBS." },
+        { status: 403 }
       );
     }
 
@@ -28,7 +23,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const sql = getPostgresClient();
+    const { sql, user } = context;
     const existingId =
       typeof payload.id === "string" && payload.id
         ? payload.id
@@ -42,15 +37,8 @@ export async function POST(request: Request) {
           join public.perfis p on p.id = ${user.id}::uuid
           where g.id = ${existingId}::uuid
             and g.excluida_em is null
-            and p.ativo = true
-            and p.status = 'ativo'
-            and (
-              p.perfil = 'administrador'
-              or (
-                g.ubs_id = p.ubs_id
-                and g.profissional_responsavel_id = p.id
-              )
-            )
+            and g.ubs_id = p.ubs_id
+            and private.usuario_equipe_clinica_elegivel_v23(p.id, g.ubs_id)
         ) as autorizado
       `;
 
@@ -58,7 +46,7 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             error:
-              "Esta gestante não está vinculada à sua responsabilidade profissional.",
+              "Esta gestante não pertence à UBS autorizada.",
           },
           { status: 403 }
         );
