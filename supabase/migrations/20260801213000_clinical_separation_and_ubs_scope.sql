@@ -33,7 +33,7 @@ AS $$
       AND p.ubs_id IS NOT NULL
       AND (p_ubs_id IS NULL OR p.ubs_id = p_ubs_id)
       AND c.situacao = 'validado'
-      AND c.validado_em IS NOT NULL
+      AND c.decidido_em IS NOT NULL
       AND c.cargo_funcao = p.cargo_funcao
       AND (
         (
