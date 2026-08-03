@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 'use strict';
 
 const { createClient } = require('@supabase/supabase-js');

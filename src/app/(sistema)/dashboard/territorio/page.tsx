@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+﻿import { redirect } from "next/navigation";
 import {
   AcsDashboard,
   type AcsDashboardData,
@@ -25,6 +25,7 @@ export default async function TerritorioPage() {
   }
 
   const sql = getPostgresClient();
+  let data: AcsDashboardData | null = null;
 
   try {
     const rows = await sql<ResultRow[]>`
@@ -33,16 +34,16 @@ export default async function TerritorioPage() {
       ) as dados
     `;
 
-    const data = rows[0]?.dados;
+    data = rows[0]?.dados ?? null;
 
     if (!data) {
       throw new Error("O painel territorial não retornou dados.");
     }
-
-    return <AcsDashboard data={data} />;
   } catch (error) {
     console.error("Erro ao carregar território ACS V21:", error);
+  }
 
+  if (!data) {
     return (
       <>
         <section className="heading">
@@ -54,11 +55,11 @@ export default async function TerritorioPage() {
         </section>
 
         <div className="pec-error">
-          {error instanceof Error
-            ? error.message
-            : "Não foi possível carregar o território."}
+          Não foi possível carregar o território neste momento.
         </div>
       </>
     );
   }
+
+  return <AcsDashboard data={data} />;
 }
