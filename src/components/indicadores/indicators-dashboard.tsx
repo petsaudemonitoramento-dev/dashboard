@@ -1,14 +1,10 @@
-import { OverviewDashboard } from "./overview-dashboard";
-import type { IndicatorData } from "./types";
-
-type IndicatorsDashboardProps = {
-  data: IndicatorData;
-  profile: string;
-};
+import { AnalyticsDashboard } from "./analytics-dashboard";
+import type { AnalyticsDashboardData } from "./types";
 
 export function IndicatorsDashboard({
   data,
-  profile,
-}: IndicatorsDashboardProps) {
-  return <OverviewDashboard data={data} profile={profile} />;
+}: {
+  data: AnalyticsDashboardData;
+}) {
+  return <AnalyticsDashboard data={data} />;
 }

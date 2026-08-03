@@ -1,7 +1,3 @@
-"use client";
-
-import { type CSSProperties, useMemo, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Baby,
@@ -9,307 +5,207 @@ import {
   CheckCircle2,
   Stethoscope,
 } from "lucide-react";
-import { AnalyticsPageHeader } from "./analytics-page-header";
 import { IndicatorCard } from "./indicator-card";
-import { PrivacySummary } from "./privacy-summary";
-import type { IndicatorData, IndicatorItem } from "./types";
+import { UbsSummaryTable } from "./ubs-summary-table";
+import {
+  aggregateCategories,
+  formatPublishedNumber,
+  formatPublishedPercent,
+  publishedRatio,
+  selectedSummary,
+} from "./analytics-utils";
+import type { AnalyticsDashboardData } from "./types";
 import styles from "./indicators.module.css";
 
-type OverviewDashboardProps = {
-  data: IndicatorData;
-  profile: string;
-};
-
-function safeNumber(value: unknown): number {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function sumItems(items: IndicatorItem[]): number {
-  return items.reduce(
-    (sum, item) => sum + safeNumber(item.quantidade),
-    0
-  );
-}
-
-function formatDateTime(value: string): string {
-  const parsed = new Date(value);
-
-  if (Number.isNaN(parsed.getTime())) {
-    return "agora";
-  }
-
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(parsed);
-}
-
-function formatPercent(numerator: number, denominator: number): string {
-  if (denominator <= 0) return "0%";
-  return `${Math.round((numerator / denominator) * 100)}%`;
-}
-
-function normalizeLabel(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
-}
-
-function findConsultationTarget(items: IndicatorItem[]) {
-  const targetPatterns = [
-    "meta",
-    "adequad",
-    "atingid",
-    "6 ou mais",
-    "seis ou mais",
-    ">= 6",
-  ];
-
-  const matches = items.filter((item) => {
-    const label = normalizeLabel(item.rotulo);
-    return targetPatterns.some((pattern) => label.includes(pattern));
-  });
-
-  if (matches.length > 0) {
-    return {
-      identified: true,
-      value: sumItems(matches),
-    };
-  }
-
-  return {
-    identified: false,
-    value: sumItems(items),
-  };
-}
-
-function riskClassName(label: string): string {
-  const normalized = normalizeLabel(label);
-
+function categoryClass(category: string): string {
+  const normalized = category.toLowerCase();
   if (normalized.includes("alto")) return styles.riskHigh;
-  if (normalized.includes("medio")) return styles.riskMedium;
-  if (
-    normalized.includes("habitual") ||
-    normalized.includes("baixo")
-  ) {
+  if (normalized.includes("médio") || normalized.includes("medio")) {
+    return styles.riskMedium;
+  }
+  if (normalized.includes("habitual") || normalized.includes("baixo")) {
     return styles.riskLow;
   }
-
   return styles.riskOther;
+}
+
+function CategoryDistribution({
+  title,
+  description,
+  rows,
+  selectedUbsId,
+  mode,
+}: {
+  title: string;
+  description: string;
+  rows: AnalyticsDashboardData["riskDistribution"];
+  selectedUbsId: string;
+  mode: "risk" | "capture";
+}) {
+  const items = aggregateCategories(rows, selectedUbsId);
+  const published = items.filter(
+    (item): item is { categoria: string; ordem: number; quantidade: number } =>
+      item.quantidade !== null
+  );
+  const total = published.reduce((sum, item) => sum + item.quantidade, 0);
+
+  return (
+    <article className={styles.panel}>
+      <header className={styles.panelHeader}>
+        <div>
+          <h2>{title}</h2>
+          <p>{description}</p>
+        </div>
+        <strong>{formatPublishedNumber(total > 0 ? total : null)}</strong>
+      </header>
+
+      {published.length === 0 ? (
+        <div className={styles.emptyState}>
+          Nenhum valor atingiu o limite de publicação.
+        </div>
+      ) : (
+        <>
+          <div className={styles.segmentedBar} aria-label={title}>
+            {published.map((item, index) => (
+              <i
+                className={
+                  mode === "risk"
+                    ? categoryClass(item.categoria)
+                    : styles[`category_${(index % 4) + 1}`]
+                }
+                key={item.categoria}
+                style={{ width: `${(item.quantidade / total) * 100}%` }}
+                title={`${item.categoria}: ${item.quantidade}`}
+              />
+            ))}
+          </div>
+
+          <div className={styles.legendList}>
+            {items.map((item, index) => (
+              <div key={item.categoria}>
+                <i
+                  className={
+                    mode === "risk"
+                      ? categoryClass(item.categoria)
+                      : styles[`category_${(index % 4) + 1}`]
+                  }
+                />
+                <span>{item.categoria}</span>
+                <strong>{formatPublishedNumber(item.quantidade)}</strong>
+                <small>
+                  {item.quantidade === null || total <= 0
+                    ? "não publicado"
+                    : formatPublishedPercent(
+                        (item.quantidade / total) * 100
+                      )}
+                </small>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </article>
+  );
 }
 
 export function OverviewDashboard({
   data,
-  profile,
-}: OverviewDashboardProps) {
-  const router = useRouter();
-  const [refreshing, startRefresh] = useTransition();
-
-  const updatedAt = useMemo(
-    () => formatDateTime(data.atualizadoEm),
-    [data.atualizadoEm]
+  selectedUbsId,
+}: {
+  data: AnalyticsDashboardData;
+  selectedUbsId: string;
+}) {
+  const summary = selectedSummary(
+    data.summary,
+    data.ubsIndicators,
+    data.riskDistribution,
+    data.captureDistribution,
+    selectedUbsId
   );
-
-  const active = safeNumber(data.resumo.ativas);
-  const early = safeNumber(data.resumo.captacaoPrecoce);
-  const late = safeNumber(data.resumo.captacaoTardia);
-  const unknown = safeNumber(data.resumo.captacaoSemDados);
-  const captureTotal = early + late + unknown;
-  const highRisk = safeNumber(data.resumo.altoRisco);
-  const examinationPending = safeNumber(data.resumo.examesPendentes);
-  const consultationTarget = useMemo(
-    () => findConsultationTarget(data.consultas),
-    [data.consultas]
+  const highRiskPercent = publishedRatio(
+    summary.altoRisco,
+    summary.gestantesAtivas
   );
-
-  const riskItems = useMemo(
-    () =>
-      data.riscos
-        .map((item) => ({
-          ...item,
-          quantidade: safeNumber(item.quantidade),
-        }))
-        .filter((item) => item.quantidade > 0),
-    [data.riscos]
-  );
-
-  const riskTotal = sumItems(riskItems);
-  const earlyDegrees =
-    captureTotal > 0 ? (early / captureTotal) * 360 : 0;
-  const lateDegrees =
-    captureTotal > 0 ? ((early + late) / captureTotal) * 360 : 0;
-
-  function refreshNow() {
-    startRefresh(() => {
-      router.refresh();
-    });
-  }
+  const visibleUbs =
+    selectedUbsId === "all"
+      ? data.ubsIndicators
+      : data.ubsIndicators.filter((row) => row.ubsId === selectedUbsId);
 
   return (
-    <div className={styles.wrapper}>
-      <AnalyticsPageHeader
-        onRefresh={refreshNow}
-        refreshing={refreshing}
-        updatedAt={updatedAt}
-      />
-
-      <section className={styles.scopeNote}>
-        <span>{data.titulo}</span>
-        <small>Fotografia atual do escopo autorizado</small>
-      </section>
-
+    <div className={styles.sectionStack}>
       <section className={styles.indicatorGrid}>
         <IndicatorCard
-          helper="Total agregado no escopo atual"
+          helper="Total publicado no escopo atual"
           icon={Baby}
           label="Gestantes ativas"
           tone="blue"
-          value={active}
+          value={formatPublishedNumber(summary.gestantesAtivas)}
         />
-
         <IndicatorCard
-          detail={`${early} registros com captação precoce`}
+          detail={`${formatPublishedNumber(summary.captacaoPrecoce)} registros publicados`}
           helper="Início do pré-natal até a 12ª semana"
           icon={CheckCircle2}
           label="Captação precoce"
           tone="green"
-          value={formatPercent(early, captureTotal)}
+          value={formatPublishedPercent(summary.percentualCaptacaoPrecoce)}
         />
-
         <IndicatorCard
-          helper={
-            consultationTarget.identified
-              ? "Categoria de meta identificada nos dados"
-              : "Soma disponível das categorias de consultas"
-          }
+          detail={`${formatPublishedNumber(summary.consultasMeta)} registros publicados`}
+          helper="Gestantes com sete ou mais consultas"
           icon={CalendarCheck2}
-          label={
-            consultationTarget.identified
-              ? "Consultas conforme meta"
-              : "Consultas registradas"
-          }
+          label="Consultas conforme meta"
           tone="purple"
-          value={consultationTarget.value}
+          value={formatPublishedPercent(summary.percentualMetaConsultas)}
         />
-
         <IndicatorCard
-          detail={`${highRisk} registros classificados`}
-          helper="Percentual sobre gestantes ativas"
+          detail={`${formatPublishedNumber(summary.altoRisco)} registros publicados`}
+          helper="Percentual sobre gestantes ativas publicadas"
           icon={AlertTriangle}
           label="Alto risco"
           tone="rose"
-          value={formatPercent(highRisk, active)}
+          value={formatPublishedPercent(highRiskPercent)}
         />
-
         <IndicatorCard
-          helper="Exames previstos ainda não registrados"
+          detail={`${formatPublishedNumber(summary.totalExamesPendentes)} exames publicados`}
+          helper="Gestantes com exames previstos pendentes"
           icon={Stethoscope}
           label="Pendências de exames"
           tone="amber"
-          value={examinationPending}
+          value={formatPublishedNumber(
+            summary.gestantesComExamesPendentes
+          )}
         />
       </section>
 
       <section className={styles.visualGrid}>
-        <article className={styles.panel}>
-          <header className={styles.panelHeader}>
-            <div>
-              <h2>Distribuição de risco</h2>
-              <p>Classificação agregada das gestantes ativas.</p>
-            </div>
-            <strong>{riskTotal}</strong>
-          </header>
-
-          {riskItems.length === 0 ? (
-            <div className={styles.emptyState}>
-              Nenhuma classificação disponível.
-            </div>
-          ) : (
-            <>
-              <div className={styles.segmentedBar} aria-label="Distribuição de risco">
-                {riskItems.map((item) => {
-                  const percentage =
-                    riskTotal > 0
-                      ? (item.quantidade / riskTotal) * 100
-                      : 0;
-
-                  return (
-                    <i
-                      className={riskClassName(item.rotulo)}
-                      key={item.rotulo}
-                      style={{ width: `${percentage}%` }}
-                      title={`${item.rotulo}: ${item.quantidade}`}
-                    />
-                  );
-                })}
-              </div>
-
-              <div className={styles.legendList}>
-                {riskItems.map((item) => (
-                  <div key={item.rotulo}>
-                    <i className={riskClassName(item.rotulo)} />
-                    <span>{item.rotulo}</span>
-                    <strong>{item.quantidade}</strong>
-                    <small>
-                      {formatPercent(item.quantidade, riskTotal)}
-                    </small>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </article>
-
-        <article className={styles.panel}>
-          <header className={styles.panelHeader}>
-            <div>
-              <h2>Captação pré-natal</h2>
-              <p>Distribuição pelo momento de início do acompanhamento.</p>
-            </div>
-            <strong>{captureTotal}</strong>
-          </header>
-
-          <div className={styles.captureLayout}>
-            <div
-              className={styles.captureDonut}
-              style={
-                {
-                  "--early": `${earlyDegrees}deg`,
-                  "--late": `${lateDegrees}deg`,
-                } as CSSProperties
-              }
-            >
-              <div>
-                <strong>{formatPercent(early, captureTotal)}</strong>
-                <span>precoce</span>
-              </div>
-            </div>
-
-            <div className={styles.captureLegend}>
-              <div>
-                <i className={styles.captureEarly} />
-                <span>Precoce</span>
-                <strong>{early}</strong>
-              </div>
-              <div>
-                <i className={styles.captureLate} />
-                <span>Tardia</span>
-                <strong>{late}</strong>
-              </div>
-              <div>
-                <i className={styles.captureUnknown} />
-                <span>Sem informação</span>
-                <strong>{unknown}</strong>
-              </div>
-            </div>
-          </div>
-        </article>
+        <CategoryDistribution
+          description="Soma dos valores que atingiram o limite de publicação."
+          mode="risk"
+          rows={data.riskDistribution}
+          selectedUbsId={selectedUbsId}
+          title="Distribuição de risco"
+        />
+        <CategoryDistribution
+          description="Momento de início do acompanhamento pré-natal."
+          mode="capture"
+          rows={data.captureDistribution}
+          selectedUbsId={selectedUbsId}
+          title="Captação pré-natal"
+        />
       </section>
 
-      <PrivacySummary studentLimited={profile === "aluno"} />
+      {data.scope.kind !== "student" ? (
+        <article className={styles.widePanel}>
+          <header className={styles.panelHeader}>
+            <div>
+              <h2>Resumo por UBS</h2>
+              <p>Comparação compacta dos indicadores publicados.</p>
+            </div>
+            <strong>{visibleUbs.length}</strong>
+          </header>
+          <UbsSummaryTable compact rows={visibleUbs} />
+        </article>
+      ) : null}
     </div>
   );
 }

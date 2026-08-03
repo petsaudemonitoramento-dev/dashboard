@@ -1,15 +1,12 @@
-﻿import { redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { IndicatorsDashboard } from "@/components/indicadores/indicators-dashboard";
-import type { IndicatorData } from "@/components/indicadores/types";
 import { getActiveProfileContext } from "@/lib/auth/guards";
+import { loadAnalyticsDashboard } from "@/lib/analytics/load-dashboard";
+import type { AnalyticsDashboardData } from "@/lib/analytics/types";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
-
-type IndicatorRow = {
-  dados: IndicatorData;
-};
 
 export default async function IndicadoresPage() {
   const context = await getActiveProfileContext();
@@ -18,7 +15,7 @@ export default async function IndicadoresPage() {
     redirect("/login");
   }
 
-  const { profile, sql, user } = context;
+  const { profile, sql } = context;
 
   if (profile.perfil === "acs") {
     redirect("/dashboard/territorio");
@@ -32,26 +29,16 @@ export default async function IndicadoresPage() {
     redirect("/dashboard");
   }
 
-  let data: IndicatorData | null = null;
+  let data: AnalyticsDashboardData | null = null;
 
   try {
-    const rows = await sql<IndicatorRow[]>`
-      select private.obter_indicadores_v21(
-        ${user.id}::uuid,
-        'ubs'
-      ) as dados
-    `;
-
-    data = rows[0]?.dados ?? null;
-
-    if (!data) {
-      throw new Error("Resposta vazia ao consultar indicadores.");
-    }
+    data = await loadAnalyticsDashboard({
+      sql,
+      profile: profile.perfil,
+      ubsId: profile.ubs_id,
+    });
   } catch (error) {
-    console.error(
-      "Erro ao carregar a visão geral de indicadores:",
-      error
-    );
+    console.error("Erro ao carregar Analytics V28:", error);
   }
 
   if (!data) {
@@ -60,11 +47,8 @@ export default async function IndicadoresPage() {
         <section className="heading">
           <p>PET-Saúde UFCG</p>
           <h1>Indicadores de acompanhamento</h1>
-          <span>
-            Não foi possível montar os indicadores neste momento.
-          </span>
+          <span>Não foi possível carregar a camada analítica segura.</span>
         </section>
-
         <div className="pec-error">
           Tente novamente em alguns instantes. Se o problema persistir,
           comunique à equipe técnica.
@@ -73,10 +57,5 @@ export default async function IndicadoresPage() {
     );
   }
 
-  return (
-    <IndicatorsDashboard
-      data={data}
-      profile={profile.perfil}
-    />
-  );
+  return <IndicatorsDashboard data={data} />;
 }
