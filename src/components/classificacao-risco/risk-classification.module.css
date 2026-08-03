@@ -89,5 +89,127 @@
 .resultCard>a:last-child { border:0; justify-content:center; color:#6741bd; background:transparent; }
 .mobileSave { display:none; }
 .spin { animation:spin 1s linear infinite; } @keyframes spin { to { transform:rotate(360deg); } }
-@media(max-width:1180px){ .layout{grid-template-columns:1fr}.scoreColumn{position:static;grid-row:1}.scoreCard{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:8px}.scoreCard h2,.scoreCard .scoreNumber,.scoreCard .classification{margin:0}.scoreCard dl,.scoreCard p,.scoreCard>small{grid-column:1/-1}.minimalGrid{grid-template-columns:repeat(2,1fr)}.measureCard{grid-template-columns:repeat(2,1fr)}.trimesterSelector{align-items:flex-start;flex-direction:column}.trimesterSelector small{margin-left:0}}
+@media(max-width:1180px){ .layout{grid-template-columns:1fr}.scoreColumn{position:static}.scoreCard{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:8px}.scoreCard h2,.scoreCard .scoreNumber,.scoreCard .classification{margin:0}.scoreCard dl,.scoreCard p,.scoreCard>small{grid-column:1/-1}.minimalGrid{grid-template-columns:repeat(2,1fr)}.measureCard{grid-template-columns:repeat(2,1fr)}.trimesterSelector{align-items:flex-start;flex-direction:column}.trimesterSelector small{margin-left:0}}
 @media(max-width:720px){ .auditStrip,.ubsEditor,.minimalGrid,.measureCard{grid-template-columns:1fr}.riskRow{grid-template-columns:48px 48px 48px minmax(250px,1fr) 55px}.scoreColumn .saveButton{display:none}.mobileSave{display:block}.contextIdentity h2{font-size:17px}.sourcePopover{right:auto;left:0}.trimesterSelector>div{width:100%}.trimesterSelector button{flex:1}}
+
+/* V29.1 — painel de escore responsivo em notebooks */
+.layout {
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 300px);
+}
+
+.scoreColumn,
+.scoreCard {
+  min-width: 0;
+}
+
+@media (max-width: 1480px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .scoreColumn {
+    position: static;
+    grid-row: 1;
+  }
+
+  .scoreCard {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px 14px;
+  }
+
+  .scoreCard h2,
+  .scoreCard .scoreNumber,
+  .scoreCard .classification {
+    margin: 0;
+  }
+
+  .scoreCard dl,
+  .scoreCard p,
+  .scoreCard .saveButton,
+  .scoreCard > small {
+    grid-column: 1 / -1;
+  }
+
+  .minimalGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .measureCard {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .trimesterSelector {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .trimesterSelector small {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .scoreCard {
+    grid-template-columns: 1fr;
+  }
+
+  .scoreCard dl,
+  .scoreCard p,
+  .scoreCard .saveButton,
+  .scoreCard > small {
+    grid-column: auto;
+  }
+}
+.catalogError {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  margin-top: 24px;
+  padding: 20px;
+  border: 1px solid #f0b7bd;
+  border-radius: 16px;
+  color: #8f2330;
+  background: #fff3f4;
+  box-shadow: 0 10px 28px rgba(91, 35, 45, .06);
+}
+
+.catalogError svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.catalogError h2,
+.catalogError p {
+  margin: 0;
+}
+
+.catalogError h2 {
+  color: #7f1d2d;
+  font-size: 18px;
+}
+
+.catalogError p {
+  margin-top: 6px;
+  color: #7e4b54;
+  line-height: 1.55;
+}
+/* V29.1 - escore no final */
+.layout {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.mainColumn {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+}
+
+.scoreColumn {
+  position: static !important;
+  top: auto !important;
+  grid-column: 1 !important;
+  grid-row: 2 !important;
+  width: 100%;
+}
+/* fim V29.1 - escore no final */

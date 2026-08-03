@@ -537,3 +537,171 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* V29.1 — histórico e confirmações */
+.tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.historyFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: #fff;
+}
+
+.historyFilters label {
+  display: grid;
+  gap: 5px;
+  min-width: 210px;
+  color: #514762;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.historyFilters select {
+  min-height: 39px;
+  padding: 0 10px;
+  border: 1px solid #d9d2e6;
+  border-radius: 9px;
+  color: #3a314b;
+  background: #fff;
+}
+
+.historyList {
+  display: grid;
+  gap: 9px;
+}
+
+.historyList article {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 11px;
+  align-items: start;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: #fff;
+}
+
+.historyList article > span {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 12px;
+}
+
+.historyVisit {
+  color: #176c47;
+  background: #e7f7ed;
+}
+
+.historyAbsent {
+  color: #995508;
+  background: #fff3d8;
+}
+
+.historyList strong,
+.historyList small {
+  display: block;
+}
+
+.historyList strong {
+  color: #332b47;
+  font-size: 13px;
+}
+
+.historyList small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.historyList p {
+  margin: 7px 0 0;
+  color: #5e556b;
+  font-size: 11px;
+}
+
+.historyList em {
+  display: block;
+  margin-top: 6px;
+  color: #7a7187;
+  font-size: 10px;
+}
+
+.confirmModal {
+  position: relative;
+  width: min(440px, 100%);
+  padding: 24px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 25px 80px rgba(0, 0, 0, .2);
+}
+
+.confirmIcon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 14px;
+  color: var(--p700);
+  background: var(--p100);
+}
+
+.confirmModal h2 {
+  margin: 13px 0 5px;
+  color: #302743;
+}
+
+.confirmModal p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.confirmActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+  margin-top: 20px;
+}
+
+.confirmActions button {
+  min-height: 42px;
+  border-radius: 10px;
+  font-weight: 750;
+}
+
+.cancelButton {
+  border: 1px solid #dcd5e7;
+  color: #5e556b;
+  background: #fff;
+}
+
+.confirmButton {
+  border: 0;
+  color: #fff;
+  background: var(--p700);
+}
+
+@media (max-width: 680px) {
+  .historyFilters {
+    display: grid;
+  }
+
+  .historyFilters label {
+    min-width: 0;
+  }
+
+  .confirmActions {
+    grid-template-columns: 1fr;
+  }
+}

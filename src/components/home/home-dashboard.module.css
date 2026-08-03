@@ -481,3 +481,6 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* V29 visual polish */
+.page{max-width:1600px;margin:0 auto}.welcome{padding:2px}.refresh,.tabs,.metricCard,.panel,.noticesPanel{transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease}.refresh:hover{border-color:#bdaae7;background:#faf8ff}.metricCard:hover,.panel:hover{border-color:#d0c4e7;box-shadow:0 14px 34px rgba(64,42,121,.075);transform:translateY(-1px)}.metricCard{min-height:112px}.panel,.noticesPanel{box-shadow:0 10px 28px rgba(64,42,121,.045)}.tabs{box-shadow:0 7px 18px rgba(64,42,121,.035)}@media(prefers-reduced-motion:reduce){.refresh,.tabs,.metricCard,.panel,.noticesPanel{transition:none}.metricCard:hover,.panel:hover{transform:none}}

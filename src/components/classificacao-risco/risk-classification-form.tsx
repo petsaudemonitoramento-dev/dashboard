@@ -297,6 +297,24 @@ export function RiskClassificationForm({ data }: { data: RiskPageData }) {
     }
   }
 
+  const catalogUnavailable = data.factors.length === 0;
+
+  if (catalogUnavailable) {
+    return (
+      <section className={styles.catalogError} role="alert">
+        <AlertTriangle size={26} />
+        <div>
+          <h2>Instrumento de classificaÃ§Ã£o indisponÃ­vel</h2>
+          <p>
+            O catÃ¡logo oficial de fatores de risco nÃ£o foi carregado.
+            Nenhuma classificaÃ§Ã£o pode ser calculada ou salva atÃ© a
+            restauraÃ§Ã£o das configuraÃ§Ãµes clÃ­nicas.
+          </p>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <div className={styles.layout}>
       <main className={styles.mainColumn}>

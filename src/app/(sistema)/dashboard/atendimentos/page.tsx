@@ -1,8 +1,16 @@
 import { redirect } from "next/navigation";
-import { getClinicalTeamContext } from "@/lib/auth/guards";
+import { getActiveProfileContext } from "@/lib/auth/guards";
 
-export default async function Page() {
-  if (!(await getClinicalTeamContext())) redirect("/dashboard");
+export default async function AttendancesPage() {
+  const context = await getActiveProfileContext();
 
-  return <section><p style={{color:"#623acb",fontWeight:700}}>Módulo do sistema</p><h1>Atendimentos</h1><div style={{marginTop:24,padding:28,border:"1px solid #dedbea",borderRadius:18,background:"white"}}>Tela organizada e pronta para implementação.</div></section>;
+  if (!context) {
+    redirect("/login");
+  }
+
+  if (context.profile.perfil === "equipe_ubs") {
+    redirect("/dashboard/gestantes");
+  }
+
+  redirect("/dashboard");
 }

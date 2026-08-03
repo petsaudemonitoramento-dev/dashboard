@@ -10,16 +10,11 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
-type ResultRow = {
-  dados: HomeData;
-};
+type ResultRow = { dados: HomeData };
 
 export default async function DashboardPage() {
   const context = await getActiveProfileContext();
-
-  if (!context) {
-    redirect("/login");
-  }
+  if (!context) redirect("/login");
 
   const { profile, user } = context;
 
@@ -28,14 +23,13 @@ export default async function DashboardPage() {
       <>
         <section className="heading">
           <p>PET-Saúde UFCG</p>
-          <h1>Administração técnica</h1>
+          <h1>Visão Geral técnica</h1>
           <span>
             Acesse configurações, unidades, integrações e diagnóstico. Dados
             clínicos e rotinas de gestão de usuários não ficam disponíveis
             para este perfil.
           </span>
         </section>
-
         <div className="pec-empty">
           O perfil técnico não consulta indicadores, prontuários, importações
           PEC ou lixeira clínica.
@@ -45,7 +39,6 @@ export default async function DashboardPage() {
   }
 
   const sql = getPostgresClient();
-
   let data: HomeData | null = null;
   let loadError: unknown;
 
@@ -53,19 +46,13 @@ export default async function DashboardPage() {
     const resultRows = await sql<ResultRow[]>`
       select private.obter_inicio_v21(${user.id}::uuid) as dados
     `;
-
     data = resultRows[0]?.dados ?? null;
-
-    if (!data) {
-      throw new Error("Não foi possível montar o resumo inicial.");
-    }
-
+    if (!data) throw new Error("Não foi possível montar o resumo inicial.");
     if (profile.perfil === "equipe_ubs") {
       data = { ...data, escopo: "Equipe da UBS" };
     }
-
   } catch (error) {
-    console.error("Erro ao carregar início V21:", error);
+    console.error("Erro ao carregar visão geral V29:", error);
     loadError = error;
   }
 
@@ -74,10 +61,9 @@ export default async function DashboardPage() {
       <>
         <section className="heading">
           <p>PET-Saúde UFCG</p>
-          <h1>Início</h1>
+          <h1>Visão Geral</h1>
           <span>Não foi possível montar o resumo operacional.</span>
         </section>
-
         <div className="pec-error">
           {loadError instanceof Error
             ? loadError.message

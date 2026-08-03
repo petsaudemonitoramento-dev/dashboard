@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   ClipboardCheck,
   Clock3,
+  History,
   Home,
   LoaderCircle,
   MapPin,
@@ -17,6 +18,7 @@ import {
 } from "lucide-react";
 import { FormEvent, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import type { VisitHistoryItem } from "@/components/visitas/types";
 import styles from "./acs-dashboard.module.css";
 
 export type AcsGestante = {
@@ -58,6 +60,7 @@ export type AcsDashboardData = {
     sinaisAlerta: number;
   };
   gestantes: AcsGestante[];
+  historico: VisitHistoryItem[];
 };
 
 const ORIENTATIONS = [
@@ -78,6 +81,9 @@ const ABSENCE_REASONS = [
   "Outro",
 ];
 
+type ViewMode = "prioridades" | "todas" | "historico";
+type QuickAction = "visita" | "nao_encontrada";
+
 function formatDate(value: string | null): string {
   if (!value) return "Nunca";
 
@@ -97,10 +103,17 @@ function firstName(value: string): string {
 
 export function AcsDashboard({ data }: { data: AcsDashboardData }) {
   const router = useRouter();
-  const [mode, setMode] = useState<"prioridades" | "todas">("prioridades");
+  const [mode, setMode] = useState<ViewMode>("prioridades");
   const [search, setSearch] = useState("");
+  const [period, setPeriod] = useState<"30" | "90" | "all">("30");
+  const [historyStatus, setHistoryStatus] =
+    useState<"all" | "visit" | "not_found" | "alert">("all");
   const [workingId, setWorkingId] = useState<string | null>(null);
   const [editing, setEditing] = useState<AcsGestante | null>(null);
+  const [confirmation, setConfirmation] = useState<{
+    item: AcsGestante;
+    action: QuickAction;
+  } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [refreshing, startRefresh] = useTransition();
 
@@ -114,16 +127,37 @@ export function AcsDashboard({ data }: { data: AcsDashboardData }) {
         item.codigo.toLocaleLowerCase("pt-BR").includes(normalizedSearch);
 
       if (!matchesSearch) return false;
-
       if (mode === "todas") return true;
-
       return priorityLabels(item).length > 0;
     });
   }, [data.gestantes, mode, search]);
 
+  const visibleHistory = useMemo(() => {
+    const now = new Date();
+
+    return data.historico.filter((item) => {
+      const itemDate = new Date(`${item.dataAcao.slice(0, 10)}T12:00:00`);
+      const ageDays = Math.floor(
+        (now.getTime() - itemDate.getTime()) / 86400000
+      );
+
+      if (period !== "all" && ageDays > Number(period)) return false;
+      if (historyStatus === "visit" && !item.compareceu) return false;
+      if (historyStatus === "not_found" && item.compareceu) return false;
+      if (historyStatus === "alert" && !item.sinaisAlerta) return false;
+
+      const normalizedSearch = search.trim().toLocaleLowerCase("pt-BR");
+      return (
+        !normalizedSearch ||
+        item.gestanteNome.toLocaleLowerCase("pt-BR").includes(normalizedSearch) ||
+        item.gestanteCodigo.toLocaleLowerCase("pt-BR").includes(normalizedSearch)
+      );
+    });
+  }, [data.historico, historyStatus, period, search]);
+
   async function quickAction(
     gestanteId: string,
-    action: "visita" | "nao_encontrada"
+    action: QuickAction
   ) {
     setWorkingId(gestanteId);
     setMessage(null);
@@ -140,6 +174,7 @@ export function AcsDashboard({ data }: { data: AcsDashboardData }) {
         throw new Error(body.error ?? "Não foi possível registrar a ação.");
       }
 
+      setConfirmation(null);
       setMessage(
         action === "visita"
           ? "Visita registrada para hoje."
@@ -239,7 +274,7 @@ export function AcsDashboard({ data }: { data: AcsDashboardData }) {
     <div className={styles.page}>
       <section className={styles.welcome}>
         <div>
-          <span>Painel territorial</span>
+          <span>Visitas territoriais</span>
           <h1>Olá, {firstName(data.nome)}</h1>
           <p>
             {data.ubsNome} · Microárea {data.microareaCodigo}
@@ -259,10 +294,9 @@ export function AcsDashboard({ data }: { data: AcsDashboardData }) {
       <section className={styles.notice}>
         <Home size={19} />
         <p>
-          Esta tela reduz o retrabalho: usa os dados já existentes do PEC
-          para montar prioridades. Registre aqui apenas a ação rápida e,
-          quando necessário, complemente. O registro obrigatório no
-          e-SUS Território continua sendo mantido pela rotina da unidade.
+          Use esta área para organizar prioridades e registrar ações rápidas.
+          O registro obrigatório no e-SUS Território continua sendo mantido
+          conforme a rotina institucional da unidade.
         </p>
       </section>
 
@@ -282,8 +316,7 @@ export function AcsDashboard({ data }: { data: AcsDashboardData }) {
         <div>
           <ClipboardCheck size={18} />
           <span>
-            <strong>{data.metricas.visitas}</strong> visitas nos últimos
-            30 dias
+            <strong>{data.metricas.visitas}</strong> visitas nos últimos 30 dias
           </span>
         </div>
         <div>
@@ -295,8 +328,7 @@ export function AcsDashboard({ data }: { data: AcsDashboardData }) {
         <div>
           <AlertTriangle size={18} />
           <span>
-            <strong>{data.metricas.sinaisAlerta}</strong> registros com
-            sinal de alerta
+            <strong>{data.metricas.sinaisAlerta}</strong> registros com alerta
           </span>
         </div>
       </section>
@@ -317,6 +349,14 @@ export function AcsDashboard({ data }: { data: AcsDashboardData }) {
           >
             Todas da microárea
           </button>
+          <button
+            className={mode === "historico" ? styles.activeTab : ""}
+            onClick={() => setMode("historico")}
+            type="button"
+          >
+            <History size={15} />
+            Histórico
+          </button>
         </div>
 
         <label className={styles.search}>
@@ -331,115 +371,249 @@ export function AcsDashboard({ data }: { data: AcsDashboardData }) {
 
       {message && <div className={styles.message}>{message}</div>}
 
-      <section className={styles.list}>
-        {visible.map((item) => {
-          const labels = priorityLabels(item);
-          const busy = workingId === item.id;
+      {mode === "historico" ? (
+        <>
+          <section className={styles.historyFilters}>
+            <label>
+              Período
+              <select
+                onChange={(event) =>
+                  setPeriod(event.target.value as typeof period)
+                }
+                value={period}
+              >
+                <option value="30">Últimos 30 dias</option>
+                <option value="90">Últimos 90 dias</option>
+                <option value="all">Todo o histórico disponível</option>
+              </select>
+            </label>
 
-          return (
-            <article className={styles.card} key={item.id}>
-              <header>
-                <div>
-                  <strong>{item.nome}</strong>
-                  <small>
-                    {item.codigo} · Última visita:{" "}
-                    {formatDate(item.ultimaVisita)}
-                  </small>
-                </div>
+            <label>
+              Situação
+              <select
+                onChange={(event) =>
+                  setHistoryStatus(
+                    event.target.value as typeof historyStatus
+                  )
+                }
+                value={historyStatus}
+              >
+                <option value="all">Todas</option>
+                <option value="visit">Visitas realizadas</option>
+                <option value="not_found">Não encontradas</option>
+                <option value="alert">Com sinal de alerta</option>
+              </select>
+            </label>
+          </section>
 
+          <section className={styles.historyList}>
+            {visibleHistory.map((item) => (
+              <article key={item.id}>
                 <span
                   className={
-                    item.altoRisco
-                      ? styles.highRisk
-                      : styles.followUp
+                    item.compareceu ? styles.historyVisit : styles.historyAbsent
                   }
                 >
-                  {item.risco ?? "Acompanhar"}
-                </span>
-              </header>
-
-              <div className={styles.cardBody}>
-                <div className={styles.clinicalSummary}>
-                  <span>
-                    <b>IG</b>
-                    {item.igSemanas !== null
-                      ? `${item.igSemanas} semanas`
-                      : "Não informada"}
-                  </span>
-                  <span>
-                    <b>DPP</b>
-                    {formatDate(item.dpp)}
-                  </span>
-                  <span>
-                    <b>Sem visita</b>
-                    {item.diasSemVisita >= 9999
-                      ? "Nunca visitada"
-                      : `${item.diasSemVisita} dias`}
-                  </span>
-                </div>
-
-                <div className={styles.tags}>
-                  {labels.map((label) => (
-                    <span key={label}>{label}</span>
-                  ))}
-                  {labels.length === 0 && (
-                    <span className={styles.regular}>Acompanhamento regular</span>
-                  )}
-                </div>
-              </div>
-
-              <footer>
-                <button
-                  className={styles.visit}
-                  disabled={busy}
-                  onClick={() => void quickAction(item.id, "visita")}
-                  type="button"
-                >
-                  {busy ? (
-                    <LoaderCircle className={styles.spin} size={17} />
-                  ) : (
+                  {item.compareceu ? (
                     <CheckCircle2 size={17} />
+                  ) : (
+                    <MapPin size={17} />
                   )}
-                  Registrar visita
-                </button>
+                </span>
+                <div>
+                  <strong>{item.gestanteNome}</strong>
+                  <small>
+                    {item.gestanteCodigo} · {formatDate(item.dataAcao)}
+                  </small>
+                  <p>
+                    {item.compareceu
+                      ? "Visita realizada"
+                      : item.motivoFalta ?? "Não encontrada"}
+                    {item.sinaisAlerta ? " · Sinal de alerta registrado" : ""}
+                  </p>
+                  {item.observacao && <em>{item.observacao}</em>}
+                </div>
+              </article>
+            ))}
 
-                <button
-                  className={styles.notFound}
-                  disabled={busy}
-                  onClick={() =>
-                    void quickAction(item.id, "nao_encontrada")
-                  }
-                  type="button"
-                >
-                  <MapPin size={17} />
-                  Não encontrada
-                </button>
+            {visibleHistory.length === 0 && (
+              <div className={styles.empty}>
+                <History size={35} />
+                <strong>Nenhuma ação encontrada</strong>
+                <span>Altere os filtros para consultar outro período.</span>
+              </div>
+            )}
+          </section>
+        </>
+      ) : (
+        <section className={styles.list}>
+          {visible.map((item) => {
+            const labels = priorityLabels(item);
+            const busy = workingId === item.id;
 
-                <button
-                  className={styles.complement}
-                  onClick={() => setEditing(item)}
-                  type="button"
-                >
-                  <PencilLine size={17} />
-                  Complementar
-                </button>
-              </footer>
-            </article>
-          );
-        })}
+            return (
+              <article className={styles.card} key={item.id}>
+                <header>
+                  <div>
+                    <strong>{item.nome}</strong>
+                    <small>
+                      {item.codigo} · Última visita:{" "}
+                      {formatDate(item.ultimaVisita)}
+                    </small>
+                  </div>
 
-        {visible.length === 0 && (
-          <div className={styles.empty}>
-            <CheckCircle2 size={35} />
-            <strong>
-              {mode === "prioridades"
-                ? "Nenhuma prioridade neste filtro"
-                : "Nenhuma gestante encontrada"}
-            </strong>
-            <span>Altere o filtro ou a busca para continuar.</span>
-          </div>
-        )}
-      </section>
+                  <span
+                    className={
+                      item.altoRisco ? styles.highRisk : styles.followUp
+                    }
+                  >
+                    {item.risco ?? "Acompanhar"}
+                  </span>
+                </header>
+
+                <div className={styles.cardBody}>
+                  <div className={styles.clinicalSummary}>
+                    <span>
+                      <b>IG</b>
+                      {item.igSemanas !== null
+                        ? `${item.igSemanas} semanas`
+                        : "Não informada"}
+                    </span>
+                    <span>
+                      <b>DPP</b>
+                      {formatDate(item.dpp)}
+                    </span>
+                    <span>
+                      <b>Sem visita</b>
+                      {item.diasSemVisita >= 9999
+                        ? "Nunca visitada"
+                        : `${item.diasSemVisita} dias`}
+                    </span>
+                  </div>
+
+                  <div className={styles.tags}>
+                    {labels.map((label) => (
+                      <span key={label}>{label}</span>
+                    ))}
+                    {labels.length === 0 && (
+                      <span className={styles.regular}>
+                        Acompanhamento regular
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <footer>
+                  <button
+                    className={styles.visit}
+                    disabled={busy}
+                    onClick={() =>
+                      setConfirmation({ item, action: "visita" })
+                    }
+                    type="button"
+                  >
+                    <CheckCircle2 size={17} />
+                    Registrar visita
+                  </button>
+
+                  <button
+                    className={styles.notFound}
+                    disabled={busy}
+                    onClick={() =>
+                      setConfirmation({ item, action: "nao_encontrada" })
+                    }
+                    type="button"
+                  >
+                    <MapPin size={17} />
+                    Não encontrada
+                  </button>
+
+                  <button
+                    className={styles.complement}
+                    onClick={() => setEditing(item)}
+                    type="button"
+                  >
+                    <PencilLine size={17} />
+                    Complementar
+                  </button>
+                </footer>
+              </article>
+            );
+          })}
+
+          {visible.length === 0 && (
+            <div className={styles.empty}>
+              <CheckCircle2 size={35} />
+              <strong>
+                {mode === "prioridades"
+                  ? "Nenhuma prioridade neste filtro"
+                  : "Nenhuma gestante encontrada"}
+              </strong>
+              <span>Altere o filtro ou a busca para continuar.</span>
+            </div>
+          )}
+        </section>
+      )}
+
+      {confirmation && (
+        <div className={styles.modalBackdrop} role="presentation">
+          <section
+            aria-labelledby="confirm-action-title"
+            aria-modal="true"
+            className={styles.confirmModal}
+            role="dialog"
+          >
+            <button
+              aria-label="Fechar"
+              className={styles.close}
+              onClick={() => setConfirmation(null)}
+              type="button"
+            >
+              <X size={18} />
+            </button>
+
+            <span className={styles.confirmIcon}>
+              {confirmation.action === "visita" ? (
+                <CheckCircle2 size={23} />
+              ) : (
+                <MapPin size={23} />
+              )}
+            </span>
+
+            <h2 id="confirm-action-title">Confirmar registro</h2>
+            <p>
+              {confirmation.action === "visita"
+                ? `Registrar visita realizada hoje para ${confirmation.item.nome}?`
+                : `Registrar que ${confirmation.item.nome} não foi encontrada hoje?`}
+            </p>
+
+            <div className={styles.confirmActions}>
+              <button
+                className={styles.cancelButton}
+                onClick={() => setConfirmation(null)}
+                type="button"
+              >
+                Cancelar
+              </button>
+              <button
+                className={styles.confirmButton}
+                disabled={workingId === confirmation.item.id}
+                onClick={() =>
+                  void quickAction(
+                    confirmation.item.id,
+                    confirmation.action
+                  )
+                }
+                type="button"
+              >
+                {workingId === confirmation.item.id
+                  ? "Registrando..."
+                  : "Confirmar"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {editing && (
         <div className={styles.modalBackdrop} role="presentation">
@@ -459,9 +633,7 @@ export function AcsDashboard({ data }: { data: AcsDashboardData }) {
             </button>
 
             <h2 id="acs-complement-title">Complementar ação</h2>
-            <p>
-              {editing.nome} · preenchimento opcional e curto.
-            </p>
+            <p>{editing.nome} · preenchimento opcional e curto.</p>
 
             {!editing.visitaId && (
               <div className={styles.modalWarning}>
@@ -537,7 +709,9 @@ export function AcsDashboard({ data }: { data: AcsDashboardData }) {
                 disabled={!editing.visitaId || workingId === editing.id}
                 type="submit"
               >
-                {workingId === editing.id ? "Salvando..." : "Salvar complemento"}
+                {workingId === editing.id
+                  ? "Salvando..."
+                  : "Salvar complemento"}
               </button>
             </form>
           </section>
