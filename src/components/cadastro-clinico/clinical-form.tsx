@@ -9,7 +9,6 @@ import {
   CalendarDays,
   CheckCircle2,
   ChevronDown,
-  ClipboardList,
   FileHeart,
   HeartPulse,
   LoaderCircle,
@@ -490,6 +489,7 @@ export function ClinicalForm({
       record.gestacao.dum
     );
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza os campos derivados da DUM
     setRecord((current) => ({
       ...current,
       gestacao: {
