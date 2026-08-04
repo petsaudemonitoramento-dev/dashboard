@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { getPostgresClient } from "@/lib/db/postgres";
 import { createClient } from "@/lib/supabase/server";
 import { isUserProfile, type UserProfile } from "@/lib/auth/roles";
@@ -11,7 +12,7 @@ type ActiveProfileRow = {
   microarea_id: string | null;
 };
 
-export async function getActiveProfileContext() {
+export const getActiveProfileContext = cache(async function getActiveProfileContext() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -48,7 +49,7 @@ export async function getActiveProfileContext() {
       perfil: profile.perfil as UserProfile,
     },
   };
-}
+});
 
 export async function getManagementContext() {
   const context = await getActiveProfileContext();

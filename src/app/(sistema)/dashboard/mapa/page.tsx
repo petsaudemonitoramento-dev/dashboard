@@ -1,7 +1,7 @@
 import "leaflet/dist/leaflet.css";
 
 import { redirect } from "next/navigation";
-import { TerritoryMap } from "@/components/mapa/territory-map";
+import { LazyTerritoryMap } from "@/components/mapa/lazy-territory-map";
 import { getActiveProfileContext } from "@/lib/auth/guards";
 import { profileLabel } from "@/lib/auth/roles";
 import { getPostgresClient } from "@/lib/db/postgres";
@@ -38,7 +38,7 @@ export default async function MapPage() {
   }
 
   return (
-    <TerritoryMap
+    <LazyTerritoryMap
       profile={profile.perfil}
       profileLabel={profileLabel(profile.perfil)}
       scopeDescription={scopeDescription}
