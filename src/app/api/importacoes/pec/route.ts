@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+﻿import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import type { ParsedPecFile } from "@/lib/pec/columns";
 import type { PecContainer, PecExtension } from "@/lib/pec/limits";
@@ -53,7 +53,7 @@ async function authenticateImporter(): Promise<AuthenticatedImporter> {
   ) {
     throw new PecRequestError(
       403,
-      "Usuário sem permissão para importar arquivos PEC.",
+      "UsuÃ¡rio sem permissÃ£o para importar arquivos PEC.",
       "IMPORT_FORBIDDEN"
     );
   }
@@ -119,7 +119,7 @@ function safeErrorCode(error: unknown): string {
   return error instanceof Error ? error.name.slice(0, 64) : "UNKNOWN_ERROR";
 }
 
-export async function handlePecPost(
+async function handlePecPost(
   request: Request,
   dependencies: PecRouteDependencies = defaultDependencies
 ): Promise<NextResponse> {
@@ -138,7 +138,7 @@ export async function handlePecPost(
       );
     }
     if (mode !== "preview" && mode !== "import") {
-      throw new PecRequestError(400, "Modo de operação inválido.", "INVALID_MODE");
+      throw new PecRequestError(400, "Modo de operaÃ§Ã£o invÃ¡lido.", "INVALID_MODE");
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -183,8 +183,8 @@ export async function handlePecPost(
     return NextResponse.json(
       {
         error: isParserError
-          ? "O arquivo é inválido, inseguro ou não suportado."
-          : "Não foi possível processar o arquivo.",
+          ? "O arquivo Ã© invÃ¡lido, inseguro ou nÃ£o suportado."
+          : "NÃ£o foi possÃ­vel processar o arquivo.",
       },
       { status: isParserError ? 400 : 500 }
     );
@@ -194,3 +194,4 @@ export async function handlePecPost(
 export async function POST(request: Request): Promise<NextResponse> {
   return await handlePecPost(request);
 }
+

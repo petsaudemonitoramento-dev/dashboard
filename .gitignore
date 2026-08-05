@@ -8,3 +8,8 @@
 .DS_Store
 
 !.env.example
+
+# Backups locais
+*.backup-*
+benchmark-build-*.txt
+_backup_*
