@@ -14,7 +14,7 @@ alter table public.perfis
 create index if not exists perfis_ubs_id_idx
   on public.perfis(ubs_id);
 
--- Cria uma chave aleatória no Supabase Vault uma única vez.
+-- Cria uma chave aleatÃ³ria no Supabase Vault uma Ãºnica vez.
 do $$
 begin
   if not exists (
@@ -180,7 +180,7 @@ create table if not exists public.importacoes_pec_resumo (
   concluido_em timestamptz
 );
 
--- Tabela clínica pseudonimizada, visível no sistema segundo a UBS do usuário.
+-- Tabela clÃ­nica pseudonimizada, visÃ­vel no sistema segundo a UBS do usuÃ¡rio.
 create table if not exists public.pec_gestantes (
   id uuid primary key,
   codigo text not null unique,
@@ -268,7 +268,7 @@ create table if not exists private.identidades_gestantes (
   atualizado_em timestamptz not null default now()
 );
 
--- Os dados crus entram aqui durante a transação e são apagados após o processamento.
+-- Os dados crus entram aqui durante a transaÃ§Ã£o e sÃ£o apagados apÃ³s o processamento.
 create table if not exists private.importacao_pec_linhas_raw (
   id bigint generated always as identity primary key,
   importacao_id uuid not null references public.importacoes_pec_resumo(id) on delete cascade,
@@ -305,7 +305,7 @@ begin
     p_ubs_id::text,
     regexp_replace(coalesce(p_canonical->>'cpf', ''), '\D', '', 'g'),
     regexp_replace(coalesce(p_canonical->>'cns', ''), '\D', '', 'g'),
-    lower(unaccent(coalesce(p_canonical->>'nome', ''))),
+    lower(extensions.unaccent(coalesce(p_canonical->>'nome', ''))),
     coalesce(p_canonical->>'data_nascimento', '')
   );
 
@@ -314,7 +314,7 @@ begin
   end if;
 
   return encode(
-    hmac(v_base, private.pii_key(), 'sha256'),
+    extensions.hmac(v_base, private.pii_key(), 'sha256'),
     'hex'
   );
 end
@@ -365,7 +365,7 @@ begin
         or p.ubs_id = p_ubs_id
       )
   ) then
-    raise exception 'Usuário sem autorização para importar nesta UBS';
+    raise exception 'UsuÃ¡rio sem autorizaÃ§Ã£o para importar nesta UBS';
   end if;
 
   insert into public.importacoes_pec_resumo (
@@ -557,7 +557,7 @@ begin
         private.clean_text(v_canonical->>'raca_cor'),
         case
           when lower(coalesce(v_canonical->>'bolsa_familia', '')) in ('sim', 'true', '1') then true
-          when lower(coalesce(v_canonical->>'bolsa_familia', '')) in ('nao', 'não', 'false', '0') then false
+          when lower(coalesce(v_canonical->>'bolsa_familia', '')) in ('nao', 'nÃ£o', 'false', '0') then false
           else null
         end,
         private.parse_date(v_canonical->>'vigencia_bolsa_familia'),
@@ -735,7 +735,7 @@ using (
   or ubs_id = security.usuario_ubs_id()
 );
 
--- UBS e microáreas solicitadas.
+-- UBS e microÃ¡reas solicitadas.
 do $$
 declare
   v_ubs_id uuid;
@@ -776,7 +776,7 @@ begin
           'insert into public.microareas (ubs_id, codigo, nome, ativa)
            values ($1, $2, $3, true)'
         )
-        using v_ubs_id, v_codigo, 'Microárea ' || v_codigo;
+        using v_ubs_id, v_codigo, 'MicroÃ¡rea ' || v_codigo;
       else
         execute format(
           'insert into public.microareas (ubs_id, codigo, ativa)
@@ -790,3 +790,4 @@ end
 $$;
 
 commit;
+
