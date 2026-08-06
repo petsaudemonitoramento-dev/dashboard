@@ -4,6 +4,7 @@
 @import "../styles/dashboard.css";
 @import "../styles/v20.css";
 @import "../styles/v21.css";
+@import "../styles/ui-polish.css";
 
 * {
   box-sizing: border-box;

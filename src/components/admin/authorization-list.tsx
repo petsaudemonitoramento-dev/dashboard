@@ -410,7 +410,7 @@ export function AuthorizationList({
                 )}
 
                 {row.perfilSolicitado === "equipe_ubs" && (
-                  <div>
+                  <div className={styles.credentialBlock}>
                     <strong>
                       {row.cargoFuncao === "medico" ? "Médico" : "Enfermeiro"}
                     </strong>
@@ -423,7 +423,7 @@ export function AuthorizationList({
                       Situação: {row.credencialSituacao ?? "não submetida"}
                     </small>
                     {row.credencialSituacao === "pendente" && (
-                      <div className={styles.itemActions}>
+                      <div className={styles.credentialActions}>
                         <a
                           href={
                             row.conselho === "CRM"
@@ -441,7 +441,7 @@ export function AuthorizationList({
                           onClick={() => void decideCredential(row, "validate")}
                           type="button"
                         >
-                          Validar credencial
+                          Confirmar credencial
                         </button>
                         <button
                           className={styles.reject}
@@ -457,24 +457,35 @@ export function AuthorizationList({
                 )}
               </div>
 
-              <div className={styles.itemActions}>
+              <div className={styles.rowActions}>
+                {row.perfilSolicitado !== "equipe_ubs" ||
+                row.credencialSituacao === "validado" ? (
+                  <button
+                    className={styles.approve}
+                    disabled={working}
+                    onClick={() => void send("approve", [row])}
+                    type="button"
+                  >
+                    <UserCheck size={16} />
+                    Autorizar acesso
+                  </button>
+                ) : (
+                  <div className={styles.authorizationStatus}>
+                    <ShieldCheck size={16} />
+                    <span>
+                      {row.credencialSituacao === "rejeitado"
+                        ? "Credencial rejeitada"
+                        : "Confirme a credencial antes de autorizar"}
+                    </span>
+                  </div>
+                )}
+
                 <button
-                  className={styles.approve}
-                  disabled={
-                    working ||
-                    (row.perfilSolicitado === "equipe_ubs" &&
-                      row.credencialSituacao !== "validado")
-                  }
-                  onClick={() => void send("approve", [row])}
-                  type="button"
-                >
-                  <UserCheck size={16} />
-                  Autorizar
-                </button>
-                <button
+                  aria-label="Rejeitar acesso"
                   className={styles.reject}
                   disabled={working}
                   onClick={() => void send("reject", [row])}
+                  title="Rejeitar acesso"
                   type="button"
                 >
                   <UserX size={16} />

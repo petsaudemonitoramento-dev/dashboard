@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppHeader } from "@/components/layout/app-header";
+import { LoginSuccessToast } from "@/components/ui/login-success-toast";
 
 export default async function Layout({
   children,
@@ -53,7 +54,10 @@ export default async function Layout({
           name={profile.nome_completo}
           profile={String(profile.perfil)}
         />
-        <main className="content">{children}</main>
+        <main className="content">
+          <LoginSuccessToast />
+          {children}
+        </main>
       </div>
     </div>
   );

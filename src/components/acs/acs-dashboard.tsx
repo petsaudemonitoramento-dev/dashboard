@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { FormEvent, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { MaskedDateInput } from "@/components/ui/masked-date-input";
 import type { VisitHistoryItem } from "@/components/visitas/types";
 import styles from "./acs-dashboard.module.css";
 
@@ -645,14 +646,13 @@ export function AcsDashboard({ data }: { data: AcsDashboardData }) {
             <form onSubmit={complement}>
               <label>
                 Data da ação
-                <input
+                <MaskedDateInput
                   defaultValue={
                     editing.ultimaVisita?.slice(0, 10) ??
                     new Date().toISOString().slice(0, 10)
                   }
                   max={new Date().toISOString().slice(0, 10)}
                   name="data"
-                  type="date"
                 />
               </label>
 

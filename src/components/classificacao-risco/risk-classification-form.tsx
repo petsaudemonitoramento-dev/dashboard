@@ -16,6 +16,7 @@ import {
   UserRoundPlus,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { MaskedDateInput } from "@/components/ui/masked-date-input";
 import type {
   PrefilledFactor,
   RiskFactor,
@@ -331,8 +332,8 @@ export function RiskClassificationForm({ data }: { data: RiskPageData }) {
           {!data.patient && (
             <div className={styles.minimalGrid}>
               <label><span>Nome da gestante *</span><input value={minimalName} onChange={(e) => setMinimalName(e.target.value)} placeholder="Nome completo" /></label>
-              <label><span>Data de nascimento *</span><input type="date" value={minimalBirth} onChange={(e) => setMinimalBirth(e.target.value)} /></label>
-              <label><span>DUM</span><input type="date" value={minimalDum} onChange={(e) => handleDum(e.target.value)} /></label>
+              <label><span>Data de nascimento *</span><MaskedDateInput key={`nascimento-${minimalBirth}`} value={minimalBirth} onChange={(event) => setMinimalBirth(event.target.value)} /></label>
+              <label><span>DUM</span><MaskedDateInput key={`dum-${minimalDum}`} value={minimalDum} onChange={(event) => handleDum(event.target.value)} /></label>
               <label><span>IG em semanas</span><input type="number" min="0" max="42" value={minimalWeeks} onChange={(e) => { setMinimalWeeks(e.target.value); setTrimester(trimesterFromWeeks(asNumber(e.target.value))); }} /></label>
             </div>
           )}

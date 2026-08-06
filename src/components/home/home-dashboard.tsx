@@ -202,7 +202,7 @@ export function HomeDashboard({
   }
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} ui-presentation-home`}>
       <section className={styles.welcome}>
         <div>
           <span>PET-Saúde UFCG</span>

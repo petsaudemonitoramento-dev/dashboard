@@ -1,12 +1,5 @@
+import { ModuleLoading } from "@/components/ui/module-loading";
+
 export default function Loading() {
-  return (
-    <div
-      aria-busy="true"
-      aria-live="polite"
-      className="module-placeholder"
-      role="status"
-    >
-      <strong>Carregando…</strong>
-    </div>
-  );
+  return <ModuleLoading />;
 }

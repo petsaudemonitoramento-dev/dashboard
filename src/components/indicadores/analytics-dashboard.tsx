@@ -36,7 +36,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsDashboardData }) {
   }
 
   return (
-    <div className={styles.wrapper}>
+    <div className={`${styles.wrapper} ui-presentation-analytics`}>
       <AnalyticsPageHeader
         onRefresh={refreshNow}
         refreshing={refreshing}

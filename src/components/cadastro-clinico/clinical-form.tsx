@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { MaskedDateInput } from "@/components/ui/masked-date-input";
 import {
   Activity,
   AlertCircle,
@@ -23,6 +24,8 @@ import {
 } from "lucide-react";
 import {
   FormEvent,
+  isValidElement,
+  type InputHTMLAttributes,
   type ReactNode,
   useEffect,
   useMemo,
@@ -386,18 +389,43 @@ function Field({
   helper?: string;
   required?: boolean;
 }) {
+  const dateProps =
+    isValidElement<InputHTMLAttributes<HTMLInputElement>>(children) &&
+    children.type === "input" &&
+    children.props.type === "date"
+      ? children.props
+      : null;
+
+  const control = dateProps ? (
+    <MaskedDateInput
+      key={String(dateProps.value ?? dateProps.defaultValue ?? "")}
+      {...dateProps}
+      defaultValue={
+        typeof dateProps.defaultValue === "string"
+          ? dateProps.defaultValue
+          : ""
+      }
+      value={
+        typeof dateProps.value === "string"
+          ? dateProps.value
+          : ""
+      }
+    />
+  ) : (
+    children
+  );
+
   return (
     <label className={styles.field}>
       <span>
         {label}
         {required && <b> *</b>}
       </span>
-      {children}
+      {control}
       {helper && <small>{helper}</small>}
     </label>
   );
 }
-
 function NumberInput({
   value,
   onChange,

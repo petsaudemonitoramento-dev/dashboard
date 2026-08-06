@@ -45,12 +45,27 @@ export function LoginForm() {
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        const invalidCredentials =
+          error.code === "invalid_credentials" ||
+          error.message
+            .toLocaleLowerCase("en-US")
+            .includes("invalid login credentials");
 
-      setMessageType("success");
-      setMessage("Login realizado com sucesso.");
+        throw new Error(
+          invalidCredentials
+            ? "Usuário ou senha inválidos."
+            : "Não foi possível realizar o login. Tente novamente."
+        );
+      }
+
+      window.sessionStorage.setItem(
+        "dashboard-login-success-at",
+        Date.now().toString()
+      );
       window.location.href = "/dashboard";
     } catch (error) {
+      window.sessionStorage.removeItem("dashboard-login-success-at");
       setMessageType("error");
       setMessage(
         error instanceof Error
@@ -67,6 +82,10 @@ export function LoginForm() {
     setMessage(null);
 
     try {
+      window.sessionStorage.setItem(
+        "dashboard-login-success-at",
+        Date.now().toString()
+      );
       const supabase = createClient();
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -77,6 +96,7 @@ export function LoginForm() {
 
       if (error) throw error;
     } catch (error) {
+      window.sessionStorage.removeItem("dashboard-login-success-at");
       setMessageType("error");
       setMessage(
         error instanceof Error
