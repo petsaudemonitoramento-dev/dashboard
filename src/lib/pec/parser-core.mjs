@@ -20,8 +20,17 @@ const LIMITS = Object.freeze({
 
 const ALIASES = {
   nome: ["nome", "nome do cidadao", "nome da pessoa", "paciente"],
-  data_nascimento: ["data de nascimento", "dt nascimento", "nascimento"],
-  idade_texto: ["idade"],
+  data_nascimento: ["data de nascimento", "dt nascimento", "nascimento", "data_nascimento", "data nascimento", "data_de_nascimento", "data-nascimento", "dt_nascimento", "data nasc", "data_nasc", "data de nasc.", "data nascimento gestante", "data de nascimento da gestante"],
+  idade_texto: [
+    "idade",
+    "idade anos",
+    "idade em anos",
+    "idade atual",
+    "idade da gestante",
+    "idade do cidadao",
+    "idade da pessoa",
+    "idade_anos",
+  ],
   sexo: ["sexo"],
   identidade_genero: ["identidade de genero"],
   raca_cor: ["raca cor", "raca/cor"],

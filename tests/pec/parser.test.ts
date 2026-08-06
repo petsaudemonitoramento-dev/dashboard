@@ -69,6 +69,27 @@ describe("parser PEC isolado", () => {
     expect(parsed.rows[0].extras).toEqual({ Observação: "acompanhamento" });
   });
 
+  it.each([
+    "Idade (anos)",
+    "Idade em anos",
+    "Idade atual",
+    "Idade da gestante",
+    "idade_anos",
+  ])("reconhece a coluna de idade do PEC como %s", async (ageHeader) => {
+    const parsed = await parsePecFile(
+      csvBuffer([
+        ["Nome", "Data de nascimento", "Microárea", ageHeader],
+        ["Pessoa Exemplo", "10/05/2000", "01", "26 anos"],
+      ]),
+      "idade.csv",
+      "csv",
+      "text"
+    );
+
+    expect(parsed.mapping.idade_texto).toBe(ageHeader);
+    expect(parsed.rows[0].canonical.idade_texto).toBe("26 anos");
+  });
+
   it("rejeita pacote ZIP comum que não é uma planilha OOXML", async () => {
     const emptyZip = Buffer.alloc(22);
     emptyZip.writeUInt32LE(0x06054b50, 0);
