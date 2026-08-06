@@ -1,4 +1,4 @@
-﻿node_modules/
+node_modules/
 .next/
 .vercel/
 .env
@@ -13,3 +13,8 @@
 *.backup-*
 benchmark-build-*.txt
 _backup_*
+# Arquivos locais sensíveis e diagnósticos
+Chave secreta google*.txt
+PerfiseSenhasSOFT.txt
+build-*.txt
+diagnostico-*.txt

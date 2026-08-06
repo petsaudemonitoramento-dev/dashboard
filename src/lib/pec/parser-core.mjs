@@ -1,4 +1,5 @@
 import { createRequire } from "node:module";
+import { TextDecoder } from "node:util";
 import { inflateRawSync } from "node:zlib";
 
 const require = createRequire(import.meta.url);
@@ -288,6 +289,33 @@ function validateContainer(buffer, extension, container) {
   reject("SIGNATURE_MISMATCH");
 }
 
+function decodeCsvBuffer(buffer) {
+  const hasUtf8Bom =
+    buffer.length >= 3 &&
+    buffer[0] === 0xef &&
+    buffer[1] === 0xbb &&
+    buffer[2] === 0xbf;
+
+  if (hasUtf8Bom) {
+    return {
+      text: new TextDecoder("utf-8").decode(buffer.subarray(3)),
+      encoding: "UTF-8 com BOM",
+    };
+  }
+
+  try {
+    return {
+      text: new TextDecoder("utf-8", { fatal: true }).decode(buffer),
+      encoding: "UTF-8",
+    };
+  } catch {
+    return {
+      text: new TextDecoder("windows-1252").decode(buffer),
+      encoding: "Windows-1252",
+    };
+  }
+}
+
 function workbookRead(buffer, options) {
   try {
     return XLSX.read(buffer, options);
@@ -325,26 +353,31 @@ export function parsePecBuffer(input) {
   const buffer = Buffer.from(input.buffer);
   validateContainer(buffer, input.extension, input.container);
 
-  const sheetList = workbookRead(buffer, {
-    type: "buffer",
+  const csvSource =
+    input.extension === "csv"
+      ? decodeCsvBuffer(buffer)
+      : null;
+  const workbookSource = csvSource?.text ?? buffer;
+  const workbookType = csvSource ? "string" : "buffer";
+
+  const sheetList = workbookRead(workbookSource, {
+    type: workbookType,
     bookSheets: true,
     raw: false,
     cellDates: false,
-    codepage: 65001,
   });
   if (!sheetList.SheetNames?.length) reject("EMPTY_WORKBOOK");
   if (sheetList.SheetNames.length > LIMITS.maxSheets) reject("SHEET_LIMIT");
   const sheetName = sheetList.SheetNames[0];
 
-  const workbook = workbookRead(buffer, {
-    type: "buffer",
+  const workbook = workbookRead(workbookSource, {
+    type: workbookType,
     raw: false,
     cellDates: false,
     cellFormula: true,
     cellHTML: false,
     cellNF: false,
     cellStyles: false,
-    codepage: 65001,
     sheets: [sheetName],
     sheetRows: LIMITS.maxRows + 1,
   });
@@ -413,7 +446,9 @@ export function parsePecBuffer(input) {
     mapping,
     rows,
     warnings: [
-      `Arquivo interpretado como ${input.extension === "csv" ? "CSV" : "planilha"}.`,
+      input.extension === "csv" && csvSource
+        ? `Arquivo interpretado como CSV (${csvSource.encoding}).`
+        : "Arquivo interpretado como planilha.",
       ...warnings,
     ],
   };
