@@ -6,6 +6,7 @@ import {
   mutationRequestError,
   readJsonObject,
 } from "@/lib/security/request";
+import { consumeRateLimit } from "@/lib/security/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeClinicalPayload } from "@/lib/validation/clinical-security";
 
@@ -31,6 +32,20 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "Sessão expirada. Entre novamente." },
         { status: 401 }
+      );
+    }
+
+    if (
+      !(await consumeRateLimit({
+        scope: "clinical-save",
+        actorKey: user.id,
+        limit: 120,
+        windowSeconds: 300,
+      }))
+    ) {
+      return NextResponse.json(
+        { error: "Muitas alterações em pouco tempo. Tente novamente em alguns minutos." },
+        { status: 429 }
       );
     }
 
