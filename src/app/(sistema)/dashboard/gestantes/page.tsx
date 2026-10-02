@@ -165,7 +165,7 @@ export default async function GestantesPage({
         pendencias: Number(row.pendencias_count ?? 0),
         atualizadoEm: dateTimeToIso(row.atualizado_em),
       }));
-  } catch (error) {
+  } catch {
       console.error("Erro ao consultar gestantes.");
       loadError = "Não foi possível carregar as fichas neste momento.";
   }
