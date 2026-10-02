@@ -65,7 +65,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
     const sql = getPostgresClient();
     const rows = await sql<{ relatorio: ReportData }[]>`
-      select private.obter_relatorio_classificacao_v17(
+      select private.obter_relatorio_classificacao_v30(
         ${user.id}::uuid,
         ${id}::uuid
       ) as relatorio
