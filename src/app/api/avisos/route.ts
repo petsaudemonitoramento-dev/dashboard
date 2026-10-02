@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { getPostgresClient } from "@/lib/db/postgres";
 import { createClient } from "@/lib/supabase/server";
+import {
+  logServerFailure,
+  mutationRequestError,
+  readJsonObject,
+} from "@/lib/security/request";
 import { isUuid } from "@/lib/validation/profile-input";
 
 export const runtime = "nodejs";
@@ -32,6 +37,12 @@ async function authenticatedAdmin() {
 }
 
 export async function POST(request: Request) {
+  const requestError = mutationRequestError(request, {
+    maxBytes: 24 * 1024,
+    contentTypes: ["application/json"],
+  });
+  if (requestError) return requestError;
+
   try {
     const context = await authenticatedAdmin();
 
@@ -42,7 +53,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = await request.json();
+    const body = await readJsonObject(request);
+    if (!body) {
+      return NextResponse.json(
+        { error: "Dados inválidos." },
+        { status: 400 }
+      );
+    }
     const titulo = String(body.titulo ?? "").trim();
     const mensagem = String(body.mensagem ?? "").trim();
     const tipo = String(body.tipo ?? "informativo").trim();
@@ -136,21 +153,18 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, id: rows[0].id });
   } catch (error) {
-    console.error("Erro ao publicar aviso:", error);
-
+    logServerFailure("notice-create", error);
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Não foi possível publicar o aviso.",
-      },
+      { error: "Não foi possível publicar o aviso." },
       { status: 500 }
     );
   }
 }
 
 export async function DELETE(request: Request) {
+  const requestError = mutationRequestError(request);
+  if (requestError) return requestError;
+
   try {
     const context = await authenticatedAdmin();
 
@@ -202,15 +216,9 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("Erro ao remover aviso:", error);
-
+    logServerFailure("notice-delete", error);
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Não foi possível remover o aviso.",
-      },
+      { error: "Não foi possível remover o aviso." },
       { status: 500 }
     );
   }
