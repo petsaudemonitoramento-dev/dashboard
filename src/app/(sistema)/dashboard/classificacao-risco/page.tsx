@@ -7,6 +7,7 @@ import type {
   RiskPatient,
 } from "@/components/classificacao-risco/types";
 import { getPostgresClient } from "@/lib/db/postgres";
+import { isUuid } from "@/lib/security/request";
 import { createClient } from "@/lib/supabase/server";
 
 const INSTRUMENT_VERSION =
@@ -123,6 +124,10 @@ export default async function ClassificacaoRiscoPage({ searchParams }: PageProps
   const gestanteIdValue = Array.isArray(params.gestante)
     ? params.gestante[0]
     : params.gestante;
+
+  if (gestanteIdValue && !isUuid(gestanteIdValue)) {
+    redirect("/dashboard/gestantes");
+  }
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
