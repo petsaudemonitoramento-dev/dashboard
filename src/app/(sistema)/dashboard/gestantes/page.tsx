@@ -116,87 +116,88 @@ export default async function GestantesPage({
   const canShowIdentity = canAccessGestantes;
   const identifiedView = canShowIdentity && !presentationMode;
 
+  let gestantes: GestanteCardData[] = [];
+  let loadError: string | null = null;
+
   try {
-    const sql = getPostgresClient();
-    const rows = await sql<DatabaseRow[]>`
-      select *
-      from private.listar_gestantes_autorizadas_v16(
-        ${user.id}::uuid,
-        ${identifiedView}
-      )
-    `;
+      const sql = getPostgresClient();
+      const rows = await sql<DatabaseRow[]>`
+        select *
+        from private.listar_gestantes_autorizadas_v16(
+          ${user.id}::uuid,
+          ${identifiedView}
+        )
+      `;
 
-    const gestantes: GestanteCardData[] = rows.map((row) => ({
-      id: row.gestante_id,
-      codigo: row.codigo,
-      nomeVisual: row.nome_visual,
-      ubsNome: row.ubs_nome,
-      microarea: row.microarea_codigo,
-      idadeAnos: row.idade_anos,
-      risco: row.risco_gestacional,
-      igSemanas: row.ig_semanas,
-      igDias: row.ig_dias,
-      dpp: dateToIso(row.dpp),
-      consultas: row.atendimentos_pre_natal,
-      consultasAte12Semanas: row.atendimentos_ate_12_semanas,
-      ultimaConsulta: dateToIso(row.ultima_consulta_pre_natal),
-      atendimentosOdontologicos: row.atendimentos_odontologicos,
-      dtpa: row.dtpa,
-      pressaoArterial: row.pressao_arterial,
-      pesoKg: numberOrNull(row.peso_kg),
-      alturaCm: numberOrNull(row.altura_cm),
-      visitasPreNatal: row.visitas_pre_natal,
-      diasUltimaVisita: row.dias_ultima_visita,
-      exames: {
-        hivPrimeiro: row.exame_hiv_primeiro,
-        sifilisPrimeiro: row.exame_sifilis_primeiro,
-        hepatiteBPrimeiro: row.exame_hepatite_b_primeiro,
-        hepatiteCPrimeiro: row.exame_hepatite_c_primeiro,
-        hivTerceiro: row.exame_hiv_terceiro,
-        sifilisTerceiro: row.exame_sifilis_terceiro,
-      },
-      observacao: row.observacao,
-      altaAtiva: row.alta_ativa,
-      altaData: dateToIso(row.alta_data),
-      altaMotivo: row.alta_motivo,
-      pendencias: Number(row.pendencias_count ?? 0),
-      atualizadoEm: dateTimeToIso(row.atualizado_em),
-    }));
-
-    return (
-      <>
-        <section className="heading">
-          <p>PET-Saúde UFCG</p>
-          <h1>Gestantes monitoradas</h1>
-          <span>
-            Cards assistenciais com acesso direto ao cadastro clínico.
-          </span>
-        </section>
-
-        <GestantesGrid
-          gestantes={gestantes}
-          presentationMode={presentationMode || !canShowIdentity}
-          canShowIdentity={canShowIdentity}
-        />
-      </>
-    );
+      gestantes = rows.map((row) => ({
+        id: row.gestante_id,
+        codigo: row.codigo,
+        nomeVisual: row.nome_visual,
+        ubsNome: row.ubs_nome,
+        microarea: row.microarea_codigo,
+        idadeAnos: row.idade_anos,
+        risco: row.risco_gestacional,
+        igSemanas: row.ig_semanas,
+        igDias: row.ig_dias,
+        dpp: dateToIso(row.dpp),
+        consultas: row.atendimentos_pre_natal,
+        consultasAte12Semanas: row.atendimentos_ate_12_semanas,
+        ultimaConsulta: dateToIso(row.ultima_consulta_pre_natal),
+        atendimentosOdontologicos: row.atendimentos_odontologicos,
+        dtpa: row.dtpa,
+        pressaoArterial: row.pressao_arterial,
+        pesoKg: numberOrNull(row.peso_kg),
+        alturaCm: numberOrNull(row.altura_cm),
+        visitasPreNatal: row.visitas_pre_natal,
+        diasUltimaVisita: row.dias_ultima_visita,
+        exames: {
+          hivPrimeiro: row.exame_hiv_primeiro,
+          sifilisPrimeiro: row.exame_sifilis_primeiro,
+          hepatiteBPrimeiro: row.exame_hepatite_b_primeiro,
+          hepatiteCPrimeiro: row.exame_hepatite_c_primeiro,
+          hivTerceiro: row.exame_hiv_terceiro,
+          sifilisTerceiro: row.exame_sifilis_terceiro,
+        },
+        observacao: row.observacao,
+        altaAtiva: row.alta_ativa,
+        altaData: dateToIso(row.alta_data),
+        altaMotivo: row.alta_motivo,
+        pendencias: Number(row.pendencias_count ?? 0),
+        atualizadoEm: dateTimeToIso(row.atualizado_em),
+      }));
   } catch (error) {
-    console.error("Erro ao consultar gestantes:", error);
+      console.error("Erro ao consultar gestantes.");
+      loadError = "Não foi possível carregar as fichas neste momento.";
+  }
 
+  if (loadError) {
     return (
       <>
         <section className="heading">
           <p>PET-Saúde UFCG</p>
           <h1>Gestantes monitoradas</h1>
-          <span>Não foi possível carregar as fichas neste momento.</span>
+          <span>{loadError}</span>
         </section>
-
-        <div className="pec-error">
-          {error instanceof Error
-            ? error.message
-            : "Erro desconhecido ao consultar as gestantes."}
-        </div>
+        <div className="pec-error">{loadError}</div>
       </>
     );
   }
+
+return (
+    <>
+      <section className="heading">
+        <p>PET-Saúde UFCG</p>
+        <h1>Gestantes monitoradas</h1>
+        <span>
+          Cards assistenciais com acesso direto ao cadastro clínico.
+        </span>
+      </section>
+
+      <GestantesGrid
+        gestantes={gestantes}
+        presentationMode={presentationMode || !canShowIdentity}
+        canShowIdentity={canShowIdentity}
+      />
+    </>
+  );
 }
