@@ -6,6 +6,7 @@ import {
   mutationRequestError,
   readJsonObject,
 } from "@/lib/security/request";
+import { consumeRateLimit } from "@/lib/security/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -33,6 +34,20 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "Sessão expirada. Entre novamente." },
         { status: 401 }
+      );
+    }
+
+    if (
+      !(await consumeRateLimit({
+        scope: "clinical-trash",
+        actorKey: user.id,
+        limit: 30,
+        windowSeconds: 300,
+      }))
+    ) {
+      return NextResponse.json(
+        { error: "Muitas operações em pouco tempo. Tente novamente em alguns minutos." },
+        { status: 429 }
       );
     }
 
