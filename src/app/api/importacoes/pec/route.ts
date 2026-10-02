@@ -118,7 +118,7 @@ export async function POST(request: Request) {
     const sql = getPostgresClient();
 
     const result = await sql`
-      select private.importar_pec(
+      select private.importar_pec_v30(
         ${ubsId}::uuid,
         ${user.id}::uuid,
         ${file.name},
