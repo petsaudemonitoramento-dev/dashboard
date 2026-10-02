@@ -7,6 +7,7 @@ import {
   logServerFailure,
   mutationRequestError,
 } from "@/lib/security/request";
+import { consumeRateLimit } from "@/lib/security/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -54,6 +55,20 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "Sessão expirada. Entre novamente." },
         { status: 401 }
+      );
+    }
+
+    if (
+      !(await consumeRateLimit({
+        scope: "pec-import",
+        actorKey: user.id,
+        limit: 10,
+        windowSeconds: 900,
+      }))
+    ) {
+      return NextResponse.json(
+        { error: "Limite temporário de importações atingido. Tente novamente mais tarde." },
+        { status: 429 }
       );
     }
 
