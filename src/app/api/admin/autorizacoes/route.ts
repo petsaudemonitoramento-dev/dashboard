@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
 import { getPostgresClient } from "@/lib/db/postgres";
 import { createClient } from "@/lib/supabase/server";
+import {
+  logServerFailure,
+  mutationRequestError,
+  readJsonObject,
+} from "@/lib/security/request";
 import { isUuid } from "@/lib/validation/profile-input";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const ALLOWED_PROFILES = new Set([
-  "administrador",
-  "profissional_ubs",
-  "acs",
-  "aluno",
-]);
+const ALLOWED_PROFILES = new Set(["equipe_ubs"]);
 
 type ApprovalRequest = {
   targetId: string;
@@ -21,6 +21,12 @@ type ApprovalRequest = {
 };
 
 export async function POST(request: Request) {
+  const requestError = mutationRequestError(request, {
+    maxBytes: 256 * 1024,
+    contentTypes: ["application/json"],
+  });
+  if (requestError) return requestError;
+
   try {
     const supabase = await createClient();
     const {
@@ -46,7 +52,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = await request.json();
+    const body = await readJsonObject(request);
+    if (!body) {
+      return NextResponse.json(
+        { error: "Dados inválidos." },
+        { status: 400 }
+      );
+    }
     const action = String(body.action ?? "approve");
     const items = Array.isArray(body.items)
       ? (body.items as ApprovalRequest[])
@@ -221,15 +233,9 @@ export async function POST(request: Request) {
       action,
     });
   } catch (error) {
-    console.error("Erro nas autorizações V21:", error);
-
+    logServerFailure("admin-approvals", error);
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Não foi possível processar as autorizações.",
-      },
+      { error: "Não foi possível processar as autorizações." },
       { status: 500 }
     );
   }
