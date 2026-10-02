@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { getPostgresClient } from "@/lib/db/postgres";
 import { createClient } from "@/lib/supabase/server";
+import {
+  logServerFailure,
+  mutationRequestError,
+  readJsonObject,
+} from "@/lib/security/request";
 import { isUuid } from "@/lib/validation/profile-input";
 
 export const runtime = "nodejs";
@@ -24,6 +29,12 @@ function clean(value: unknown, max = 160): string {
 }
 
 export async function POST(request: Request) {
+  const requestError = mutationRequestError(request, {
+    maxBytes: 32 * 1024,
+    contentTypes: ["application/json"],
+  });
+  if (requestError) return requestError;
+
   try {
     const supabase = await createClient();
     const {
@@ -49,7 +60,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = await request.json();
+    const body = await readJsonObject(request);
+    if (!body) {
+      return NextResponse.json(
+        { error: "Dados inválidos." },
+        { status: 400 }
+      );
+    }
     const action = String(body.action ?? "");
 
     if (!ACTIONS.has(action)) {
@@ -178,19 +195,20 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("Erro ao gerenciar UBS:", error);
+    const duplicate =
+      error instanceof Error &&
+      error.message.toLowerCase().includes("unique");
 
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Não foi possível concluir a operação.";
+    if (duplicate) {
+      return NextResponse.json(
+        { error: "Já existe uma UBS ou microárea com estes dados." },
+        { status: 409 }
+      );
+    }
 
-    const friendlyMessage = message.toLowerCase().includes("unique")
-      ? "Já existe uma UBS ou microárea com estes dados."
-      : message;
-
+    logServerFailure("admin-ubs", error);
     return NextResponse.json(
-      { error: friendlyMessage },
+      { error: "Não foi possível concluir a operação." },
       { status: 500 }
     );
   }
