@@ -50,7 +50,7 @@ export default async function ImportacoesPage() {
         <p>PET-Saúde UFCG</p>
         <h1>Importação adaptável do PEC</h1>
         <span>
-          Anexe um CSV ou XLSX exportado do PEC/e-SUS APS.
+          Anexe o arquivo CSV exportado do PEC/e-SUS APS.
         </span>
       </section>
 
