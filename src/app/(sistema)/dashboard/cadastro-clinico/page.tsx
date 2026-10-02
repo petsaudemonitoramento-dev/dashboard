@@ -151,14 +151,23 @@ export default async function CadastroClinicoPage({
 
   const { data: profileData, error: profileError } = await supabase
     .from("perfis")
-    .select("nome_completo, perfil, ubs_id")
+    .select("nome_completo, perfil, ubs_id, status, ativo, cadastro_completo, aprovacao_status, perfil_excluido_em")
     .eq("id", user.id)
     .single();
 
   const profile = profileData as ProfileRow | null;
 
-  if (profileError || !profile) {
-    redirect("/login");
+  if (
+    profileError ||
+    !profile ||
+    profile.perfil !== "equipe_ubs" ||
+    profile.status !== "ativo" ||
+    !profile.ativo ||
+    profile.cadastro_completo !== true ||
+    profile.aprovacao_status !== "aprovado" ||
+    profile.perfil_excluido_em
+  ) {
+    redirect("/aguardando-aprovacao");
   }
 
   const sql = getPostgresClient();
