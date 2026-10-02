@@ -1,0 +1,262 @@
+begin;
+
+create extension if not exists pgtap with schema extensions;
+
+select plan(13);
+
+-- Fixtures sintéticas: dois profissionais da MESMA UBS.
+insert into auth.users (
+  id, aud, role, email, created_at, updated_at
+)
+values
+  (
+    '10000000-0000-4000-8000-000000000001'::uuid,
+    'authenticated',
+    'authenticated',
+    'profissional-a@ci.invalid',
+    now(),
+    now()
+  ),
+  (
+    '10000000-0000-4000-8000-000000000002'::uuid,
+    'authenticated',
+    'authenticated',
+    'profissional-b@ci.invalid',
+    now(),
+    now()
+  )
+on conflict (id) do nothing;
+
+insert into public.perfis (
+  id,
+  nome_completo,
+  email,
+  perfil,
+  status,
+  ubs_id,
+  primeiro_acesso,
+  ativo,
+  cadastro_completo,
+  aprovacao_status,
+  perfil_solicitado,
+  origem_cadastro
+)
+values
+  (
+    '10000000-0000-4000-8000-000000000001'::uuid,
+    'Profissional A CI',
+    'profissional-a@ci.invalid',
+    'equipe_ubs',
+    'ativo',
+    '00000000-0000-4000-8000-000000000101'::uuid,
+    false,
+    true,
+    true,
+    'aprovado',
+    'equipe_ubs',
+    'ci'
+  ),
+  (
+    '10000000-0000-4000-8000-000000000002'::uuid,
+    'Profissional B CI',
+    'profissional-b@ci.invalid',
+    'equipe_ubs',
+    'ativo',
+    '00000000-0000-4000-8000-000000000101'::uuid,
+    false,
+    true,
+    true,
+    'aprovado',
+    'equipe_ubs',
+    'ci'
+  )
+on conflict (id) do update set
+  perfil = excluded.perfil,
+  status = excluded.status,
+  ubs_id = excluded.ubs_id,
+  ativo = excluded.ativo,
+  cadastro_completo = excluded.cadastro_completo,
+  aprovacao_status = excluded.aprovacao_status,
+  perfil_excluido_em = null;
+
+insert into public.pec_gestantes (
+  id,
+  codigo,
+  ubs_id,
+  profissional_responsavel_id
+)
+values
+  (
+    '20000000-0000-4000-8000-000000000001'::uuid,
+    'GST-CI-A1',
+    '00000000-0000-4000-8000-000000000101'::uuid,
+    '10000000-0000-4000-8000-000000000001'::uuid
+  ),
+  (
+    '20000000-0000-4000-8000-000000000002'::uuid,
+    'GST-CI-B1',
+    '00000000-0000-4000-8000-000000000101'::uuid,
+    '10000000-0000-4000-8000-000000000002'::uuid
+  )
+on conflict (id) do update set
+  ubs_id = excluded.ubs_id,
+  profissional_responsavel_id =
+    excluded.profissional_responsavel_id,
+  excluida_em = null;
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  '10000000-0000-4000-8000-000000000001',
+  true
+);
+
+select ok(
+  security.usuario_pode_acessar_gestante_v30(
+    '20000000-0000-4000-8000-000000000001'::uuid
+  ),
+  'Profissional A é autorizado na própria gestante'
+);
+
+select ok(
+  not security.usuario_pode_acessar_gestante_v30(
+    '20000000-0000-4000-8000-000000000002'::uuid
+  ),
+  'Profissional A não é autorizado na gestante B da mesma UBS'
+);
+
+select is(
+  (select count(*)::bigint from public.pec_gestantes),
+  1::bigint,
+  'RLS SELECT de A retorna somente a própria gestante'
+);
+
+update public.pec_gestantes
+set risco_gestacional = 'CI-A-OK'
+where id = '20000000-0000-4000-8000-000000000001'::uuid;
+
+update public.pec_gestantes
+set risco_gestacional = 'CI-BREACH'
+where id = '20000000-0000-4000-8000-000000000002'::uuid;
+
+delete from public.pec_gestantes
+where id = '20000000-0000-4000-8000-000000000002'::uuid;
+
+reset role;
+
+select is(
+  (
+    select risco_gestacional
+    from public.pec_gestantes
+    where id =
+      '20000000-0000-4000-8000-000000000001'::uuid
+  ),
+  'CI-A-OK',
+  'Profissional A consegue atualizar a própria gestante'
+);
+
+select isnt(
+  (
+    select risco_gestacional
+    from public.pec_gestantes
+    where id =
+      '20000000-0000-4000-8000-000000000002'::uuid
+  ),
+  'CI-BREACH',
+  'Profissional A não consegue atualizar a gestante B'
+);
+
+select ok(
+  exists (
+    select 1
+    from public.pec_gestantes
+    where id =
+      '20000000-0000-4000-8000-000000000002'::uuid
+  ),
+  'Profissional A não consegue excluir a gestante B'
+);
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  '10000000-0000-4000-8000-000000000002',
+  true
+);
+
+select ok(
+  security.usuario_pode_acessar_gestante_v30(
+    '20000000-0000-4000-8000-000000000002'::uuid
+  ),
+  'Profissional B é autorizado na própria gestante'
+);
+
+select ok(
+  not security.usuario_pode_acessar_gestante_v30(
+    '20000000-0000-4000-8000-000000000001'::uuid
+  ),
+  'Profissional B não é autorizado na gestante A da mesma UBS'
+);
+
+select is(
+  (select count(*)::bigint from public.pec_gestantes),
+  1::bigint,
+  'RLS SELECT de B retorna somente a própria gestante'
+);
+
+reset role;
+
+update public.perfis
+set ativo = false
+where id =
+  '10000000-0000-4000-8000-000000000001'::uuid;
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  '10000000-0000-4000-8000-000000000001',
+  true
+);
+
+select ok(
+  not security.usuario_pode_acessar_gestante_v30(
+    '20000000-0000-4000-8000-000000000001'::uuid
+  ),
+  'Profissional revogado perde autorização'
+);
+
+select is(
+  (select count(*)::bigint from public.pec_gestantes),
+  0::bigint,
+  'Profissional revogado não enxerga gestantes via RLS'
+);
+
+reset role;
+
+select ok(
+  not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'pec_gestantes'
+      and (
+        coalesce(qual, '') like '%usuario_eh_admin%'
+        or coalesce(qual, '') like '%ubs_id = security.usuario_ubs_id()%'
+      )
+  ),
+  'pec_gestantes não mantém policy ampla por admin/mesma UBS'
+);
+
+select ok(
+  not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'importacoes_pec_resumo'
+      and coalesce(qual, '') like '%security.usuario_eh_admin%'
+  ),
+  'importações PEC não mantêm leitura ampla de administrador'
+);
+
+select * from finish();
+
+rollback;
