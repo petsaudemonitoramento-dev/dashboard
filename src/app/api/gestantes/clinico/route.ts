@@ -72,7 +72,7 @@ export async function POST(request: Request) {
         acao: string;
       };
     }[]>`
-      select private.salvar_gestante_clinica(
+      select private.salvar_gestante_clinica_v30(
         ${user.id}::uuid,
         ${sql.json(payload)}
       ) as resultado
