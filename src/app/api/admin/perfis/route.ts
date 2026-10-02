@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { getPostgresClient } from "@/lib/db/postgres";
 import { createClient } from "@/lib/supabase/server";
+import {
+  logServerFailure,
+  mutationRequestError,
+  readJsonObject,
+} from "@/lib/security/request";
 import { isUuid } from "@/lib/validation/profile-input";
 
 export const runtime = "nodejs";
@@ -13,15 +18,16 @@ const ALLOWED_ACTIONS = new Set([
   "reactivate",
 ]);
 
-const ALLOWED_PROFILES = new Set([
-  "administrador",
-  "profissional_ubs",
-  "acs",
-  "aluno",
-]);
+const ALLOWED_PROFILES = new Set(["equipe_ubs"]);
 
 
 export async function POST(request: Request) {
+  const requestError = mutationRequestError(request, {
+    maxBytes: 32 * 1024,
+    contentTypes: ["application/json"],
+  });
+  if (requestError) return requestError;
+
   try {
     const supabase = await createClient();
     const {
@@ -47,7 +53,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = await request.json();
+    const body = await readJsonObject(request);
+    if (!body) {
+      return NextResponse.json(
+        { error: "Dados inválidos." },
+        { status: 400 }
+      );
+    }
     const action = String(body.action ?? "");
     const targetId = String(body.targetId ?? "");
     const perfil = String(body.perfil ?? "");
@@ -186,15 +198,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("Erro ao atualizar perfil:", error);
-
+    logServerFailure("admin-profile-update", error);
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Não foi possível atualizar o perfil.",
-      },
+      { error: "Não foi possível atualizar o perfil." },
       { status: 500 }
     );
   }
