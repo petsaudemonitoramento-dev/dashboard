@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - profissionais-v1-seguranca
+      - audit/pre-codex-hardening
   pull_request:
     branches:
       - main
