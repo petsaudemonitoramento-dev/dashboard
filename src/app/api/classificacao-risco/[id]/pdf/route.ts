@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont } from "pdf-lib";
 import { getPostgresClient } from "@/lib/db/postgres";
 import { isUuid, logServerFailure } from "@/lib/security/request";
+import { consumeRateLimit } from "@/lib/security/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -70,6 +71,20 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Sessão expirada." }, { status: 401 });
+
+    if (
+      !(await consumeRateLimit({
+        scope: "risk-pdf",
+        actorKey: user.id,
+        limit: 60,
+        windowSeconds: 300,
+      }))
+    ) {
+      return NextResponse.json(
+        { error: "Muitas solicitações de PDF. Tente novamente em alguns minutos." },
+        { status: 429 }
+      );
+    }
 
     const sql = getPostgresClient();
     const rows = await sql<{ relatorio: ReportData }[]>`
