@@ -147,6 +147,10 @@ export default async function ClassificacaoRiscoPage({ searchParams }: PageProps
     where p.id = ${user.id}::uuid
       and p.ativo = true
       and p.status = 'ativo'
+      and p.perfil = 'equipe_ubs'::public.perfil_usuario
+      and p.cadastro_completo = true
+      and p.aprovacao_status = 'aprovado'
+      and p.perfil_excluido_em is null
     limit 1
   `;
 
@@ -189,13 +193,12 @@ export default async function ClassificacaoRiscoPage({ searchParams }: PageProps
           and g.excluida_em is null
           and p.ativo = true
           and p.status = 'ativo'
-          and (
-            p.perfil = 'administrador'
-            or (
-              g.ubs_id = p.ubs_id
-              and g.profissional_responsavel_id = p.id
-            )
-          )
+          and p.perfil = 'equipe_ubs'::public.perfil_usuario
+          and g.ubs_id = p.ubs_id
+          and g.profissional_responsavel_id = p.id
+          and p.cadastro_completo = true
+          and p.aprovacao_status = 'aprovado'
+          and p.perfil_excluido_em is null
       ) as autorizado
     `;
 
