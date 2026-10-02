@@ -1,5 +1,3 @@
-import * as XLSX from "xlsx";
-
 export type ParsedPecRow = {
   linha: number;
   raw: Record<string, string>;
@@ -165,30 +163,178 @@ function findHeaderRow(matrix: unknown[][]): number {
   return bestIndex;
 }
 
+const MAX_CSV_ROWS = 10_200;
+const MAX_CSV_COLUMNS = 300;
+const MAX_CELL_LENGTH = 50_000;
+
+function decodeCsv(buffer: Buffer): string {
+  try {
+    return new TextDecoder("utf-8", { fatal: true })
+      .decode(buffer)
+      .replace(/^\uFEFF/, "");
+  } catch {
+    return buffer.toString("latin1").replace(/^\uFEFF/, "");
+  }
+}
+
+function delimiterScore(text: string, delimiter: string): number {
+  let inQuotes = false;
+  let score = 0;
+  const scanLength = Math.min(text.length, 200_000);
+
+  for (let index = 0; index < scanLength; index += 1) {
+    const char = text[index];
+
+    if (char === '"') {
+      if (inQuotes && text[index + 1] === '"') {
+        index += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (!inQuotes && char === delimiter) {
+      score += 1;
+    }
+  }
+
+  return score;
+}
+
+function detectDelimiter(text: string): string {
+  const candidates = [";", ",", "\t"];
+  let selected = ";";
+  let bestScore = -1;
+
+  for (const delimiter of candidates) {
+    const score = delimiterScore(text, delimiter);
+    if (score > bestScore) {
+      selected = delimiter;
+      bestScore = score;
+    }
+  }
+
+  if (bestScore <= 0) {
+    throw new Error(
+      "Não foi possível identificar o separador do arquivo CSV."
+    );
+  }
+
+  return selected;
+}
+
+function parseCsvMatrix(
+  text: string,
+  delimiter: string
+): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = "";
+  let inQuotes = false;
+
+  function pushField() {
+    if (field.length > MAX_CELL_LENGTH) {
+      throw new Error(
+        "O CSV contém uma célula maior que o limite permitido."
+      );
+    }
+
+    row.push(field);
+    field = "";
+
+    if (row.length > MAX_CSV_COLUMNS) {
+      throw new Error(
+        "O CSV contém colunas demais para uma importação."
+      );
+    }
+  }
+
+  function pushRow() {
+    pushField();
+    rows.push(row);
+    row = [];
+
+    if (rows.length > MAX_CSV_ROWS) {
+      throw new Error(
+        "O CSV ultrapassa o limite de linhas permitido."
+      );
+    }
+  }
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+
+    if (inQuotes) {
+      if (char === '"') {
+        if (text[index + 1] === '"') {
+          field += '"';
+          index += 1;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += char;
+      }
+      continue;
+    }
+
+    if (char === '"' && field.length === 0) {
+      inQuotes = true;
+      continue;
+    }
+
+    if (char === delimiter) {
+      pushField();
+      continue;
+    }
+
+    if (char === "\n") {
+      pushRow();
+      continue;
+    }
+
+    if (char === "\r") {
+      if (text[index + 1] === "\n") {
+        index += 1;
+      }
+      pushRow();
+      continue;
+    }
+
+    field += char;
+  }
+
+  if (inQuotes) {
+    throw new Error(
+      "O arquivo CSV possui aspas não finalizadas."
+    );
+  }
+
+  if (field.length > 0 || row.length > 0) {
+    pushRow();
+  }
+
+  return rows;
+}
+
 export function parsePecFile(
   buffer: Buffer,
   filename: string
 ): ParsedPecFile {
-  const workbook = XLSX.read(buffer, {
-    type: "buffer",
-    raw: false,
-    cellDates: false,
-    codepage: 65001,
-  });
-
-  const sheetName = workbook.SheetNames[0];
-
-  if (!sheetName) {
-    throw new Error("O arquivo não possui planilhas ou dados legíveis.");
+  if (!filename.toLowerCase().endsWith(".csv")) {
+    throw new Error("Somente arquivos CSV são aceitos.");
   }
 
-  const sheet = workbook.Sheets[sheetName];
-  const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
-    header: 1,
-    defval: "",
-    blankrows: true,
-    raw: false,
-  });
+  const text = decodeCsv(buffer);
+
+  if (!text.trim()) {
+    throw new Error("O arquivo CSV está vazio.");
+  }
+
+  const delimiter = detectDelimiter(text);
+  const matrix = parseCsvMatrix(text, delimiter);
+  const sheetName = "CSV";
 
   const headerIndex = findHeaderRow(matrix);
   const headers = uniqueHeaders(matrix[headerIndex] ?? []);
@@ -208,15 +354,23 @@ export function parsePecFile(
 
   for (const required of ["nome", "data_nascimento", "microarea"]) {
     if (!mapping[required]) {
-      warnings.push(`Campo não reconhecido automaticamente: ${required}`);
+      warnings.push(
+        `Campo não reconhecido automaticamente: ${required}`
+      );
     }
   }
 
   const rows: ParsedPecRow[] = [];
 
-  for (let rowIndex = headerIndex + 1; rowIndex < matrix.length; rowIndex += 1) {
+  for (
+    let rowIndex = headerIndex + 1;
+    rowIndex < matrix.length;
+    rowIndex += 1
+  ) {
     const values = matrix[rowIndex] ?? [];
-    const nonEmpty = values.filter((value) => String(value ?? "").trim()).length;
+    const nonEmpty = values.filter((value) =>
+      String(value ?? "").trim()
+    ).length;
 
     if (nonEmpty < 2) {
       continue;
@@ -227,23 +381,29 @@ export function parsePecFile(
     const extras: Record<string, string> = {};
 
     headers.forEach((header, columnIndex) => {
-      const value = String(values[columnIndex] ?? "").trim();
+      const value = String(
+        values[columnIndex] ?? ""
+      ).trim();
 
       if (!value) {
         return;
       }
 
       raw[header] = value;
-      const canonicalKey = headerCanonical.get(columnIndex);
+      const canonicalKey =
+        headerCanonical.get(columnIndex);
 
       if (canonicalKey) {
         canonical[canonicalKey] = value;
-      } else if (!PII_HEADER_PATTERN.test(normalizeHeader(header))) {
+      } else if (
+        !PII_HEADER_PATTERN.test(
+          normalizeHeader(header)
+        )
+      ) {
         extras[header] = value;
       }
     });
 
-    // Campos reconhecidos como identificadores nunca vão para dados_extras.
     for (const key of DIRECT_IDENTIFIER_KEYS) {
       delete extras[key];
     }
@@ -257,11 +417,15 @@ export function parsePecFile(
   }
 
   if (rows.length === 0) {
-    throw new Error("Nenhuma linha de dados foi encontrada após o cabeçalho.");
+    throw new Error(
+      "Nenhuma linha de dados foi encontrada após o cabeçalho."
+    );
   }
 
-  if (rows.length > 10000) {
-    throw new Error("O arquivo ultrapassa o limite de 10.000 registros por importação.");
+  if (rows.length > 10_000) {
+    throw new Error(
+      "O arquivo ultrapassa o limite de 10.000 registros por importação."
+    );
   }
 
   return {
@@ -271,7 +435,7 @@ export function parsePecFile(
     mapping,
     rows,
     warnings: [
-      `Arquivo interpretado como ${filename.toLowerCase().endsWith(".csv") ? "CSV" : "planilha"}.`,
+      "Arquivo interpretado como CSV.",
       ...warnings,
     ],
   };
