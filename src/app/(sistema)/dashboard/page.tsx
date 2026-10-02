@@ -31,49 +31,53 @@ export default async function DashboardPage() {
 
   const sql = getPostgresClient();
 
+  let data: HomeData | undefined;
+  let ubsRows: UbsOption[] = [];
+  let loadError: string | null = null;
+
   try {
-    const [resultRows, ubsRows] = await Promise.all([
-      sql<ResultRow[]>`
-        select private.obter_inicio_v21(${user.id}::uuid) as dados
-      `,
-      sql<UbsOption[]>`
-        select id, nome
-        from public.ubs
-        where ativa = true
-        order by nome
-      `,
-    ]);
+      const [resultRows, loadedUbsRows] = await Promise.all([
+        sql<ResultRow[]>`
+          select private.obter_inicio_v21(${user.id}::uuid) as dados
+        `,
+        sql<UbsOption[]>`
+          select id, nome
+          from public.ubs
+          where ativa = true
+          order by nome
+        `,
+      ]);
 
-    const data = resultRows[0]?.dados;
+      ubsRows = loadedUbsRows;
+      data = resultRows[0]?.dados;
 
-    if (!data) {
-      throw new Error("Não foi possível montar o resumo inicial.");
-    }
+      if (!data) {
+        throw new Error("Não foi possível montar o resumo inicial.");
+      }
+  } catch {
+    console.error("Erro ao carregar início V21.");
+    loadError = "Não foi possível montar o resumo operacional.";
+  }
 
-    return (
-      <HomeDashboard
-        canManageNotices={data.perfil === "administrador"}
-        data={data}
-        ubsOptions={ubsRows}
-      />
-    );
-  } catch (error) {
-    console.error("Erro ao carregar início V21:", error);
-
+  if (loadError || !data) {
+    const message = loadError ?? "Não foi possível montar o resumo operacional.";
     return (
       <>
         <section className="heading">
           <p>PET-Saúde UFCG</p>
           <h1>Início</h1>
-          <span>Não foi possível montar o resumo operacional.</span>
+          <span>{message}</span>
         </section>
-
-        <div className="pec-error">
-          {error instanceof Error
-            ? error.message
-            : "Erro desconhecido ao consultar a página inicial."}
-        </div>
+        <div className="pec-error">{message}</div>
       </>
     );
   }
+
+return (
+    <HomeDashboard
+      canManageNotices={data.perfil === "administrador"}
+      data={data}
+      ubsOptions={ubsRows}
+    />
+  );
 }
