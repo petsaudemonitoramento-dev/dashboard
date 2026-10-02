@@ -3,6 +3,7 @@ import path from "node:path";
 import { NextResponse } from "next/server";
 import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont } from "pdf-lib";
 import { getPostgresClient } from "@/lib/db/postgres";
+import { isUuid, logServerFailure } from "@/lib/security/request";
 import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -59,6 +60,13 @@ function wrap(text: string, font: PDFFont, size: number, maxWidth: number): stri
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
+    if (!isUuid(id)) {
+      return NextResponse.json(
+        { error: "Classificação não encontrada." },
+        { status: 404 }
+      );
+    }
+
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Sessão expirada." }, { status: 401 });
@@ -168,7 +176,10 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       },
     });
   } catch (error) {
-    console.error("Erro ao gerar PDF:", error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Não foi possível gerar o PDF." }, { status: 500 });
+    logServerFailure("risk-pdf", error);
+    return NextResponse.json(
+      { error: "Não foi possível gerar o PDF." },
+      { status: 500 }
+    );
   }
 }
