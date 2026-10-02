@@ -86,9 +86,6 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     let y: number = A4.height - MARGIN;
     const addPage = () => { page = doc.addPage([A4.width, A4.height]); y = A4.height - MARGIN; };
 
-    const drawText = (value: string, x: number, size = 9, font = regular, color = text) => {
-      page.drawText(value, { x, y, size, font, color });
-    };
     const ensure = (height: number) => { if (y - height < 74) addPage(); };
     const lineBlock = (value: string, x: number, maxWidth: number, size = 8.5, font = regular, color = text, lineHeight = 11) => {
       const lines = wrap(value, font, size, maxWidth);
@@ -120,7 +117,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       ["Data e horário", new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(report.realizadaEm))],
     ];
     page.drawRectangle({ x: MARGIN, y: y - 102, width: A4.width - 2*MARGIN, height: 108, color: soft, borderColor: rgb(.78,.76,.82), borderWidth: .6 });
-    let iy = y - 13;
+    const iy = y - 13;
     infoRows.forEach(([label, value], index) => {
       const col = index % 2; const row = Math.floor(index / 2);
       const x = MARGIN + 10 + col * 255; const yy = iy - row * 24;
