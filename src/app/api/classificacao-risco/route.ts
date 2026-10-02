@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     const rows = await sql<{
       resultado: Record<string, unknown>;
     }[]>`
-      select private.salvar_classificacao_risco_v17(
+      select private.salvar_classificacao_risco_v30(
         ${user.id}::uuid,
         ${sql.json(payload)}
       ) as resultado
