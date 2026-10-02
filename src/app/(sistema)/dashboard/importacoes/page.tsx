@@ -14,7 +14,7 @@ export default async function ImportacoesPage() {
 
   const { data: profile } = await supabase
     .from("perfis")
-    .select("perfil, ubs_id, ubs:ubs_id(id, nome)")
+    .select("perfil, ubs_id, status, ativo, cadastro_completo, aprovacao_status, perfil_excluido_em, ubs:ubs_id(id, nome)")
     .eq("id", user.id)
     .single();
 
@@ -22,7 +22,17 @@ export default async function ImportacoesPage() {
     ? profile.ubs[0]
     : profile?.ubs;
 
-  if (!profile?.ubs_id || !ubsRelation) {
+  if (
+    !profile ||
+    profile.perfil !== "equipe_ubs" ||
+    profile.status !== "ativo" ||
+    !profile.ativo ||
+    profile.cadastro_completo !== true ||
+    profile.aprovacao_status !== "aprovado" ||
+    profile.perfil_excluido_em ||
+    !profile.ubs_id ||
+    !ubsRelation
+  ) {
     return (
       <section className="module-page">
         <p>Importação PEC</p>
