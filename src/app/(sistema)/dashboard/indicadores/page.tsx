@@ -63,7 +63,7 @@ export default async function IndicadoresPage() {
 
   let ubsData: IndicatorData | undefined;
   let professionalData: IndicatorData | undefined;
-  let metabase: ReturnType<typeof buildMetabaseViewConfig> extends infer T ? { ubs: T; profissional: T } : never;
+  let metabase: Parameters<typeof IndicatorsDashboard>[0]["metabase"] | undefined;
   let loadError: string | null = null;
 
   try {
@@ -119,7 +119,7 @@ export default async function IndicadoresPage() {
               missing: ["Acesso restrito para o perfil aluno"],
             },
       };
-  } catch (error) {
+  } catch {
       console.error("Erro ao carregar indicadores V21.");
       loadError = "Não foi possível montar os indicadores neste momento.";
   }
