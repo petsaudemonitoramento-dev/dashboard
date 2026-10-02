@@ -1,4 +1,4 @@
-﻿node_modules/
+node_modules/
 .next/
 .vercel/
 .env
@@ -6,5 +6,10 @@
 .env.*.local
 *.log
 .DS_Store
+
+# Supabase CLI local/Codespaces state
+supabase/.temp/
+supabase/.branches/
+supabase/.cache/
 
 !.env.example
