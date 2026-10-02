@@ -1,6 +1,14 @@
 import { isUuid } from "@/lib/security/request";
 
-type JsonObject = Record<string, unknown>;
+type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
+type JsonObject = { [key: string]: JsonValue };
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
