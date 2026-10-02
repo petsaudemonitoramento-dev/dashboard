@@ -51,60 +51,62 @@ export default async function LixeiraPage() {
     "equipe_ubs",
   ].includes(String(profile.perfil));
 
+  let items: TrashItem[] = [];
+  let loadError: string | null = null;
+
   try {
-    const sql = getPostgresClient();
+      const sql = getPostgresClient();
 
-    await sql`select private.esvaziar_lixeira_v19()`;
+      await sql`select private.esvaziar_lixeira_v19()`;
 
-    const rows = await sql<DatabaseRow[]>`
-      select *
-      from private.listar_lixeira_gestantes_v19(
-        ${user.id}::uuid,
-        ${canShowIdentity}
-      )
-    `;
+      const rows = await sql<DatabaseRow[]>`
+        select *
+        from private.listar_lixeira_gestantes_v19(
+          ${user.id}::uuid,
+          ${canShowIdentity}
+        )
+      `;
 
-    const items: TrashItem[] = rows.map((row) => ({
-      id: row.gestante_id,
-      codigo: row.codigo,
-      nomeVisual: row.nome_visual,
-      ubsNome: row.ubs_nome,
-      microarea: row.microarea_codigo,
-      excluidaEm: toIso(row.excluida_em),
-      excluirEm: toIso(row.excluir_em),
-      motivo: row.exclusao_motivo,
-    }));
+      items = rows.map((row) => ({
+        id: row.gestante_id,
+        codigo: row.codigo,
+        nomeVisual: row.nome_visual,
+        ubsNome: row.ubs_nome,
+        microarea: row.microarea_codigo,
+        excluidaEm: toIso(row.excluida_em),
+        excluirEm: toIso(row.excluir_em),
+        motivo: row.exclusao_motivo,
+      }));
+  } catch {
+    console.error("Erro ao carregar lixeira.");
+    loadError = "Não foi possível consultar os registros removidos.";
+  }
 
+  if (loadError) {
     return (
       <>
         <section className="heading">
           <p>PET-Saúde UFCG</p>
           <h1>Lixeira</h1>
-          <span>
-            Cadastros removidos ficam disponíveis por 10 dias antes da
-            exclusão definitiva.
-          </span>
+          <span>{loadError}</span>
         </section>
-
-        <TrashBin items={items} />
-      </>
-    );
-  } catch (error) {
-    console.error("Erro ao carregar lixeira:", error);
-
-    return (
-      <>
-        <section className="heading">
-          <p>PET-Saúde UFCG</p>
-          <h1>Lixeira</h1>
-          <span>Não foi possível consultar os registros removidos.</span>
-        </section>
-        <div className="pec-error">
-          {error instanceof Error
-            ? error.message
-            : "Erro desconhecido ao consultar a lixeira."}
-        </div>
+        <div className="pec-error">{loadError}</div>
       </>
     );
   }
+
+return (
+    <>
+      <section className="heading">
+        <p>PET-Saúde UFCG</p>
+        <h1>Lixeira</h1>
+        <span>
+          Cadastros removidos ficam disponíveis por 10 dias antes da
+          exclusão definitiva.
+        </span>
+      </section>
+
+      <TrashBin items={items} />
+    </>
+  );
 }
