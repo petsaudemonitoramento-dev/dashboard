@@ -8,6 +8,7 @@ import type {
   VaccineConfig,
 } from "@/components/cadastro-clinico/types";
 import { getPostgresClient } from "@/lib/db/postgres";
+import { isUuid } from "@/lib/security/request";
 import { createClient } from "@/lib/supabase/server";
 
 type PageProps = {
@@ -20,6 +21,11 @@ type ProfileRow = {
   nome_completo: string;
   perfil: string;
   ubs_id: string | null;
+  status: string;
+  ativo: boolean;
+  cadastro_completo: boolean;
+  aprovacao_status: string;
+  perfil_excluido_em: string | null;
 };
 
 type UbsRow = {
