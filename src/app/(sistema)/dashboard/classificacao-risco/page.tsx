@@ -204,7 +204,7 @@ export default async function ClassificacaoRiscoPage({ searchParams }: PageProps
     }
 
     const recordRows = await sql<{ record: ClinicalRecord }[]>`
-      select private.obter_gestante_clinica(
+      select private.obter_gestante_clinica_v30(
         ${user.id}::uuid,
         ${gestanteIdValue}::uuid,
         true
