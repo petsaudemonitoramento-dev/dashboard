@@ -16,6 +16,121 @@ A diferença crítica é que aqui haverá dados individualizados de saúde. A se
 
 ---
 
+
+---
+
+# AMBIENTE OBRIGATÓRIO DE EXECUÇÃO
+
+Antes de implementar, leia integralmente:
+
+`docs/AMBIENTES_E_CI.md`
+
+## Remote oficial dos Profissionais
+
+O Supabase remoto oficial é:
+
+- projeto: `dashboard-v2`
+- project ref: `bhkyfcnuxcvjgvusgpgm`
+
+Esse remote é o destino futuro do software, NÃO o ambiente de implementação do Codex.
+
+## Ambiente de desenvolvimento
+
+A implementação e os testes devem usar:
+
+1. **GitHub Actions + Supabase efêmero** como ambiente principal;
+2. **GitHub Codespaces** apenas quando for necessário depurar de forma interativa.
+
+O workflow já existente é:
+
+`.github/workflows/profissionais-security-ci.yml`
+
+A baseline reproduzível está em:
+
+`supabase/migrations/`
+
+O seed permitido está em:
+
+`supabase/seed.sql`
+
+## PROIBIÇÕES DE REMOTE
+
+Durante esta tarefa o Codex NÃO DEVE:
+
+- executar `supabase db push` contra o dashboard-v2;
+- executar `supabase db reset --linked`;
+- executar SQL de alteração diretamente no dashboard-v2;
+- criar ou alterar usuários reais;
+- importar dados reais;
+- adicionar credenciais do dashboard-v2 ao GitHub Actions;
+- adicionar `SUPABASE_ACCESS_TOKEN`, senha do banco remoto ou secret/service role do dashboard-v2 ao workflow;
+- vincular o CI ao remote para executar migrations.
+
+O CI deve continuar capaz de funcionar sem qualquer secret do projeto remoto.
+
+Se for necessária uma mudança de banco:
+
+1. criar uma migration NOVA em `supabase/migrations/`;
+2. fazê-la passar no Supabase efêmero;
+3. adicionar testes;
+4. documentar a alteração;
+5. NÃO publicar no remote.
+
+A publicação será feita somente após auditoria humana.
+
+## Migrations históricas
+
+As migrations com versões até `20260802213500` foram recuperadas do histórico real do dashboard-v2.
+
+Elas são baseline histórica e NÃO devem ser editadas.
+
+Toda correção feita nesta tarefa deve usar uma migration nova, posterior à baseline.
+
+## Drift remoto conhecido
+
+Há objetos atualmente presentes no dashboard-v2 que não constam no histórico versionado. Consulte `docs/AMBIENTES_E_CI.md`.
+
+Não copiar automaticamente esse drift.
+
+Avaliar cada objeto e decidir explicitamente se:
+
+- pertence ao novo software dos Profissionais e deve ganhar uma migration;
+- deve ser substituído;
+- ou deve ser descartado.
+
+## Finding crítico já conhecido
+
+A tabela:
+
+`private.auditoria_acompanhamentos_visitas_v29_1`
+
+está com RLS desabilitado no remote atual e foi sinalizada pelo Security Advisor.
+
+Também existe:
+
+`public.acompanhamentos_visitas_equipe_v29_1`
+
+com RLS habilitado, porém sem policies.
+
+Não corrigir diretamente no remote.
+
+Tratar a decisão no hardening através de migrations versionadas e testes no ambiente efêmero.
+
+## Resultado esperado do CI
+
+Ao terminar a tarefa, cada push/PR deve provar automaticamente pelo menos:
+
+- migrations aplicam em banco vazio;
+- schema nasce de forma reproduzível;
+- lint de banco passa;
+- pgTAP passa;
+- testes de isolamento profissional A × profissional B passam;
+- APIs sensíveis passam pelos testes;
+- TypeScript passa;
+- ESLint passa;
+- Next.js build passa.
+
+
 # Objetivo principal
 
 Transformar a base atual em uma aplicação clínica enxuta e segura onde:
