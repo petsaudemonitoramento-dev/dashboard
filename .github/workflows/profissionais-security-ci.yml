@@ -1,0 +1,82 @@
+name: Profissionais Security CI
+
+on:
+  push:
+    branches:
+      - profissionais-v1-seguranca
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: profissionais-security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  application:
+    name: App quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321"
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_ci_placeholder"
+      SUPABASE_DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+      SUPABASE_SECRET_KEY: "sb_secret_ci_placeholder"
+      TEMP_PROFESSIONAL_PASSWORD: "CI-Only-Password-123!"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: TypeScript
+        run: npx tsc --noEmit
+
+      - name: Next.js build
+        run: npm run build
+
+  database:
+    name: Supabase schema and security tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pinned Supabase CLI
+        uses: supabase/setup-cli@v3
+        with:
+          version: 2.119.0
+
+      - name: Start ephemeral Supabase
+        run: supabase start
+
+      - name: Database lint
+        run: supabase db lint --local --level error
+
+      - name: pgTAP database tests
+        run: supabase test db
+
+      - name: Show local migration state
+        run: supabase migration list --local
+
+      - name: Destroy ephemeral Supabase
+        if: always()
+        run: supabase stop --no-backup || true
