@@ -206,7 +206,7 @@ export default async function CadastroClinicoPage({
     }
 
     const rows = await sql<{ dados: ClinicalRecord }[]>`
-      select private.obter_gestante_clinica(
+      select private.obter_gestante_clinica_v30(
         ${user.id}::uuid,
         ${gestanteId}::uuid,
         true
