@@ -42,12 +42,6 @@ type Draft = {
   microareaId: string;
 };
 
-const PROFILE_LABELS: Record<string, string> = {
-  administrador: "Gestão",
-  profissional_ubs: "Profissional da UBS",
-  acs: "ACS",
-  aluno: "Aluno",
-};
 
 function formatDate(value: string | null): string {
   if (!value) return "Não informada";
