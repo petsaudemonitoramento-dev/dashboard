@@ -94,26 +94,23 @@ export default async function GestantesPage({
 
   const { data: profile } = await supabase
     .from("perfis")
-    .select("perfil, status, ativo")
+    .select("perfil, status, ativo, cadastro_completo, aprovacao_status, perfil_excluido_em")
     .eq("id", user.id)
     .single();
 
-  if (!profile || !profile.ativo || profile.status !== "ativo") {
-    redirect("/login");
+  if (
+    !profile ||
+    profile.perfil !== "equipe_ubs" ||
+    !profile.ativo ||
+    profile.status !== "ativo" ||
+    profile.cadastro_completo !== true ||
+    profile.aprovacao_status !== "aprovado" ||
+    profile.perfil_excluido_em
+  ) {
+    redirect("/aguardando-aprovacao");
   }
 
-  const normalizedProfile = String(profile.perfil);
-  const canAccessGestantes = [
-    "administrador",
-    "profissional_ubs",
-    "equipe_ubs",
-  ].includes(normalizedProfile);
-
-  if (!canAccessGestantes) {
-    redirect(normalizedProfile === "acs" ? "/dashboard/territorio" : "/dashboard");
-  }
-
-  const canShowIdentity = canAccessGestantes;
+  const canShowIdentity = true;
   const identifiedView = canShowIdentity && !presentationMode;
 
   let gestantes: GestanteCardData[] = [];
