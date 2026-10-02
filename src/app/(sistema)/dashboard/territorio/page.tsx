@@ -26,39 +26,39 @@ export default async function TerritorioPage() {
 
   const sql = getPostgresClient();
 
+  let data: AcsDashboardData | undefined;
+  let loadError: string | null = null;
+
   try {
-    const rows = await sql<ResultRow[]>`
-      select private.obter_painel_acs_v21(
-        ${user.id}::uuid
-      ) as dados
-    `;
+      const rows = await sql<ResultRow[]>`
+        select private.obter_painel_acs_v21(
+          ${user.id}::uuid
+        ) as dados
+      `;
 
-    const data = rows[0]?.dados;
+      data = rows[0]?.dados;
 
-    if (!data) {
-      throw new Error("O painel territorial não retornou dados.");
-    }
+      if (!data) {
+        throw new Error("O painel territorial não retornou dados.");
+      }
+  } catch {
+    console.error("Erro ao carregar território ACS V21.");
+    loadError = "Não foi possível carregar o território.";
+  }
 
-    return <AcsDashboard data={data} />;
-  } catch (error) {
-    console.error("Erro ao carregar território ACS V21:", error);
-
+  if (loadError || !data) {
+    const message = loadError ?? "Não foi possível carregar o território.";
     return (
       <>
         <section className="heading">
           <p>PET-Saúde UFCG</p>
           <h1>Território ACS</h1>
-          <span>
-            O perfil precisa estar aprovado com UBS e microárea vinculadas.
-          </span>
+          <span>{message}</span>
         </section>
-
-        <div className="pec-error">
-          {error instanceof Error
-            ? error.message
-            : "Não foi possível carregar o território."}
-        </div>
+        <div className="pec-error">{message}</div>
       </>
     );
   }
+
+return <AcsDashboard data={data} />;
 }
