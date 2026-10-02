@@ -9,7 +9,6 @@ import {
   CalendarDays,
   CheckCircle2,
   ChevronDown,
-  ClipboardList,
   FileHeart,
   HeartPulse,
   LoaderCircle,
