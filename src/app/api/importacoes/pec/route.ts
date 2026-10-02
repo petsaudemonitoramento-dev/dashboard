@@ -17,26 +17,14 @@ const MAX_FILE_SIZE = 20 * 1024 * 1024;
 const MAX_REQUEST_SIZE = 22 * 1024 * 1024;
 const MAX_ROWS = 10_000;
 
-const MIME_BY_EXTENSION: Record<string, Set<string>> = {
-  csv: new Set([
-    "",
-    "text/csv",
-    "application/csv",
-    "text/plain",
-    "application/vnd.ms-excel",
-    "application/octet-stream",
-  ]),
-  xlsx: new Set([
-    "",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "application/octet-stream",
-  ]),
-  xls: new Set([
-    "",
-    "application/vnd.ms-excel",
-    "application/octet-stream",
-  ]),
-};
+const CSV_MIME_TYPES = new Set([
+  "",
+  "text/csv",
+  "application/csv",
+  "text/plain",
+  "application/vnd.ms-excel",
+  "application/octet-stream",
+]);
 
 export async function POST(request: Request) {
   const requestError = mutationRequestError(request, {
@@ -110,7 +98,7 @@ export async function POST(request: Request) {
 
     if (!(file instanceof File)) {
       return NextResponse.json(
-        { error: "Selecione um arquivo CSV, XLSX ou XLS." },
+        { error: "Selecione um arquivo CSV." },
         { status: 400 }
       );
     }
@@ -125,21 +113,18 @@ export async function POST(request: Request) {
     const originalName = path.basename(file.name).slice(0, 180);
     const extension = originalName.toLowerCase().split(".").pop();
 
-    if (
-      !extension ||
-      !Object.prototype.hasOwnProperty.call(
-        MIME_BY_EXTENSION,
-        extension
-      )
-    ) {
+    if (extension !== "csv") {
       return NextResponse.json(
-        { error: "Formato não suportado. Use CSV, XLSX ou XLS." },
+        {
+          error:
+            "Formato não suportado. Por segurança, este importador aceita somente CSV.",
+        },
         { status: 400 }
       );
     }
 
     const normalizedMime = file.type.toLowerCase().trim();
-    if (!MIME_BY_EXTENSION[extension].has(normalizedMime)) {
+    if (!CSV_MIME_TYPES.has(normalizedMime)) {
       return NextResponse.json(
         { error: "O tipo do arquivo não corresponde ao formato informado." },
         { status: 400 }
