@@ -123,7 +123,7 @@ export default async function GestantesPage({
       const sql = getPostgresClient();
       const rows = await sql<DatabaseRow[]>`
         select *
-        from private.listar_gestantes_autorizadas_v16(
+        from private.listar_gestantes_profissional_v30(
           ${user.id}::uuid,
           ${identifiedView}
         )
