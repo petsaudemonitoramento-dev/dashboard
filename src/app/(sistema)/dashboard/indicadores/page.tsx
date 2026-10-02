@@ -61,96 +61,100 @@ export default async function IndicadoresPage() {
     redirect("/dashboard");
   }
 
+  let ubsData: IndicatorData | undefined;
+  let professionalData: IndicatorData | undefined;
+  let metabase: ReturnType<typeof buildMetabaseViewConfig> extends infer T ? { ubs: T; profissional: T } : never;
+  let loadError: string | null = null;
+
   try {
-    const [ubsRows, professionalRows] = await Promise.all([
-      sql<IndicatorRow[]>`
-        select private.obter_indicadores_v21(
-          ${user.id}::uuid,
-          'ubs'
-        ) as dados
-      `,
-      sql<IndicatorRow[]>`
-        select private.obter_indicadores_v21(
-          ${user.id}::uuid,
-          'profissional'
-        ) as dados
-      `,
-    ]);
+      const [ubsRows, professionalRows] = await Promise.all([
+        sql<IndicatorRow[]>`
+          select private.obter_indicadores_v21(
+            ${user.id}::uuid,
+            'ubs'
+          ) as dados
+        `,
+        sql<IndicatorRow[]>`
+          select private.obter_indicadores_v21(
+            ${user.id}::uuid,
+            'profissional'
+          ) as dados
+        `,
+      ]);
 
-    const ubsData = ubsRows[0]?.dados;
-    const professionalData = professionalRows[0]?.dados;
+      ubsData = ubsRows[0]?.dados;
+      professionalData = professionalRows[0]?.dados;
 
-    if (!ubsData || !professionalData) {
-      throw new Error("Os indicadores não foram retornados pelo banco.");
-    }
+      if (!ubsData || !professionalData) {
+        throw new Error("Os indicadores não foram retornados pelo banco.");
+      }
 
-    const allowMetabase = profile.perfil !== "aluno";
+      const allowMetabase = profile.perfil !== "aluno";
 
-    const metabase = {
-      ubs: allowMetabase
-        ? buildMetabaseViewConfig({
-            scope: "ubs",
-            userId: user.id,
-            ubsId: profile.ubs_id,
-          })
-        : {
-            configured: false,
-            embedUrl: null,
-            externalUrl: null,
-            dashboardId: null,
-            missing: ["Acesso restrito para o perfil aluno"],
-          },
-      profissional: allowMetabase
-        ? buildMetabaseViewConfig({
-            scope: "profissional",
-            userId: user.id,
-            ubsId: profile.ubs_id,
-          })
-        : {
-            configured: false,
-            embedUrl: null,
-            externalUrl: null,
-            dashboardId: null,
-            missing: ["Acesso restrito para o perfil aluno"],
-          },
-    };
-
-    return (
-      <>
-        <section className="heading">
-          <p>PET-Saúde UFCG</p>
-          <h1>Indicadores de acompanhamento</h1>
-          <span>
-            Métricas agregadas da UBS e visão exclusiva das gestantes sob
-            sua responsabilidade.
-          </span>
-        </section>
-
-        <IndicatorsDashboard
-          metabase={metabase}
-          professionalData={professionalData}
-          profile={profile.perfil}
-          ubsData={ubsData}
-        />
-      </>
-    );
+      metabase = {
+        ubs: allowMetabase
+          ? buildMetabaseViewConfig({
+              scope: "ubs",
+              userId: user.id,
+              ubsId: profile.ubs_id,
+            })
+          : {
+              configured: false,
+              embedUrl: null,
+              externalUrl: null,
+              dashboardId: null,
+              missing: ["Acesso restrito para o perfil aluno"],
+            },
+        profissional: allowMetabase
+          ? buildMetabaseViewConfig({
+              scope: "profissional",
+              userId: user.id,
+              ubsId: profile.ubs_id,
+            })
+          : {
+              configured: false,
+              embedUrl: null,
+              externalUrl: null,
+              dashboardId: null,
+              missing: ["Acesso restrito para o perfil aluno"],
+            },
+      };
   } catch (error) {
-    console.error("Erro ao carregar indicadores V21:", error);
+      console.error("Erro ao carregar indicadores V21.");
+      loadError = "Não foi possível montar os indicadores neste momento.";
+  }
 
+  if (loadError || !ubsData || !professionalData || !metabase) {
+    const message = loadError ?? "Não foi possível montar os indicadores neste momento.";
     return (
       <>
         <section className="heading">
           <p>PET-Saúde UFCG</p>
           <h1>Indicadores de acompanhamento</h1>
-          <span>Não foi possível montar os indicadores neste momento.</span>
+          <span>{message}</span>
         </section>
-
-        <div className="pec-error">
-          {error instanceof Error
-            ? error.message
-            : "Erro desconhecido ao consultar os indicadores."}
-        </div>
+        <div className="pec-error">{message}</div>
       </>
     );
   }
+
+return (
+    <>
+      <section className="heading">
+        <p>PET-Saúde UFCG</p>
+        <h1>Indicadores de acompanhamento</h1>
+        <span>
+          Métricas agregadas da UBS e visão exclusiva das gestantes sob
+          sua responsabilidade.
+        </span>
+      </section>
+
+      <IndicatorsDashboard
+        metabase={metabase}
+        professionalData={professionalData}
+        profile={profile.perfil}
+        ubsData={ubsData}
+      />
+    </>
+  );
 }
