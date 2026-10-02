@@ -1,17 +1,28 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { getPostgresClient } from "@/lib/db/postgres";
+import {
+  isUuid,
+  logServerFailure,
+  mutationRequestError,
+  readJsonObject,
+} from "@/lib/security/request";
+import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type RequestBody = {
-  action?: "trash" | "restore" | "delete_permanently";
-  gestanteId?: string;
-  confirmed?: boolean;
-};
+type TrashAction =
+  | "trash"
+  | "restore"
+  | "delete_permanently";
 
 export async function POST(request: Request) {
+  const requestError = mutationRequestError(request, {
+    maxBytes: 16 * 1024,
+    contentTypes: ["application/json"],
+  });
+  if (requestError) return requestError;
+
   try {
     const supabase = await createClient();
     const {
@@ -25,13 +36,55 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = (await request.json()) as RequestBody;
-    const action = body.action;
-    const gestanteId = String(body.gestanteId ?? "").trim();
+    const { data: profile, error: profileError } = await supabase
+      .from("perfis")
+      .select(
+        "perfil, status, ativo, cadastro_completo, aprovacao_status, perfil_excluido_em"
+      )
+      .eq("id", user.id)
+      .single();
 
-    if (!gestanteId) {
+    if (
+      profileError ||
+      !profile ||
+      profile.perfil !== "equipe_ubs" ||
+      profile.status !== "ativo" ||
+      !profile.ativo ||
+      profile.cadastro_completo !== true ||
+      profile.aprovacao_status !== "aprovado" ||
+      profile.perfil_excluido_em !== null
+    ) {
       return NextResponse.json(
-        { error: "Gestante não informada." },
+        { error: "Perfil profissional não autorizado." },
+        { status: 403 }
+      );
+    }
+
+    const body = await readJsonObject(request);
+    if (!body) {
+      return NextResponse.json(
+        { error: "Dados inválidos." },
+        { status: 400 }
+      );
+    }
+
+    const action =
+      typeof body.action === "string"
+        ? (body.action as TrashAction)
+        : null;
+    const gestanteId =
+      typeof body.gestanteId === "string"
+        ? body.gestanteId.trim()
+        : "";
+
+    if (
+      !["trash", "restore", "delete_permanently"].includes(
+        action ?? ""
+      ) ||
+      !isUuid(gestanteId)
+    ) {
+      return NextResponse.json(
+        { error: "Operação inválida." },
         { status: 400 }
       );
     }
@@ -46,7 +99,10 @@ export async function POST(request: Request) {
           'Exclusão solicitada pela profissional'
         ) as resultado
       `;
-      return NextResponse.json(rows[0]?.resultado ?? { ok: true });
+      return NextResponse.json(
+        rows[0]?.resultado ?? { ok: true },
+        { headers: { "Cache-Control": "no-store" } }
+      );
     }
 
     if (action === "restore") {
@@ -56,40 +112,34 @@ export async function POST(request: Request) {
           ${gestanteId}::uuid
         ) as resultado
       `;
-      return NextResponse.json(rows[0]?.resultado ?? { ok: true });
+      return NextResponse.json(
+        rows[0]?.resultado ?? { ok: true },
+        { headers: { "Cache-Control": "no-store" } }
+      );
     }
 
-    if (action === "delete_permanently") {
-      if (body.confirmed !== true) {
-        return NextResponse.json(
-          { error: "A confirmação da exclusão definitiva é obrigatória." },
-          { status: 400 }
-        );
-      }
-
-      const rows = await sql`
-        select private.excluir_gestante_definitivamente_v19(
-          ${user.id}::uuid,
-          ${gestanteId}::uuid,
-          true
-        ) as resultado
-      `;
-      return NextResponse.json(rows[0]?.resultado ?? { ok: true });
+    if (body.confirmed !== true) {
+      return NextResponse.json(
+        { error: "A confirmação da exclusão definitiva é obrigatória." },
+        { status: 400 }
+      );
     }
 
+    const rows = await sql`
+      select private.excluir_gestante_definitivamente_v19(
+        ${user.id}::uuid,
+        ${gestanteId}::uuid,
+        true
+      ) as resultado
+    `;
     return NextResponse.json(
-      { error: "Ação inválida." },
-      { status: 400 }
+      rows[0]?.resultado ?? { ok: true },
+      { headers: { "Cache-Control": "no-store" } }
     );
   } catch (error) {
-    console.error("Erro na lixeira de gestantes:", error);
+    logServerFailure("clinical-trash", error);
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Não foi possível concluir a operação.",
-      },
+      { error: "Não foi possível concluir a operação." },
       { status: 500 }
     );
   }
