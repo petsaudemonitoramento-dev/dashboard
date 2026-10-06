@@ -57,7 +57,7 @@ export async function POST(request: Request) {
       );
     }
 
-    let payload: Record<string, unknown>;
+    let payload: ReturnType<typeof sanitizeClinicalPayload>;
     try {
       payload = sanitizeClinicalPayload(rawPayload);
     } catch {
