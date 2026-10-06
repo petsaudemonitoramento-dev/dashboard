@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getPostgresClient } from "@/lib/db/postgres";
 import {
   isUuid,
   logServerFailure,
@@ -104,31 +103,32 @@ export async function POST(request: Request) {
       );
     }
 
-    const sql = getPostgresClient();
-
     if (action === "trash") {
-      const rows = await sql`
-        select private.mover_gestante_lixeira_v19(
-          ${user.id}::uuid,
-          ${gestanteId}::uuid,
-          'Exclusão solicitada pela profissional'
-        ) as resultado
-      `;
+      const { data: resultado, error: operationError } =
+        await supabase.rpc(
+          "profissionais_mover_gestante_lixeira_v30",
+          { p_gestante_id: gestanteId }
+        );
+
+      if (operationError) throw operationError;
+
       return NextResponse.json(
-        rows[0]?.resultado ?? { ok: true },
+        resultado ?? { ok: true },
         { headers: { "Cache-Control": "no-store" } }
       );
     }
 
     if (action === "restore") {
-      const rows = await sql`
-        select private.restaurar_gestante_v19(
-          ${user.id}::uuid,
-          ${gestanteId}::uuid
-        ) as resultado
-      `;
+      const { data: resultado, error: operationError } =
+        await supabase.rpc(
+          "profissionais_restaurar_gestante_v30",
+          { p_gestante_id: gestanteId }
+        );
+
+      if (operationError) throw operationError;
+
       return NextResponse.json(
-        rows[0]?.resultado ?? { ok: true },
+        resultado ?? { ok: true },
         { headers: { "Cache-Control": "no-store" } }
       );
     }
@@ -140,15 +140,19 @@ export async function POST(request: Request) {
       );
     }
 
-    const rows = await sql`
-      select private.excluir_gestante_definitivamente_v19(
-        ${user.id}::uuid,
-        ${gestanteId}::uuid,
-        true
-      ) as resultado
-    `;
+    const { data: resultado, error: operationError } =
+      await supabase.rpc(
+        "profissionais_excluir_gestante_definitivamente_v30",
+        {
+          p_gestante_id: gestanteId,
+          p_confirmed: true,
+        }
+      );
+
+    if (operationError) throw operationError;
+
     return NextResponse.json(
-      rows[0]?.resultado ?? { ok: true },
+      resultado ?? { ok: true },
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (error) {
