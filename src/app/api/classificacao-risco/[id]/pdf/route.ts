@@ -2,7 +2,6 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont } from "pdf-lib";
-import { getPostgresClient } from "@/lib/db/postgres";
 import { isUuid, logServerFailure } from "@/lib/security/request";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
 import { createClient } from "@/lib/supabase/server";
@@ -86,14 +85,20 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       );
     }
 
-    const sql = getPostgresClient();
-    const rows = await sql<{ relatorio: ReportData }[]>`
-      select private.obter_relatorio_classificacao_v30(
-        ${user.id}::uuid,
-        ${id}::uuid
-      ) as relatorio
-    `;
-    const report = rows[0]?.relatorio;
+    const { data: reportData, error: reportError } =
+      await supabase.rpc(
+        "profissionais_obter_relatorio_classificacao_v30",
+        { p_classificacao_id: id }
+      );
+
+    if (reportError) {
+      return NextResponse.json(
+        { error: "Classificação não encontrada." },
+        { status: 404 }
+      );
+    }
+
+    const report = reportData as ReportData | null;
     if (!report) return NextResponse.json({ error: "Classificação não encontrada." }, { status: 404 });
 
     const mode = new URL(request.url).searchParams.get("modo") === "pb" ? "pb" : "color";
