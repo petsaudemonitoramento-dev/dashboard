@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getPostgresClient } from "@/lib/db/postgres";
 import { createClient } from "@/lib/supabase/server";
 
 type AttendanceRow = {
@@ -31,22 +30,25 @@ export default async function AtendimentosPage() {
 
   if (!user) redirect("/login");
 
-  const sql = getPostgresClient();
-  const rows = await sql<AttendanceRow[]>`
-    select
-      gestante_id,
-      codigo,
-      nome_visual,
-      atendimentos_pre_natal,
-      ultima_consulta_pre_natal,
-      atualizado_em
-    from private.listar_gestantes_profissional_v30(
-      ${user.id}::uuid,
-      true
-    )
-    where alta_ativa = false
-    order by atualizado_em desc
-  `;
+  const { data: listData, error: listError } =
+    await supabase.rpc(
+      "profissionais_listar_gestantes_v30",
+      { p_exibir_identidade: true }
+    );
+
+  if (listError) {
+    throw listError;
+  }
+
+  const rows = ((listData ?? []) as Array<
+    AttendanceRow & { alta_ativa: boolean }
+  >)
+    .filter((row) => !row.alta_ativa)
+    .sort(
+      (a, b) =>
+        new Date(String(b.atualizado_em)).getTime() -
+        new Date(String(a.atualizado_em)).getTime()
+    );
 
   return (
     <>
