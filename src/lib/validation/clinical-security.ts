@@ -76,7 +76,7 @@ function boolOrNull(value: unknown): boolean | null {
 }
 
 export function sanitizeClinicalPayload(
-  raw: JsonObject
+  raw: Record<string, unknown>
 ): JsonObject {
   const identificacao = objectValue(raw.identificacao);
   const gestacao = objectValue(raw.gestacao);
@@ -300,7 +300,7 @@ export function sanitizeClinicalPayload(
 }
 
 export function sanitizeRiskPayload(
-  raw: JsonObject
+  raw: Record<string, unknown>
 ): JsonObject {
   const gestanteId =
     raw.gestanteId === null || raw.gestanteId === ""
