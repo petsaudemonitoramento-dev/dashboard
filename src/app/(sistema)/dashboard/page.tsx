@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getPostgresClient } from "@/lib/db/postgres";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -43,19 +42,17 @@ export default async function DashboardPage() {
     redirect("/aguardando-aprovacao");
   }
 
-  const sql = getPostgresClient();
-  const rows = await sql<HomeRow[]>`
-    select
-      gestante_id,
-      risco_gestacional,
-      pendencias_count,
-      dias_ultima_visita,
-      alta_ativa
-    from private.listar_gestantes_profissional_v30(
-      ${user.id}::uuid,
-      false
-    )
-  `;
+  const { data: listData, error: listError } =
+    await supabase.rpc(
+      "profissionais_listar_gestantes_v30",
+      { p_exibir_identidade: false }
+    );
+
+  if (listError) {
+    throw listError;
+  }
+
+  const rows = (listData ?? []) as HomeRow[];
 
   const active = rows.filter((row) => !row.alta_ativa);
   const highRisk = active.filter((row) =>
