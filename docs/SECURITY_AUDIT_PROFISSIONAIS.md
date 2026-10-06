@@ -47,20 +47,23 @@ A compatibilidade com policies legadas que chamavam V18 foi mantida por um wrapp
 - grants explícitos somente ao papel `authenticated`, mantendo `anon` sem acesso;
 - teste pgTAP com dois profissionais da mesma UBS.
 
-### Wrappers para legado privilegiado
+### RPCs autenticadas e remoção do bypass clínico comum
 
-Foram criados wrappers V30 para:
+Foram criados wrappers privados V30 e RPCs públicas autenticadas para:
 
 - salvar cadastro clínico;
 - obter cadastro clínico;
 - salvar classificação de risco;
 - gerar relatório de classificação;
 - listar gestantes do profissional;
-- importar PEC.
+- importar PEC;
+- mover para lixeira;
+- restaurar;
+- excluir definitivamente.
 
-Os wrappers verificam ownership antes de delegar às funções legadas.
+As RPCs públicas derivam o usuário de `auth.uid()`; o cliente não informa o `user_id`. O `EXECUTE` é revogado de `PUBLIC`/`anon` e concedido apenas a `authenticated`.
 
-Isto é uma etapa de contenção. A meta arquitetural continua sendo remover a conexão PostgreSQL privilegiada dos fluxos clínicos comuns e usar sessão Supabase + RLS sempre que tecnicamente possível.
+O fluxo clínico normal da aplicação foi migrado para Supabase SSR + sessão autenticada + RPC/RLS. `SUPABASE_DATABASE_URL` não é mais o caminho normal para listagem, ficha clínica, classificação, PDF, PEC, alertas, atendimentos ou lixeira.
 
 ### Entrada HTTP
 
@@ -105,6 +108,7 @@ não armazena e-mail, nome ou conteúdo clínico. O ator é representado por has
 Há limitação para:
 
 - cadastro público;
+- login por senha;
 - gravação clínica;
 - classificação de risco;
 - importação PEC;
@@ -157,13 +161,11 @@ Recursos legados de gestão permanecem no código para reversibilidade/auditoria
 
 ## Riscos ainda pendentes
 
-### 1. Conexão PostgreSQL privilegiada
+### 1. Conexão PostgreSQL privilegiada legada
 
-Ainda existem fluxos clínicos que usam `SUPABASE_DATABASE_URL` no servidor.
+A conexão PostgreSQL privilegiada ainda existe para infraestrutura, rate limiting e módulos administrativos/legados, mas foi removida do caminho clínico normal.
 
-Os wrappers V30 reduzem a possibilidade de IDOR, mas isto ainda é um bypass arquitetural de RLS e deve ser alvo da auditoria seguinte.
-
-Recomendação final: migrar operações comuns para Supabase SSR/RPC autenticada por `auth.uid()`, deixando conexão privilegiada apenas para tarefas administrativas controladas.
+A auditoria independente deve confirmar que nenhuma rota clínica nova reintroduz esse caminho e revisar os módulos legados que ainda dependem dele.
 
 ### 2. Funções SECURITY DEFINER legadas
 
@@ -173,7 +175,9 @@ As funções V30 relevantes receberam wrappers e `search_path` explícito, mas a
 
 ### 3. Hard delete
 
-A lixeira foi protegida no endpoint, porém as funções V19 de exclusão/restauração são legadas. A auditoria final deve confirmar que todas validam ownership individual ou substituí-las por wrappers V30.
+Lixeira, restauração e exclusão definitiva passaram a usar RPCs V30 autenticadas que validam ownership individual antes de delegar ao legado V19. A exclusão definitiva também exige que o registro já esteja na lixeira e receba confirmação explícita.
+
+A auditoria final ainda deve revisar as funções V19 delegadas e a trilha de auditoria produzida por elas.
 
 ### 4. Auth remoto
 
@@ -203,9 +207,9 @@ A suíte de banco cobre o isolamento A×B. Ainda é desejável adicionar testes 
 | Superfície | Risco principal | Mitigação atual |
 |---|---|---|
 | Listagem clínica | BOLA/IDOR | ownership V30 + RLS |
-| Ficha clínica | alteração de UUID | validação + wrapper V30 |
-| Classificação | classificação de paciente alheia | validação + wrapper V30 |
-| PDF | exfiltração por UUID | UUID + autorização server-side |
+| Ficha clínica | alteração de UUID | validação + RPC autenticada + ownership V30 |
+| Classificação | classificação de paciente alheia | validação + RPC autenticada + ownership V30 |
+| PDF | exfiltração por UUID | UUID + RPC autenticada + ownership V30 |
 | PEC | arquivo malformado / takeover de owner | CSV limitado + ownership + rate limit |
 | Cadastro | abuso / tentativa de privilégio | proxy + rate limit + normalização no banco |
 | Logs | PII | helper de logging sem payload |
@@ -226,7 +230,7 @@ A suíte de banco cobre o isolamento A×B. Ainda é desejável adicionar testes 
 
 O software não deve receber dados reais até que:
 
-- CI esteja totalmente verde;
+- CI esteja totalmente verde, incluindo auditoria de dependências e guardrails contra regressão;
 - teste A×B passe;
 - Security Advisor remoto seja revisado;
 - migrations tenham `db push --dry-run` revisado;
