@@ -6,7 +6,6 @@ import type {
   RiskPageData,
   RiskPatient,
 } from "@/components/classificacao-risco/types";
-import { getPostgresClient } from "@/lib/db/postgres";
 import { isUuid } from "@/lib/security/request";
 import { createClient } from "@/lib/supabase/server";
 
@@ -133,99 +132,112 @@ export default async function ClassificacaoRiscoPage({ searchParams }: PageProps
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const sql = getPostgresClient();
-  const profileRows = await sql<{
-    id: string;
-    nome: string;
-    perfil: string;
-    ubs_id: string | null;
-    ubs_nome: string | null;
-  }[]>`
-    select
-      p.id,
-      p.nome_completo as nome,
-      p.perfil::text as perfil,
-      p.ubs_id,
-      u.nome as ubs_nome
-    from public.perfis p
-    left join public.ubs u on u.id = p.ubs_id
-    where p.id = ${user.id}::uuid
-      and p.ativo = true
-      and p.status = 'ativo'
-      and p.perfil = 'equipe_ubs'::public.perfil_usuario
-      and p.cadastro_completo = true
-      and p.aprovacao_status = 'aprovado'
-      and p.perfil_excluido_em is null
-    limit 1
-  `;
+  const { data: profileData, error: profileError } =
+    await supabase
+      .from("perfis")
+      .select(
+        "id, nome_completo, perfil, ubs_id, status, ativo, cadastro_completo, aprovacao_status, perfil_excluido_em"
+      )
+      .eq("id", user.id)
+      .maybeSingle();
 
-  const profile = profileRows[0];
-  if (!profile || !profile.ubs_id || !profile.ubs_nome) redirect("/login");
+  if (
+    profileError ||
+    !profileData ||
+    profileData.perfil !== "equipe_ubs" ||
+    !profileData.ubs_id ||
+    profileData.status !== "ativo" ||
+    !profileData.ativo ||
+    profileData.cadastro_completo !== true ||
+    profileData.aprovacao_status !== "aprovado" ||
+    profileData.perfil_excluido_em
+  ) {
+    redirect("/aguardando-aprovacao");
+  }
 
-  const ubsOptions = await sql<{ id: string; nome: string }[]>`
-    select id, nome
-    from public.ubs
-    where ativa = true
-    order by nome
-  `;
+  const [
+    { data: ubsData, error: ubsError },
+    { data: factorData, error: factorError },
+    { data: profileUbsData, error: profileUbsError },
+  ] = await Promise.all([
+    supabase
+      .from("ubs")
+      .select("id, nome")
+      .eq("ativa", true)
+      .order("nome"),
+    supabase
+      .from("config_fatores_risco_gestacional")
+      .select(
+        "codigo, grupo, grupo_titulo, titulo, pontos, ordem, versao, grupo_ordem"
+      )
+      .eq("ativo", true)
+      .eq("versao", INSTRUMENT_VERSION)
+      .order("grupo_ordem")
+      .order("ordem"),
+    supabase
+      .from("ubs")
+      .select("nome")
+      .eq("id", profileData.ubs_id)
+      .maybeSingle(),
+  ]);
 
-  const factors = await sql<RiskFactor[]>`
-    select
-      codigo,
-      grupo,
-      grupo_titulo as "grupoTitulo",
-      titulo,
-      pontos,
-      ordem,
-      versao
-    from public.config_fatores_risco_gestacional
-    where ativo = true
-      and versao = ${INSTRUMENT_VERSION}
-    order by grupo_ordem, ordem
-  `;
+  if (ubsError || factorError || profileUbsError || !profileUbsData) {
+    throw ubsError ?? factorError ?? profileUbsError ??
+      new Error("UBS do profissional não encontrada.");
+  }
+
+  const profile = {
+    id: profileData.id,
+    nome: profileData.nome_completo,
+    perfil: String(profileData.perfil),
+    ubs_id: profileData.ubs_id,
+    ubs_nome: profileUbsData.nome,
+  };
+
+  const ubsOptions = (ubsData ?? []).map((row) => ({
+    id: row.id,
+    nome: row.nome,
+  }));
+
+  const factors: RiskFactor[] = (factorData ?? []).map((row) => ({
+    codigo: row.codigo,
+    grupo: row.grupo as RiskFactor["grupo"],
+    grupoTitulo: row.grupo_titulo,
+    titulo: row.titulo,
+    pontos: row.pontos,
+    ordem: row.ordem,
+    versao: row.versao,
+  }));
 
   let patient: RiskPatient | null = null;
   let extras: unknown = {};
   let previous: PrefilledFactor[] = [];
 
   if (gestanteIdValue) {
-    const accessRows = await sql<{ autorizado: boolean }[]>`
-      select exists (
-        select 1
-        from public.pec_gestantes g
-        join public.perfis p on p.id = ${user.id}::uuid
-        where g.id = ${gestanteIdValue}::uuid
-          and g.excluida_em is null
-          and p.ativo = true
-          and p.status = 'ativo'
-          and p.perfil = 'equipe_ubs'::public.perfil_usuario
-          and g.ubs_id = p.ubs_id
-          and g.profissional_responsavel_id = p.id
-          and p.cadastro_completo = true
-          and p.aprovacao_status = 'aprovado'
-          and p.perfil_excluido_em is null
-      ) as autorizado
-    `;
+    const { data: recordData, error: recordError } =
+      await supabase.rpc(
+        "profissionais_obter_gestante_clinica_v30",
+        {
+          p_gestante_id: gestanteIdValue,
+          p_exibir_identidade: true,
+        }
+      );
 
-    if (!accessRows[0]?.autorizado) {
+    if (recordError || !recordData) {
       redirect("/dashboard/gestantes");
     }
 
-    const recordRows = await sql<{ record: ClinicalRecord }[]>`
-      select private.obter_gestante_clinica_v30(
-        ${user.id}::uuid,
-        ${gestanteIdValue}::uuid,
-        true
-      ) as record
-    `;
-    const record = recordRows[0]?.record;
-    if (!record) redirect("/dashboard/gestantes");
+    const record = recordData as ClinicalRecord;
+    const dataNascimento = asIsoDate(
+      record.identificacao?.dataNascimento
+    );
 
-    const dataNascimento = asIsoDate(record.identificacao?.dataNascimento);
     patient = {
       id: record.id,
       codigo: record.codigo,
-      nome: record.identificacao?.nome || `Gestante ${record.codigo}`,
+      nome:
+        record.identificacao?.nome ||
+        `Gestante ${record.codigo}`,
       dataNascimento,
       idadeAnos: ageFromBirthDate(dataNascimento),
       racaCor: record.identificacao?.racaCor ?? "",
@@ -240,39 +252,57 @@ export default async function ClassificacaoRiscoPage({ searchParams }: PageProps
       alturaCm: numberOrNull(record.gestacao?.alturaCm),
     };
 
-    const extrasRows = await sql<{ dados_extras: unknown }[]>`
-      select dados_extras
-      from public.pec_gestantes
-      where id = ${record.id}::uuid
-      limit 1
-    `;
-    extras = extrasRows[0]?.dados_extras ?? {};
+    const { data: extrasRow } = await supabase
+      .from("pec_gestantes")
+      .select("dados_extras")
+      .eq("id", record.id)
+      .maybeSingle();
 
-    previous = await sql<PrefilledFactor[]>`
-      select
-        i.fator_codigo as codigo,
-        'classificacao_anterior'::text as origem,
-        concat(
-          'Selecionado na classificação de ',
-          to_char(c.realizada_em at time zone 'America/Sao_Paulo', 'DD/MM/YYYY HH24:MI'),
-          '.'
-        ) as detalhe
-      from public.classificacoes_risco_gestacional c
-      join public.classificacao_risco_itens i
-        on i.classificacao_id = c.id
-      where c.gestante_id = ${record.id}::uuid
-        and c.status = 'finalizada'
-        and i.fator_codigo <> 'g2_imc'
-        and c.id = (
-          select c2.id
-          from public.classificacoes_risco_gestacional c2
-          where c2.gestante_id = ${record.id}::uuid
-            and c2.status = 'finalizada'
-          order by c2.realizada_em desc
-          limit 1
-        )
-      order by i.grupo, i.pontos desc, i.fator_titulo
-    `;
+    extras = extrasRow?.dados_extras ?? {};
+
+    const { data: latestClassification } = await supabase
+      .from("classificacoes_risco_gestacional")
+      .select("id, realizada_em")
+      .eq("gestante_id", record.id)
+      .eq("status", "finalizada")
+      .order("realizada_em", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (latestClassification) {
+      const { data: previousItems, error: previousError } =
+        await supabase
+          .from("classificacao_risco_itens")
+          .select("fator_codigo, grupo, pontos, fator_titulo")
+          .eq(
+            "classificacao_id",
+            latestClassification.id
+          )
+          .neq("fator_codigo", "g2_imc")
+          .order("grupo")
+          .order("pontos", { ascending: false })
+          .order("fator_titulo");
+
+      if (previousError) {
+        throw previousError;
+      }
+
+      const detailDate = new Intl.DateTimeFormat(
+        "pt-BR",
+        {
+          dateStyle: "short",
+          timeStyle: "short",
+          timeZone: "America/Sao_Paulo",
+        }
+      ).format(new Date(latestClassification.realizada_em));
+
+      previous = (previousItems ?? []).map((item) => ({
+        codigo: item.fator_codigo,
+        origem: "classificacao_anterior",
+        detalhe:
+          `Selecionado na classificação de ${detailDate}.`,
+      }));
+    }
   }
 
   const pageData: RiskPageData = {
