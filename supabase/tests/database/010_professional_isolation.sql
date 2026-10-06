@@ -24,6 +24,14 @@ values
     'profissional-b@ci.invalid',
     now(),
     now()
+  ),
+  (
+    '10000000-0000-4000-8000-000000000099'::uuid,
+    'authenticated',
+    'authenticated',
+    'auditor-ci@ci.invalid',
+    now(),
+    now()
   )
 on conflict (id) do nothing;
 
@@ -92,6 +100,7 @@ insert into private.credenciais_profissionais (
   categoria,
   situacao,
   decidido_em,
+  decidido_por,
   fonte_verificacao
 )
 values
@@ -100,22 +109,24 @@ values
     'medico',
     'CRM',
     'PB',
-    'CI-CRM-001',
+    '100001',
     'MEDICO',
     'validado',
     now(),
-    'fixture_ci'
+    '10000000-0000-4000-8000-000000000099'::uuid,
+    'portal_cfm'
   ),
   (
     '10000000-0000-4000-8000-000000000002'::uuid,
     'enfermeiro',
     'COREN',
     'PB',
-    'CI-COREN-002',
+    '200002',
     'ENFERMEIRO',
     'validado',
     now(),
-    'fixture_ci'
+    '10000000-0000-4000-8000-000000000099'::uuid,
+    'consulta_cofen'
   );
 
 insert into public.pec_gestantes (
