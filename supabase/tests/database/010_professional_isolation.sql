@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(17);
+select plan(21);
 
 -- Fixtures sintéticas: dois profissionais da MESMA UBS.
 insert into auth.users (
@@ -141,15 +141,56 @@ select is(
 );
 
 select throws_ok(
-  $
+  $test$
     select public.profissionais_obter_gestante_clinica_v30(
       '20000000-0000-4000-8000-000000000002'::uuid,
       false
     )
-  $,
+  $test$,
   'P0001',
   'Gestante não encontrada ou não vinculada ao profissional',
   'RPC clínica de A rejeita UUID da gestante B'
+);
+
+select lives_ok(
+  $test$
+    select public.profissionais_mover_gestante_lixeira_v30(
+      '20000000-0000-4000-8000-000000000001'::uuid
+    )
+  $test$,
+  'Profissional A consegue mover a própria gestante para lixeira'
+);
+
+select throws_ok(
+  $test$
+    select public.profissionais_mover_gestante_lixeira_v30(
+      '20000000-0000-4000-8000-000000000002'::uuid
+    )
+  $test$,
+  'P0001',
+  'Gestante não encontrada ou não vinculada ao profissional',
+  'Profissional A não move gestante B para lixeira'
+);
+
+select lives_ok(
+  $test$
+    select public.profissionais_restaurar_gestante_v30(
+      '20000000-0000-4000-8000-000000000001'::uuid
+    )
+  $test$,
+  'Profissional A consegue restaurar a própria gestante'
+);
+
+select throws_ok(
+  $test$
+    select public.profissionais_excluir_gestante_definitivamente_v30(
+      '20000000-0000-4000-8000-000000000002'::uuid,
+      true
+    )
+  $test$,
+  'P0001',
+  'Gestante não encontrada ou não vinculada ao profissional',
+  'Profissional A não exclui definitivamente gestante B'
 );
 
 update public.pec_gestantes
@@ -261,10 +302,10 @@ select is(
 );
 
 select throws_ok(
-  $
+  $test$
     select *
     from public.profissionais_listar_gestantes_v30(false)
-  $,
+  $test$,
   'P0001',
   'Profissional sem autorização clínica',
   'RPC de listagem rejeita profissional revogado'
