@@ -45,7 +45,7 @@ export function RegisterForm({ ubsOptions }: { ubsOptions: UbsOption[] }) {
           dataNascimento: String(form.get("dataNascimento") ?? ""),
           email: String(form.get("email") ?? ""),
           password,
-          perfilSolicitado: "equipe_ubs",
+          perfilSolicitado: "profissional_ubs",
           ubsId: String(form.get("ubsId") ?? ""),
         }),
       });
