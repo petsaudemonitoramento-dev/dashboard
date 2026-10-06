@@ -39,7 +39,8 @@ insert into public.perfis (
   cadastro_completo,
   aprovacao_status,
   perfil_solicitado,
-  origem_cadastro
+  origem_cadastro,
+  cargo_funcao
 )
 values
   (
@@ -54,7 +55,8 @@ values
     true,
     'aprovado',
     'equipe_ubs',
-    'ci'
+    'ci',
+    'medico'
   ),
   (
     '10000000-0000-4000-8000-000000000002'::uuid,
@@ -68,7 +70,8 @@ values
     true,
     'aprovado',
     'equipe_ubs',
-    'ci'
+    'ci',
+    'enfermeiro'
   )
 on conflict (id) do update set
   perfil = excluded.perfil,
@@ -77,7 +80,43 @@ on conflict (id) do update set
   ativo = excluded.ativo,
   cadastro_completo = excluded.cadastro_completo,
   aprovacao_status = excluded.aprovacao_status,
+  cargo_funcao = excluded.cargo_funcao,
   perfil_excluido_em = null;
+
+insert into private.credenciais_profissionais (
+  usuario_id,
+  cargo_funcao,
+  conselho,
+  uf,
+  numero_registro,
+  categoria,
+  situacao,
+  decidido_em,
+  fonte_verificacao
+)
+values
+  (
+    '10000000-0000-4000-8000-000000000001'::uuid,
+    'medico',
+    'CRM',
+    'PB',
+    'CI-CRM-001',
+    'MEDICO',
+    'validado',
+    now(),
+    'fixture_ci'
+  ),
+  (
+    '10000000-0000-4000-8000-000000000002'::uuid,
+    'enfermeiro',
+    'COREN',
+    'PB',
+    'CI-COREN-002',
+    'ENFERMEIRO',
+    'validado',
+    now(),
+    'fixture_ci'
+  );
 
 insert into public.pec_gestantes (
   id,
