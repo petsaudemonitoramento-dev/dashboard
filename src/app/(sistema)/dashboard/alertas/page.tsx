@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getPostgresClient } from "@/lib/db/postgres";
 import { createClient } from "@/lib/supabase/server";
 
 type AlertRow = {
@@ -28,22 +27,19 @@ export default async function AlertasPage() {
 
   if (!user) redirect("/login");
 
-  const sql = getPostgresClient();
-  const rows = await sql<AlertRow[]>`
-    select
-      gestante_id,
-      codigo,
-      nome_visual,
-      risco_gestacional,
-      pendencias_count,
-      dias_ultima_visita,
-      ultima_consulta_pre_natal
-    from private.listar_gestantes_profissional_v30(
-      ${user.id}::uuid,
-      true
-    )
-    where alta_ativa = false
-  `;
+  const { data: listData, error: listError } =
+    await supabase.rpc(
+      "profissionais_listar_gestantes_v30",
+      { p_exibir_identidade: true }
+    );
+
+  if (listError) {
+    throw listError;
+  }
+
+  const rows = ((listData ?? []) as Array<
+    AlertRow & { alta_ativa: boolean }
+  >).filter((row) => !row.alta_ativa);
 
   const alerts = rows
     .filter(
