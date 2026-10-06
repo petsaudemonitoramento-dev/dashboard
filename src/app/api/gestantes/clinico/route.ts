@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getPostgresClient } from "@/lib/db/postgres";
 import {
   isUuid,
   logServerFailure,
@@ -77,29 +76,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const sql = getPostgresClient();
-
     if (existingId) {
-      const accessRows = await sql<{ autorizado: boolean }[]>`
-        select exists (
-          select 1
-          from public.pec_gestantes g
-          join public.perfis p
-            on p.id = ${user.id}::uuid
-          where g.id = ${existingId}::uuid
-            and g.excluida_em is null
-            and g.profissional_responsavel_id = p.id
-            and g.ubs_id = p.ubs_id
-            and p.perfil = 'equipe_ubs'::public.perfil_usuario
-            and p.cadastro_completo = true
-            and p.aprovacao_status = 'aprovado'
-            and p.status = 'ativo'::public.status_usuario
-            and p.ativo = true
-            and p.perfil_excluido_em is null
-        ) as autorizado
-      `;
+      const { data: existing, error: accessError } =
+        await supabase
+          .from("pec_gestantes")
+          .select("id")
+          .eq("id", existingId)
+          .maybeSingle();
 
-      if (!accessRows[0]?.autorizado) {
+      if (accessError || !existing) {
         return NextResponse.json(
           { error: "Cadastro não encontrado." },
           { status: 404 }
@@ -107,20 +92,17 @@ export async function POST(request: Request) {
       }
     }
 
-    const rows = await sql<{
-      resultado: {
-        id: string;
-        codigo: string;
-        acao: string;
-      };
-    }[]>`
-      select private.salvar_gestante_clinica_v30(
-        ${user.id}::uuid,
-        ${sql.json(payload)}
-      ) as resultado
-    `;
+    const { data: resultado, error: saveError } =
+      await supabase.rpc(
+        "profissionais_salvar_gestante_clinica_v30",
+        { p_payload: payload }
+      );
 
-    return NextResponse.json(rows[0]?.resultado ?? {}, {
+    if (saveError) {
+      throw saveError;
+    }
+
+    return NextResponse.json(resultado ?? {}, {
       headers: { "Cache-Control": "no-store" },
     });
   } catch (error) {
