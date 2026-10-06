@@ -42,7 +42,7 @@ export function CompleteProfileForm({
         body: JSON.stringify({
           nomeCompleto: String(form.get("nomeCompleto") ?? ""),
           dataNascimento: String(form.get("dataNascimento") ?? ""),
-          perfilSolicitado: "equipe_ubs",
+          perfilSolicitado: "profissional_ubs",
           ubsId: String(form.get("ubsId") ?? ""),
         }),
       });
