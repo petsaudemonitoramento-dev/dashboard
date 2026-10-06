@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { NextResponse } from "next/server";
-import { getPostgresClient } from "@/lib/db/postgres";
 import { parsePecFile } from "@/lib/pec/columns";
 import {
   logServerFailure,
@@ -177,25 +176,27 @@ export async function POST(request: Request) {
       );
     }
 
-    const hash = createHash("sha256").update(buffer).digest("hex");
-    const sql = getPostgresClient();
+    const hash = createHash("sha256")
+      .update(buffer)
+      .digest("hex");
 
-    const result = await sql`
-      select private.importar_pec_v30(
-        ${profile.ubs_id}::uuid,
-        ${user.id}::uuid,
-        ${originalName},
-        ${hash},
-        ${parsed.headerRow},
-        ${sql.json(parsed.mapping)},
-        ${sql.json(parsed.rows)},
-        ${sql.json(parsed.warnings.slice(0, 100))}
-      ) as resultado
-    `;
+    const { data: resultado, error: importError } =
+      await supabase.rpc("profissionais_importar_pec_v30", {
+        p_arquivo_nome: originalName,
+        p_arquivo_sha256: hash,
+        p_linha_cabecalho: parsed.headerRow,
+        p_mapeamento: parsed.mapping,
+        p_linhas: parsed.rows,
+        p_avisos: parsed.warnings.slice(0, 100),
+      });
+
+    if (importError) {
+      throw importError;
+    }
 
     return NextResponse.json(
       {
-        ...result[0]?.resultado,
+        ...(resultado ?? {}),
         headerRow: parsed.headerRow,
         mapping: parsed.mapping,
         warnings: parsed.warnings.slice(0, 100),
