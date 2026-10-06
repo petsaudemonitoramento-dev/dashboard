@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { GestantesGrid } from "@/components/gestantes/gestantes-grid";
 import type { GestanteCardData } from "@/components/gestantes/gestantes-grid";
-import { getPostgresClient } from "@/lib/db/postgres";
 import { createClient } from "@/lib/supabase/server";
 
 type PageProps = {
@@ -117,16 +116,17 @@ export default async function GestantesPage({
   let loadError: string | null = null;
 
   try {
-      const sql = getPostgresClient();
-      const rows = await sql<DatabaseRow[]>`
-        select *
-        from private.listar_gestantes_profissional_v30(
-          ${user.id}::uuid,
-          ${identifiedView}
-        )
-      `;
+      const { data, error } = await supabase.rpc(
+        "profissionais_listar_gestantes_v30",
+        { p_exibir_identidade: identifiedView }
+      );
 
-      gestantes = rows.map((row) => ({
+      if (error) {
+        throw error;
+      }
+
+      const rows = (data ?? []) as DatabaseRow[];
+gestantes = rows.map((row) => ({
         id: row.gestante_id,
         codigo: row.codigo,
         nomeVisual: row.nome_visual,
