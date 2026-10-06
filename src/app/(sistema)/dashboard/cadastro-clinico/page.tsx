@@ -146,6 +146,10 @@ export default async function CadastroClinicoPage({
   const params = await searchParams;
   const gestanteId = firstParam(params.gestante);
 
+  if (gestanteId && !isUuid(gestanteId)) {
+    redirect("/dashboard/gestantes");
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
