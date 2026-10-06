@@ -43,6 +43,36 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Security regression guardrails
+        shell: bash
+        run: |
+          if npm ls xlsx --all >/dev/null 2>&1; then
+            echo "::error::xlsx não pode voltar ao importador PEC."
+            exit 1
+          fi
+
+          sensitive_files=(
+            "src/app/api/gestantes/clinico/route.ts"
+            "src/app/api/gestantes/lixeira/route.ts"
+            "src/app/api/classificacao-risco/route.ts"
+            "src/app/api/classificacao-risco/[id]/pdf/route.ts"
+            "src/app/api/importacoes/pec/route.ts"
+            "src/app/(sistema)/dashboard/page.tsx"
+            "src/app/(sistema)/dashboard/gestantes/page.tsx"
+            "src/app/(sistema)/dashboard/cadastro-clinico/page.tsx"
+            "src/app/(sistema)/dashboard/classificacao-risco/page.tsx"
+            "src/app/(sistema)/dashboard/alertas/page.tsx"
+            "src/app/(sistema)/dashboard/atendimentos/page.tsx"
+          )
+
+          if grep -n "getPostgresClient" "${sensitive_files[@]}"; then
+            echo "::error::Fluxo clínico voltou a usar conexão PostgreSQL privilegiada."
+            exit 1
+          fi
+
       - name: ESLint
         run: npm run lint
 
