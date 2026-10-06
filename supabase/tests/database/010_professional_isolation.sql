@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(13);
+select plan(17);
 
 -- Fixtures sintéticas: dois profissionais da MESMA UBS.
 insert into auth.users (
@@ -131,6 +131,27 @@ select is(
   'RLS SELECT de A retorna somente a própria gestante'
 );
 
+select is(
+  (
+    select count(*)::bigint
+    from public.profissionais_listar_gestantes_v30(false)
+  ),
+  1::bigint,
+  'RPC de listagem retorna somente a gestante de A'
+);
+
+select throws_ok(
+  $
+    select public.profissionais_obter_gestante_clinica_v30(
+      '20000000-0000-4000-8000-000000000002'::uuid,
+      false
+    )
+  $,
+  'P0001',
+  'Gestante não encontrada ou não vinculada ao profissional',
+  'RPC clínica de A rejeita UUID da gestante B'
+);
+
 update public.pec_gestantes
 set risco_gestacional = 'CI-A-OK'
 where id = '20000000-0000-4000-8000-000000000001'::uuid;
@@ -203,6 +224,15 @@ select is(
   'RLS SELECT de B retorna somente a própria gestante'
 );
 
+select is(
+  (
+    select count(*)::bigint
+    from public.profissionais_listar_gestantes_v30(false)
+  ),
+  1::bigint,
+  'RPC de listagem retorna somente a gestante de B'
+);
+
 reset role;
 
 update public.perfis
@@ -228,6 +258,16 @@ select is(
   (select count(*)::bigint from public.pec_gestantes),
   0::bigint,
   'Profissional revogado não enxerga gestantes via RLS'
+);
+
+select throws_ok(
+  $
+    select *
+    from public.profissionais_listar_gestantes_v30(false)
+  $,
+  'P0001',
+  'Profissional sem autorização clínica',
+  'RPC de listagem rejeita profissional revogado'
 );
 
 reset role;
