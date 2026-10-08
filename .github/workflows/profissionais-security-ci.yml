@@ -107,6 +107,12 @@ jobs:
             exit 1
           fi
 
+
+          if git grep -n -E 'email_confirm:[[:space:]]*true' -- src/app/api/auth/cadastro/route.ts; then
+            echo "::error::Cadastro público não pode auto-confirmar posse do e-mail."
+            exit 1
+          fi
+
       - name: ESLint
         run: npm run lint
 
