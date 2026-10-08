@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(5);
+select plan(7);
 
 select ok(
   private.consumir_rate_limit_v30(
@@ -52,6 +52,47 @@ select ok(
     60
   ),
   'hash inválido é rejeitado'
+);
+
+select ok(
+  not private.consumir_rate_limit_v30(
+    'ci-scope-2',
+    repeat('z', 64),
+    2,
+    60
+  ),
+  'hash com caracteres fora de hexadecimal é rejeitado'
+);
+
+insert into private.rate_limits_v30 (
+  scope,
+  actor_hash,
+  window_started_at,
+  hits,
+  atualizado_em
+)
+values (
+  'ci-cleanup',
+  repeat('b', 64),
+  now() - interval '3 days',
+  1,
+  now() - interval '3 days'
+);
+
+select ok(
+  private.consumir_rate_limit_v30(
+    'ci-cleanup',
+    repeat('c', 64),
+    2,
+    60
+  )
+  and not exists (
+    select 1
+    from private.rate_limits_v30
+    where scope = 'ci-cleanup'
+      and actor_hash = repeat('b', 64)
+  ),
+  'entrada expirada do mesmo scope é removida automaticamente'
 );
 
 select * from finish();
