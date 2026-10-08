@@ -1,0 +1,95 @@
+name: Profissionais Homologation Public Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "URL HTTPS do deploy de homologação"
+        required: true
+        type: string
+      requests:
+        description: "Quantidade de requests no health check"
+        required: true
+        default: "100"
+        type: string
+      concurrency:
+        description: "Concorrência do smoke de carga"
+        required: true
+        default: "5"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  public-smoke:
+    name: Public deploy smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TARGET_BASE_URL: ${{ inputs.base_url }}
+      LOAD_REQUESTS: ${{ inputs.requests }}
+      LOAD_CONCURRENCY: ${{ inputs.concurrency }}
+      MAX_P95_MS: "5000"
+      MAX_ERROR_RATE: "0.01"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Validate target URL
+        shell: bash
+        run: |
+          node -e '
+            const u = new URL(process.env.TARGET_BASE_URL);
+            if (u.protocol !== "https:") {
+              throw new Error("Homologação deve usar HTTPS.");
+            }
+            console.log("Target:", u.origin);
+          '
+
+      - name: Health endpoint
+        shell: bash
+        run: |
+          body="$(curl --fail --silent --show-error --max-time 20 "${TARGET_BASE_URL%/}/api/health")"
+          node -e '
+            const body = JSON.parse(process.argv[1]);
+            if (body.status !== "ok") {
+              throw new Error("Health check não retornou status ok.");
+            }
+          ' "$body"
+
+      - name: Security headers
+        shell: bash
+        run: |
+          headers="$(mktemp)"
+          curl --fail --silent --show-error --max-time 20 \
+            -D "$headers" -o /dev/null "${TARGET_BASE_URL%/}/login"
+
+          grep -qi '^content-security-policy:' "$headers"
+          grep -qi '^x-content-type-options:[[:space:]]*nosniff' "$headers"
+          grep -qi '^x-frame-options:[[:space:]]*DENY' "$headers"
+          grep -qi '^referrer-policy:' "$headers"
+          grep -qi '^permissions-policy:' "$headers"
+          grep -qi '^strict-transport-security:' "$headers"
+          grep -qi '^x-request-id:' "$headers"
+
+      - name: Legacy ACS endpoint stays disabled
+        shell: bash
+        run: |
+          status="$(curl --silent --show-error --max-time 20 \
+            -o /dev/null -w '%{http_code}' \
+            -X POST "${TARGET_BASE_URL%/}/api/acs/visitas")"
+
+          if [ "$status" != "404" ]; then
+            echo "::error::Endpoint ACS legado respondeu HTTP $status; esperado 404."
+            exit 1
+          fi
+
+      - name: Controlled health load smoke
+        run: node scripts/load-smoke.mjs
