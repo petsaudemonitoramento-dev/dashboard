@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(21);
+select plan(25);
 
 -- Fixtures sintéticas: dois profissionais da MESMA UBS.
 insert into auth.users (
@@ -154,6 +154,15 @@ on conflict (id) do update set
     excluded.profissional_responsavel_id,
   excluida_em = null;
 
+-- B começa na lixeira apenas para provar que A não enxerga removidos
+-- de outro profissional da mesma UBS.
+update public.pec_gestantes
+set
+  excluida_em = now(),
+  exclusao_definitiva_prevista_em = now() + interval '10 days',
+  exclusao_motivo = 'Fixture de isolamento B'
+where id = '20000000-0000-4000-8000-000000000002'::uuid;
+
 set local role authenticated;
 select set_config(
   'request.jwt.claim.sub',
@@ -209,6 +218,25 @@ select lives_ok(
     )
   $test$,
   'Profissional A consegue mover a própria gestante para lixeira'
+);
+
+select is(
+  (
+    select count(*)::bigint
+    from public.profissionais_listar_lixeira_v30(false)
+  ),
+  1::bigint,
+  'Listagem da lixeira de A não inclui gestante B da mesma UBS'
+);
+
+select is(
+  (
+    select gestante_id
+    from public.profissionais_listar_lixeira_v30(false)
+    limit 1
+  ),
+  '20000000-0000-4000-8000-000000000001'::uuid,
+  'Lixeira de A retorna somente a própria gestante removida'
 );
 
 select throws_ok(
@@ -288,6 +316,13 @@ select ok(
   'Profissional A não consegue excluir a gestante B'
 );
 
+update public.pec_gestantes
+set
+  excluida_em = null,
+  exclusao_definitiva_prevista_em = null,
+  exclusao_motivo = null
+where id = '20000000-0000-4000-8000-000000000002'::uuid;
+
 set local role authenticated;
 select set_config(
   'request.jwt.claim.sub',
@@ -361,7 +396,26 @@ select throws_ok(
   'RPC de listagem rejeita profissional revogado'
 );
 
+select throws_ok(
+  $test$
+    select *
+    from public.profissionais_listar_lixeira_v30(false)
+  $test$,
+  'P0001',
+  'Profissional sem autorização para lixeira',
+  'RPC da lixeira rejeita profissional revogado'
+);
+
 reset role;
+
+select ok(
+  not has_function_privilege(
+    'anon',
+    'public.profissionais_listar_lixeira_v30(boolean)',
+    'EXECUTE'
+  ),
+  'anon não executa RPC de listagem da lixeira'
+);
 
 select ok(
   not exists (
