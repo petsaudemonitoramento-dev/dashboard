@@ -190,13 +190,16 @@ export async function POST(request: Request) {
         normalizedMessage.includes("already") ||
         normalizedMessage.includes("registered");
 
+      if (duplicate) {
+        return NextResponse.json(
+          { ok: true },
+          { headers: { "Cache-Control": "no-store" } }
+        );
+      }
+
       return NextResponse.json(
-        {
-          error: duplicate
-            ? "Já existe uma conta com este e-mail."
-            : "Não foi possível criar a conta.",
-        },
-        { status: duplicate ? 409 : 400 }
+        { error: "Não foi possível criar a conta." },
+        { status: 400 }
       );
     }
 
