@@ -585,6 +585,7 @@ export function GestantesGrid({
           <label className={styles.searchBox}>
             <Search size={18} />
             <input
+              aria-label="Buscar gestante"
               type="search"
               value={currentSearch}
               placeholder={
@@ -687,7 +688,11 @@ export function GestantesGrid({
         </p>
       </div>
 
-      <div className={styles.resultLine}>
+      <div
+        className={styles.resultLine}
+        role="status"
+        aria-live="polite"
+      >
         <strong>{filtered.length}</strong>
         <span>
           {filtered.length === 1
@@ -772,7 +777,15 @@ export function GestantesGrid({
               excluídos definitivamente do banco.
             </div>
 
-            {trashError && <div className={styles.modalError}>{trashError}</div>}
+            {trashError && (
+              <div
+                className={styles.modalError}
+                role="alert"
+                aria-live="assertive"
+              >
+                {trashError}
+              </div>
+            )}
 
             <div className={styles.modalActions}>
               <button
