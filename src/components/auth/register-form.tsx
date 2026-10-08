@@ -190,7 +190,13 @@ export function RegisterForm({ ubsOptions }: { ubsOptions: UbsOption[] }) {
           </div>
 
           {message && (
-            <div className="v20-message v20-message-error">{message}</div>
+            <div
+              className="v20-message v20-message-error"
+              role="alert"
+              aria-live="assertive"
+            >
+              {message}
+            </div>
           )}
 
           <div className="v20-form-actions">
