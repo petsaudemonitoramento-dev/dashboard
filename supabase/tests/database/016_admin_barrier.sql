@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(12);
+select plan(16);
 
 insert into auth.users (
   id, aud, role, email, created_at, updated_at
@@ -219,6 +219,55 @@ select ok(
   ),
   'anon não executa mutação administrativa'
 );
+
+select ok(
+  not has_table_privilege(
+    'authenticated',
+    'public.avisos_ubs',
+    'INSERT'
+  ),
+  'authenticated não insere aviso diretamente pela Data API'
+);
+
+select ok(
+  not has_table_privilege(
+    'authenticated',
+    'public.avisos_ubs',
+    'UPDATE'
+  ),
+  'authenticated não altera aviso diretamente pela Data API'
+);
+
+select ok(
+  not has_table_privilege(
+    'authenticated',
+    'public.avisos_ubs',
+    'DELETE'
+  ),
+  'authenticated não remove aviso diretamente pela Data API'
+);
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  '16000000-0000-4000-8000-000000000001',
+  true
+);
+
+select lives_ok(
+  $test$
+    select public.profissionais_admin_publicar_aviso_v30(
+      '00000000-0000-4000-8000-000000000101'::uuid,
+      'Aviso CI',
+      'Publicação somente pela RPC auditada.',
+      'informativo',
+      'profissionais'
+    )
+  $test$,
+  'admin ativo continua publicando aviso pela RPC auditada'
+);
+
+reset role;
 
 select * from finish();
 
