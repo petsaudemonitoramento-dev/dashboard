@@ -7,6 +7,8 @@ on:
       - audit/pre-codex-hardening
       - audit/continue-security-v30
       - codex/security-audit-v30
+      - codex/security-audit-final-v30
+      - audit/finalize-security-v30
   pull_request:
     branches:
       - main
