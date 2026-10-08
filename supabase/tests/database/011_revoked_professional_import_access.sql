@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(5);
+select plan(6);
 
 -- Evidência adversarial sintética para o finding SEC-V30-001.
 -- A e B pertencem à mesma UBS; o lote pertence exclusivamente a A.
@@ -170,8 +170,8 @@ select is(
     from public.importacoes_pec_resumo
     where id = '31000000-0000-4000-8000-000000000001'::uuid
   ),
-  1::bigint,
-  'EVIDÊNCIA SEC-V30-001: JWT antigo de A revogado ainda lê o lote PEC'
+  0::bigint,
+  'regressão SEC-V30-001: profissional A revogado não lê o próprio lote PEC'
 );
 
 select is(
@@ -183,8 +183,23 @@ select is(
     )
     select count(*)::bigint from removido
   ),
-  1::bigint,
-  'EVIDÊNCIA SEC-V30-001: JWT antigo de A revogado ainda apaga o lote PEC'
+  0::bigint,
+  'regressão SEC-V30-001: profissional A revogado não apaga o próprio lote PEC'
+);
+
+
+select is(
+  (
+    with atualizado as (
+      update public.importacoes_pec_resumo
+      set arquivo_nome = 'nao-deve-atualizar.csv'
+      where id = '31000000-0000-4000-8000-000000000001'::uuid
+      returning id
+    )
+    select count(*)::bigint from atualizado
+  ),
+  0::bigint,
+  'regressão SEC-V30-001: profissional A revogado não atualiza o próprio lote PEC'
 );
 
 reset role;
