@@ -26,11 +26,22 @@ O primeiro commit da auditoria, `b598924548e11ffd32bab352f56b742763100152`, foi 
 
 ## Findings
 
-Nenhum finding classificado ainda. A persistência remota foi confirmada e a análise adversarial começará pelo modelo de ownership/RLS e pelo cenário A × B na mesma UBS.
+| ID | Severidade | Componente | Descrição | Exploração | Evidência | Correção | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| SEC-V30-001 | HIGH | RLS de `importacoes_pec_resumo` | As policies de lotes PEC validam apenas `usuario_id = auth.uid()` no `USING`. Um profissional desativado conserva leitura e `DELETE` com um JWT anterior. | Criar lote de A, desativar `perfis.ativo`, reutilizar o mesmo `sub` autenticado e executar `SELECT`/`DELETE` diretamente. O isolamento A × B continua funcionando, mas a revogação não. | `supabase/tests/database/011_revoked_professional_import_access.sql`; policy criada por `20261002223000_profissionais_individual_ownership.sql`. Execução no Supabase efêmero pendente neste checkpoint. | Exigir perfil profissional completo, aprovado e ativo tanto no `USING` quanto no `WITH CHECK`, por migration nova; preservar o vínculo `usuario_id = auth.uid()` e adicionar regressão negativa. | Confirmado por análise de policy; reprodução adversarial adicionada; correção pendente. |
 
 ## Testes adversariais
 
-Ainda não iniciados.
+### Lotes PEC, mesma UBS e usuário revogado
+
+O teste `011_revoked_professional_import_access.sql` cria dados exclusivamente sintéticos:
+
+- Profissionais A e B na mesma UBS;
+- lote PEC pertencente a A;
+- B não consegue ler nem apagar o lote de A;
+- depois da desativação de A, o JWT anterior de A ainda consegue ler e apagar o lote, reproduzindo SEC-V30-001.
+
+A execução no Supabase efêmero será registrada após a publicação deste checkpoint. A expectativa vulnerável é temporária e serve para preservar a prova antes da correção; será convertida em regressão negativa na migration corretiva.
 
 ## CI
 
@@ -58,11 +69,19 @@ Ainda não iniciados.
 
 ### Checkpoint 1 — baseline de escopo e evidências
 
-- SHA: será registrado no checkpoint seguinte após a publicação deste relatório.
+- SHA: `0e8b7d927f5950720bb4dfaf4cc57c1893c9797b`.
 - Descrição: inventário cumulativo das mudanças desde `profissionais-v1-seguranca`, leitura integral dos documentos obrigatórios e validação do CI do primeiro commit remoto.
-- Testes: `git diff --check` e inspeção de secrets serão executados antes do commit; suíte completa validada no run 37711834136.
-- CI: será disparado manualmente para o commit deste checkpoint, pois o workflow não executa automaticamente em pushes para a branch de auditoria.
-- Próximo passo: auditar ownership/RLS, policies e o cenário A × B na mesma UBS, sem confiar nos testes existentes como prova.
+- Testes: `git diff --check` e inspeção de secrets sem ocorrências; suíte completa validada no CI.
+- CI: sucesso — [run 37712175688](https://github.com/petsaudemonitoramento-dev/dashboard/actions/runs/37712175688); aplicação e Supabase efêmero verdes.
+- Próximo passo concluído: iniciada auditoria adversarial de ownership/RLS e revogação.
+
+### Checkpoint 2 — finding SEC-V30-001 e reprodução
+
+- SHA: será registrado no checkpoint seguinte após a publicação deste relatório.
+- Descrição: identificado acesso residual a lotes PEC por profissional revogado; adicionada reprodução pgTAP com controles A × B na mesma UBS.
+- Testes: validação estrutural e `git diff --check` serão executados antes do commit; execução pgTAP ocorrerá no Supabase efêmero do CI.
+- CI: pendente de publicação.
+- Próximo passo: confirmar a reprodução no CI e, se confirmada, criar migration aditiva que bloqueie `SELECT`, `UPDATE` e `DELETE` para profissionais revogados.
 
 ## Parecer final
 
