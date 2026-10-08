@@ -49,6 +49,11 @@ jobs:
       - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=high
 
+
+      - name: Full dependency audit report
+        continue-on-error: true
+        run: npm audit --audit-level=high
+
       - name: Security regression guardrails
         shell: bash
         run: |
