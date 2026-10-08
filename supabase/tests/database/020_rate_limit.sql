@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(7);
+select plan(8);
 
 select ok(
   private.consumir_rate_limit_v30(
@@ -85,8 +85,12 @@ select ok(
     repeat('c', 64),
     2,
     60
-  )
-  and not exists (
+  ),
+  'nova chamada permanece permitida durante a limpeza'
+);
+
+select ok(
+  not exists (
     select 1
     from private.rate_limits_v30
     where scope = 'ci-cleanup'
