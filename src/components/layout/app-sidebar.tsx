@@ -98,6 +98,9 @@ export function AppSidebar({
         >
           {visibleItems.map(({ href, label, icon: Icon }) => (
             <Link
+              aria-current={
+                isActive(pathname, href) ? "page" : undefined
+              }
               className={
                 isActive(pathname, href) ? "active" : ""
               }
