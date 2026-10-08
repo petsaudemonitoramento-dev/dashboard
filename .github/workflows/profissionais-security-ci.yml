@@ -5,6 +5,8 @@ on:
     branches:
       - profissionais-v1-seguranca
       - audit/pre-codex-hardening
+      - audit/continue-security-v30
+      - codex/security-audit-v30
   pull_request:
     branches:
       - main
