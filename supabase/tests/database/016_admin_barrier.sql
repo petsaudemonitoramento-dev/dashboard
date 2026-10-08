@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(6);
+select plan(12);
 
 insert into auth.users (
   id, aud, role, email, created_at, updated_at
@@ -138,6 +138,86 @@ select ok(
     'EXECUTE'
   ),
   'anon não chama helper privado de admin'
+);
+
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  '16000000-0000-4000-8000-000000000001',
+  true
+);
+
+select lives_ok(
+  $test$
+    select public.profissionais_admin_listar_ubs_v30()
+  $test$,
+  'admin ativo executa RPC administrativa autenticada'
+);
+
+reset role;
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  '16000000-0000-4000-8000-000000000002',
+  true
+);
+
+select throws_ok(
+  $test$
+    select public.profissionais_admin_listar_ubs_v30()
+  $test$,
+  'P0001',
+  'ADMIN_FORBIDDEN',
+  'profissional comum não executa RPC administrativa'
+);
+
+reset role;
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  '16000000-0000-4000-8000-000000000003',
+  true
+);
+
+select throws_ok(
+  $test$
+    select public.profissionais_admin_listar_ubs_v30()
+  $test$,
+  'P0001',
+  'ADMIN_FORBIDDEN',
+  'admin revogado não executa RPC administrativa'
+);
+
+reset role;
+
+select ok(
+  not has_function_privilege(
+    'anon',
+    'public.profissionais_admin_listar_ubs_v30()',
+    'EXECUTE'
+  ),
+  'anon não executa RPC administrativa'
+);
+
+select ok(
+  has_function_privilege(
+    'authenticated',
+    'public.profissionais_admin_listar_ubs_v30()',
+    'EXECUTE'
+  ),
+  'authenticated só alcança RPC administrativa antes da barreira interna'
+);
+
+select ok(
+  not has_function_privilege(
+    'anon',
+    'public.profissionais_admin_processar_perfil_v30(text,uuid,uuid)',
+    'EXECUTE'
+  ),
+  'anon não executa mutação administrativa'
 );
 
 select * from finish();
