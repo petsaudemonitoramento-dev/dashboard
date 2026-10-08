@@ -48,7 +48,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const rawPayload = await readJsonObject(request);
+    const rawPayload = await readJsonObject(request, MAX_CLINICAL_BODY);
     if (!rawPayload) {
       return NextResponse.json(
         { error: "Dados inválidos." },
