@@ -1,6 +1,12 @@
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { getPostgresClient } from "@/lib/db/postgres";
+import { consumeRateLimit } from "@/lib/security/rate-limit";
+import {
+  logServerFailure,
+  mutationRequestError,
+  readJsonObject,
+} from "@/lib/security/request";
 import {
   isUuid,
   normalizeBirthDate,
@@ -9,25 +15,43 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const ALLOWED_PROFILES = new Set([
-  "administrador",
-  "profissional_ubs",
-  "acs",
-  "aluno",
-]);
+const REQUESTED_PROFILE = "equipe_ubs";
+
+function clientKey(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  const ip =
+    forwarded?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip")?.trim() ||
+    "unknown";
+
+  return ip.slice(0, 128);
+}
 
 export async function POST(request: Request) {
+  const requestError = mutationRequestError(request, {
+    maxBytes: 32 * 1024,
+    contentTypes: ["application/json"],
+  });
+  if (requestError) return requestError;
+
   let createdUserId: string | null = null;
 
   try {
-    const body = await request.json();
+    const body = await readJsonObject(request);
+    if (!body) {
+      return NextResponse.json(
+        { error: "Dados inválidos." },
+        { status: 400 }
+      );
+    }
+
     const nomeCompleto = String(body.nomeCompleto ?? "")
       .replace(/\s+/g, " ")
       .trim();
     const dataNascimento = normalizeBirthDate(body.dataNascimento);
     const email = String(body.email ?? "").trim().toLowerCase();
-    const password = String(body.password ?? "");
-    const perfilSolicitado = String(body.perfilSolicitado ?? "").trim();
+    const password =
+      typeof body.password === "string" ? body.password : "";
     const ubsId = String(body.ubsId ?? "").trim();
 
     if (nomeCompleto.length < 5 || nomeCompleto.length > 160) {
@@ -47,23 +71,28 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!email.includes("@") || email.length > 254) {
+    if (
+      email.length < 3 ||
+      email.length > 254 ||
+      !email.includes("@")
+    ) {
       return NextResponse.json(
         { error: "Informe um e-mail válido." },
         { status: 400 }
       );
     }
 
-    if (password.length < 8) {
+    if (
+      password.length < 10 ||
+      password.length > 128 ||
+      !/[A-Za-z]/.test(password) ||
+      !/\d/.test(password)
+    ) {
       return NextResponse.json(
-        { error: "A senha precisa ter pelo menos 8 caracteres." },
-        { status: 400 }
-      );
-    }
-
-    if (!ALLOWED_PROFILES.has(perfilSolicitado)) {
-      return NextResponse.json(
-        { error: "Perfil solicitado inválido." },
+        {
+          error:
+            "A senha deve ter de 10 a 128 caracteres, com letras e números.",
+        },
         { status: 400 }
       );
     }
@@ -75,11 +104,32 @@ export async function POST(request: Request) {
       );
     }
 
+    const allowed = await consumeRateLimit({
+      scope: "public-signup-api",
+      actorKey: `${clientKey(request)}:${email}`,
+      limit: 10,
+      windowSeconds: 3600,
+    });
+
+    if (!allowed) {
+      return NextResponse.json(
+        {
+          error:
+            "Muitas tentativas de cadastro. Tente novamente mais tarde.",
+        },
+        { status: 429 }
+      );
+    }
+
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const secret = process.env.SUPABASE_SECRET_KEY;
 
     if (!url || !secret) {
-      throw new Error("As credenciais administrativas não estão configuradas.");
+      logServerFailure("signup-config");
+      return NextResponse.json(
+        { error: "Cadastro temporariamente indisponível." },
+        { status: 503 }
+      );
     }
 
     const sql = getPostgresClient();
@@ -113,22 +163,22 @@ export async function POST(request: Request) {
       email,
       password,
       email_confirm: true,
-      user_metadata: {
-        nome_completo: nomeCompleto,
-        perfil_solicitado: perfilSolicitado,
-        ubs_solicitada_id: ubsId,
-      },
     });
 
     if (error || !data.user) {
       const normalizedMessage = error?.message?.toLowerCase() ?? "";
-      const message =
+      const duplicate =
         normalizedMessage.includes("already") ||
-        normalizedMessage.includes("registered")
-          ? "Já existe uma conta com este e-mail."
-          : error?.message ?? "Não foi possível criar a conta.";
+        normalizedMessage.includes("registered");
 
-      return NextResponse.json({ error: message }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: duplicate
+            ? "Já existe uma conta com este e-mail."
+            : "Não foi possível criar a conta.",
+        },
+        { status: duplicate ? 409 : 400 }
+      );
     }
 
     createdUserId = data.user.id;
@@ -163,7 +213,7 @@ export async function POST(request: Request) {
         ${dataNascimento}::date,
         true,
         'pendente',
-        ${perfilSolicitado},
+        ${REQUESTED_PROFILE},
         null,
         ${ubsId}::uuid,
         'email',
@@ -181,7 +231,7 @@ export async function POST(request: Request) {
         data_nascimento = excluded.data_nascimento,
         cadastro_completo = true,
         aprovacao_status = 'pendente',
-        perfil_solicitado = excluded.perfil_solicitado,
+        perfil_solicitado = ${REQUESTED_PROFILE},
         ubs_id = null,
         ubs_solicitada_id = excluded.ubs_solicitada_id,
         origem_cadastro = 'email',
@@ -193,10 +243,11 @@ export async function POST(request: Request) {
         microarea_id = null
     `;
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json(
+      { ok: true },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (error) {
-    console.error("Erro ao criar conta:", error);
-
     if (createdUserId) {
       try {
         const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -213,17 +264,13 @@ export async function POST(request: Request) {
           await admin.auth.admin.deleteUser(createdUserId);
         }
       } catch (cleanupError) {
-        console.error("Erro ao desfazer usuário incompleto:", cleanupError);
+        logServerFailure("signup-cleanup", cleanupError);
       }
     }
 
+    logServerFailure("signup", error);
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Não foi possível criar a conta.",
-      },
+      { error: "Não foi possível criar a conta." },
       { status: 500 }
     );
   }
