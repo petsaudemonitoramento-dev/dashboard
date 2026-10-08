@@ -1,1 +1,61 @@
-"use client";import Link from "next/link";import {FormEvent,useState} from "react";import {createClient} from "@/lib/supabase/client";export default function Page(){const[e,setE]=useState("");const[m,setM]=useState("");async function send(x:FormEvent){x.preventDefault();const s=createClient();const{error}=await s.auth.resetPasswordForEmail(e,{redirectTo:`${location.origin}/login`});setM(error?error.message:"Se o e-mail existir, enviaremos as instruções.")}return <main className="simple"><section><h1>Recuperar senha</h1><form onSubmit={send}><input type="email" value={e} onChange={x=>setE(x.target.value)} placeholder="Seu e-mail"/><button>Enviar instruções</button></form>{m&&<p>{m}</p>}<Link href="/login">Voltar</Link></section></main>}
+"use client";
+
+import Link from "next/link";
+import { FormEvent, useState } from "react";
+
+export default function RecuperarSenhaPage() {
+  const [email, setEmail] = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function send(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/auth/recuperar-senha", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const body = await response.json();
+
+      setMessage(
+        response.status === 429
+          ? body.error
+          : "Se o e-mail estiver cadastrado, enviaremos as instruções."
+      );
+    } catch {
+      setMessage(
+        "Não foi possível processar a solicitação agora."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <main className="simple">
+      <section>
+        <h1>Recuperar senha</h1>
+        <form onSubmit={send}>
+          <input
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="Seu e-mail"
+            maxLength={254}
+            required
+          />
+          <button disabled={loading} type="submit">
+            {loading ? "Enviando..." : "Enviar instruções"}
+          </button>
+        </form>
+        {message && <p>{message}</p>}
+        <Link href="/login">Voltar</Link>
+      </section>
+    </main>
+  );
+}
