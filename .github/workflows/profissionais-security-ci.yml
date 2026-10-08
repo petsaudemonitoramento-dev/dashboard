@@ -119,6 +119,9 @@ jobs:
             exit 1
           fi
 
+      - name: Legacy V2 surface guard
+        run: node scripts/check-legacy-surface.mjs
+
       - name: ESLint
         run: npm run lint
 
