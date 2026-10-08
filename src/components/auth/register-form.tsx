@@ -57,7 +57,7 @@ export function RegisterForm({ ubsOptions }: { ubsOptions: UbsOption[] }) {
 
       setSuccess(true);
       setMessage(
-        "Conta criada. Confirme seu e-mail pelo link enviado e aguarde a aprovação da gestão."
+        "Se o cadastro puder ser concluído, enviaremos a confirmação por e-mail. Após confirmar, aguarde a aprovação da gestão."
       );
     } catch (error) {
       setMessage(
