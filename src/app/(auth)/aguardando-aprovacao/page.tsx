@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 const PROFILE_LABELS: Record<string, string> = {
+  equipe_ubs: "Profissional da UBS",
   administrador: "Gestão (administrador)",
   profissional_ubs: "Profissional da UBS",
   acs: "ACS",
