@@ -81,9 +81,19 @@ export function mutationRequestError(
   return null;
 }
 
+export function requestIdFrom(
+  request: Request
+): string | undefined {
+  const requestId = request.headers.get("x-request-id");
+  return requestId && UUID_PATTERN.test(requestId)
+    ? requestId
+    : undefined;
+}
+
 export function logServerFailure(
   context: string,
-  error?: unknown
+  error?: unknown,
+  requestId?: string
 ): void {
   const safeCode =
     error &&
@@ -93,11 +103,16 @@ export function logServerFailure(
       ? (error as { code: string }).code.slice(0, 32)
       : undefined;
 
-  console.error(
-    safeCode
-      ? `[api] ${context} failed (code=${safeCode})`
-      : `[api] ${context} failed`
-  );
+  const event = {
+    event: "server_failure",
+    context: context.slice(0, 80),
+    ...(safeCode ? { code: safeCode } : {}),
+    ...(requestId && UUID_PATTERN.test(requestId)
+      ? { requestId }
+      : {}),
+  };
+
+  console.error(JSON.stringify(event));
 }
 
 export async function readJsonObject(
