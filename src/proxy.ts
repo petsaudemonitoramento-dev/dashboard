@@ -2,9 +2,23 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
-  let response = NextResponse.next({
-    request,
-  });
+  const requestId = crypto.randomUUID();
+
+  const createResponse = () => {
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set("x-request-id", requestId);
+
+    const nextResponse = NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
+
+    nextResponse.headers.set("x-request-id", requestId);
+    return nextResponse;
+  };
+
+  let response = createResponse();
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const publishableKey =
@@ -24,9 +38,7 @@ export async function proxy(request: NextRequest) {
           request.cookies.set(name, value);
         });
 
-        response = NextResponse.next({
-          request,
-        });
+        response = createResponse();
 
         cookiesToSet.forEach(
           ({ name, value, options }) => {
