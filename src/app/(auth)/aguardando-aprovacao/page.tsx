@@ -1,7 +1,6 @@
 import { Clock3 } from "lucide-react";
 import { redirect } from "next/navigation";
 import { ApprovalActions } from "@/components/auth/approval-actions";
-import { getPostgresClient } from "@/lib/db/postgres";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -24,29 +23,40 @@ export default async function PendingApprovalPage() {
     redirect("/login");
   }
 
-  const sql = getPostgresClient();
-  const rows = await sql`
-    select
-      p.nome_completo,
-      p.cadastro_completo,
-      p.aprovacao_status,
-      p.perfil_solicitado,
-      p.perfil_excluido_em,
-      u.nome as ubs_nome
-    from public.perfis p
-    left join public.ubs u on u.id = p.ubs_solicitada_id
-    where p.id = ${user.id}::uuid
-    limit 1
-  `;
+  const { data: profile, error: profileError } = await supabase
+    .from("perfis")
+    .select(
+      "nome_completo, cadastro_completo, aprovacao_status, perfil_solicitado, perfil_excluido_em, ubs_solicitada_id"
+    )
+    .eq("id", user.id)
+    .maybeSingle();
 
-  const profile = rows[0];
+  if (profileError) {
+    throw profileError;
+  }
 
   if (!profile || !profile.cadastro_completo) {
     redirect("/completar-cadastro");
   }
 
-  if (profile.aprovacao_status === "aprovado" && !profile.perfil_excluido_em) {
+  if (
+    profile.aprovacao_status === "aprovado" &&
+    !profile.perfil_excluido_em
+  ) {
     redirect("/dashboard");
+  }
+
+  let ubsNome: string | null = null;
+
+  if (profile.ubs_solicitada_id) {
+    const { data: ubs } = await supabase
+      .from("ubs")
+      .select("nome")
+      .eq("id", profile.ubs_solicitada_id)
+      .eq("ativa", true)
+      .maybeSingle();
+
+    ubsNome = ubs?.nome ?? null;
   }
 
   const statusMessage =
@@ -56,6 +66,11 @@ export default async function PendingApprovalPage() {
           profile.perfil_excluido_em
         ? "Este acesso foi desativado pela gestão."
         : "Seu cadastro foi concluído e aguarda aprovação da gestão.";
+
+  const requestedProfile =
+    typeof profile.perfil_solicitado === "string"
+      ? profile.perfil_solicitado
+      : "equipe_ubs";
 
   return (
     <main className="v20-auth-page">
@@ -74,13 +89,13 @@ export default async function PendingApprovalPage() {
           <div>
             <span>Perfil solicitado</span>
             <strong>
-              {PROFILE_LABELS[profile.perfil_solicitado] ??
-                profile.perfil_solicitado}
+              {PROFILE_LABELS[requestedProfile] ??
+                requestedProfile}
             </strong>
           </div>
           <div>
             <span>UBS</span>
-            <strong>{profile.ubs_nome ?? "Não informada"}</strong>
+            <strong>{ubsNome ?? "Não informada"}</strong>
           </div>
           <div>
             <span>Situação</span>
