@@ -188,7 +188,11 @@ export function LoginForm() {
         </div>
 
         {message && (
-          <div className={`login-message login-message-${messageType}`}>
+          <div
+            className={`login-message login-message-${messageType}`}
+            role={messageType === "error" ? "alert" : "status"}
+            aria-live="polite"
+          >
             {message}
           </div>
         )}
