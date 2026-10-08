@@ -178,6 +178,9 @@ export async function POST(request: Request) {
       );
     }
 
+    const confirmationRedirect =
+      `${new URL(request.url).origin}/login?email_confirmed=1`;
+
     const { data, error } = await admin.auth.admin.createUser({
       email,
       password,
@@ -191,6 +194,16 @@ export async function POST(request: Request) {
         normalizedMessage.includes("registered");
 
       if (duplicate) {
+        // Mantém resposta neutra e, se a conta ainda estiver sem
+        // confirmação, permite que o Supabase reenvie o link.
+        await publicAuth.auth.resend({
+          type: "signup",
+          email,
+          options: {
+            emailRedirectTo: confirmationRedirect,
+          },
+        });
+
         return NextResponse.json(
           { ok: true },
           { headers: { "Cache-Control": "no-store" } }
@@ -205,8 +218,6 @@ export async function POST(request: Request) {
 
     createdUserId = data.user.id;
 
-    const confirmationRedirect =
-      `${new URL(request.url).origin}/login?email_confirmed=1`;
     const { error: confirmationError } =
       await publicAuth.auth.resend({
         type: "signup",
