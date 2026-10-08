@@ -8,7 +8,6 @@
     "start": "next start",
     "lint": "eslint",
     "db:migrate": "node --env-file=.env.local scripts/aplicar-migracao.mjs",
-    "user:ubs": "node --env-file=.env.local scripts/criar-profissional-ubs.mjs",
     "db:migrate:v15": "node --env-file=.env.local scripts/aplicar-migracao-v15.mjs",
     "db:migrate:v16": "node --env-file=.env.local scripts/aplicar-migracao-v16.mjs",
     "db:migrate:v17": "node --env-file=.env.local scripts/aplicar-migracao-v17.mjs",

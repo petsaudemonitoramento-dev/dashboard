@@ -30,7 +30,6 @@ jobs:
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_ci_placeholder"
       SUPABASE_DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
       SUPABASE_SECRET_KEY: "sb_secret_ci_placeholder"
-      TEMP_PROFESSIONAL_PASSWORD: "CI-Only-Password-123!"
 
     steps:
       - name: Checkout
@@ -75,6 +74,11 @@ jobs:
 
           if grep -n "getPostgresClient" "${sensitive_files[@]}"; then
             echo "::error::Fluxo clínico voltou a usar conexão PostgreSQL privilegiada."
+            exit 1
+          fi
+
+          if git grep -n -E 'TEMP_PROFESSIONAL_PASSWORD|criar-profissional-ubs|"user:ubs"' -- package.json .env.example scripts; then
+            echo "::error::Bootstrap legado com senha reutilizável não pode voltar ao repositório."
             exit 1
           fi
 
