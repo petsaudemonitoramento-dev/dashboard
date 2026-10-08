@@ -1,125 +1,262 @@
-# Auditoria independente de segurança — Profissionais V30
+# Auditoria de Segurança — Profissionais V30
 
-## Estado da auditoria
+## Parecer executivo
 
-- Status: auditoria final residual em andamento; nenhuma conclusão final emitida.
-- Início da sessão: 07/10/2026 21:49:50 (America/Sao_Paulo; UTC-03:00).
-- Início da auditoria residual: 08/10/2026 (America/Sao_Paulo; UTC-03:00).
-- Branch-base atual: `audit/continue-security-v30`.
-- Commit-base atual auditado: `c6624d8b65c664e8c0c19bdc4907a4cece07c82d`.
-- Branch de trabalho atual: `codex/security-audit-final-v30`.
-- Regra operacional: nenhum acesso de escrita ao Supabase remoto `dashboard-v2`; banco e testes devem usar exclusivamente o Supabase efêmero do CI ou ambiente local não vinculado.
+**Parecer:** `APROVADO PARA HOMOLOGAÇÃO`
 
-## Estado inicial do GitHub Actions
+A implementação auditada até o SHA `ab61d3445b194ffd11182a80106f004e96733ac4` passou no workflow **Profissionais Security CI** (run `37834086143`) com os dois jobs verdes:
 
-O commit-base `296afbfb8572ec7b60a70c362d2c3c477f1fdfac` concluiu o workflow **Profissionais Security CI** com sucesso em 06/10/2026. Execução registrada: [run 37499444944](https://github.com/petsaudemonitoramento-dev/dashboard/actions/runs/37499444944). Este resultado é apenas o ponto de partida e não constitui prova de segurança.
+- **App quality:** sucesso;
+- **Supabase schema and security tests:** sucesso.
 
-O primeiro commit da auditoria, `b598924548e11ffd32bab352f56b742763100152`, foi publicado em `origin/codex/security-audit-v30` e validado pelo [run 37711834136](https://github.com/petsaudemonitoramento-dev/dashboard/actions/runs/37711834136), disparado manualmente porque o filtro de `push` do workflow não inclui a branch de auditoria. Os jobs **App quality** e **Supabase schema and security tests** passaram. As anotações não bloqueantes registraram a futura migração do runner `ubuntu-latest`, a transição das actions baseadas em Node.js 20 para Node.js 24 e duas ocorrências de navegação interna por `window.location.href`.
+Não permanece finding **CRITICAL** ou **HIGH** aberto no código auditado. Os findings HIGH encontrados durante a auditoria foram corrigidos e possuem regressões/guardrails.
 
-A fonte de verdade da auditoria residual, `c6624d8b65c664e8c0c19bdc4907a4cece07c82d`, passou nos dois jobs do [run 37725612249](https://github.com/petsaudemonitoramento-dev/dashboard/actions/runs/37725612249). A branch `codex/security-audit-final-v30` foi criada desse SHA e publicada antes da nova análise.
+Este parecer significa **pronto para homologação controlada**, não “já aprovado para produção”. As migrations ainda não foram aplicadas ao `dashboard-v2` remoto nesta auditoria.
 
-## Baseline auditado
+## Escopo e fonte de verdade
 
-- A branch `audit/pre-codex-hardening` acrescenta 102 commits após `profissionais-v1-seguranca`.
-- O diff cumulativo contém 50 arquivos alterados, 5.161 adições e 1.462 remoções.
-- O escopo inclui seis migrations novas de ownership, hardening, rate limiting, grants, RPCs autenticadas e lixeira, além de dois arquivos pgTAP, Route Handlers, validações, parser PEC e documentação de segurança.
-- Foram lidos integralmente os seis documentos obrigatórios: `CODEX_PROFISSIONAIS_SECURITY_TASK.md`, `docs/SEGURANCA_PROFISSIONAIS.md`, `docs/AMBIENTES_E_CI.md`, `docs/SECURITY_AUDIT_PROFISSIONAIS.md`, `docs/DATA_ACCESS_MODEL.md` e `docs/PRE_PRODUCTION_SECURITY_CHECKLIST.md`.
-- Os documentos são tratados apenas como descrição da arquitetura pretendida. Nenhuma afirmação documental foi aceita como evidência de segurança.
-- O histórico completo dos 102 commits e a relação de arquivos alterados por commit foram examinados antes do início dos ataques adversariais.
+- Repositório: `petsaudemonitoramento-dev/dashboard`
+- Base inicial do hardening: `audit/pre-codex-hardening`
+- Auditoria independente inicial: `codex/security-audit-v30`
+- Continuação de hardening: `audit/continue-security-v30`
+- Auditoria residual Codex: `codex/security-audit-final-v30`
+- Fechamento: `audit/finalize-security-v30`
+- SHA de implementação auditada antes deste relatório: `ab61d3445b194ffd11182a80106f004e96733ac4`
+
+Regra principal validada:
+
+> Um profissional só pode acessar gestantes explicitamente vinculadas à sua responsabilidade. Pertencer à mesma UBS nunca é autorização clínica suficiente.
+
+Nenhuma escrita foi realizada no Supabase remoto `dashboard-v2` durante a auditoria.
 
 ## Findings
 
-| ID | Severidade | Componente | Descrição | Exploração | Evidência | Correção | Status |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| SEC-V30-001 | HIGH | RLS de `importacoes_pec_resumo` | As policies de lotes PEC validavam apenas `usuario_id = auth.uid()` no `USING`, preservando leitura e `DELETE` após revogação. | Desativar A e reutilizar seu JWT para `SELECT`/`UPDATE`/`DELETE` no próprio lote. | `20261008011000_fix_revoked_professional_pec_access.sql` e `011_revoked_professional_import_access.sql`. | Helper de profissional ativo aplicado a todas as operações e regressão negativa pgTAP. | Corrigido antes da auditoria residual; CI da base verde. |
-| SEC-V30-002 | HIGH | Script administrativo legado | Um comando npm ainda acionava script com chave privilegiada, identidade real hardcoded, senha temporária reutilizável e impressão da senha. A execução em ambiente configurado podia criar/alterar a conta e redefinir sua credencial. | Operador ou automação executa o comando legado com variáveis de produção; não foi executado durante a auditoria. | `package.json` e `scripts/criar-profissional-ubs.mjs` no SHA-base `c6624d8`. Valores sensíveis não são reproduzidos neste relatório. | Remover comando, script e variável obsoleta; adicionar guardrail no CI contra sua reintrodução. | Corrigido em `79a7ae7`; CI 37821619995 verde. |
-| SEC-V30-003 | MEDIUM | Auth/perfil e PostgreSQL privilegiado | As páginas de cadastro público e conclusão de perfil consultavam `ubs`/`perfis` pela conexão PostgreSQL privilegiada, fora da sessão/RLS. Os parâmetros atuais eram fixos ou derivados de `getUser`, sem IDOR demonstrado, mas mantinham bypass no fluxo normal alcançável. | Acessar `/cadastro` ou `/completar-cadastro`; a renderização abria `SUPABASE_DATABASE_URL` em vez da Data API. | Imports de `getPostgresClient` nas duas páginas no SHA `79a7ae7`. | Migrar leituras para o cliente SSR Supabase; `perfis` permanece limitado pela RLS própria e `ubs` pela policy pública; ampliar guardrail do CI. | Correção implementada; testes/CI pendentes. |
+| ID | Severidade | Componente | Finding | Correção | Evidência / regressão | Status |
+| --- | --- | --- | --- | --- | --- | --- |
+| SEC-V30-001 | HIGH | PEC / RLS | Profissional revogado conservava acesso ao próprio lote PEC usando JWT antigo. | Policies passaram a exigir usuário profissional ativo, completo e aprovado em todas as operações. | `20261008011000_fix_revoked_professional_pec_access.sql`; `011_revoked_professional_import_access.sql`. | **CORRIGIDO** |
+| SEC-V30-002 | HIGH | Script administrativo | Bootstrap legado podia criar/alterar conta usando chave privilegiada, identidade hardcoded e credencial temporária reutilizável. | Script/comando/variável removidos e guardrail adicionado ao CI. | Commit `79a7ae7`; run `37821619995`. | **CORRIGIDO** |
+| SEC-V30-003 | MEDIUM | Auth/perfil | Cadastro e conclusão de perfil ainda faziam leituras via PostgreSQL privilegiado. | Leituras migradas para Supabase SSR/Data API + RLS. | Commit `bcb3e2c`; run `37823251275`. | **CORRIGIDO** |
+| SEC-V30-004 | MEDIUM | Avisos | `authenticated` ainda possuía DML direto em `avisos_ubs`, podendo contornar a RPC que registra auditoria. | DML direto revogado; escrita administrativa somente pela RPC auditada. | `20261008163000_restrict_notice_direct_writes.sql`; `016_admin_barrier.sql`. | **CORRIGIDO** |
+| SEC-V30-005 | MEDIUM | Cadastro/Auth | Cadastro por e-mail marcava `email_confirm: true`, pulando prova de posse do endereço. | Usuário passa a nascer não confirmado e recebe confirmação pelo Supabase; CI impede reintrodução de auto-confirmação. | Rota `/api/auth/cadastro`; guardrail do workflow. | **CORRIGIDO** |
+| SEC-V30-006 | HIGH | ACS legado / BOLA | `visitas_acs_v21` ainda permitia SELECT de equipe clínica por mesma UBS via Data API, embora UI/endpoint ACS estivessem desativados. | Grants de `anon/authenticated` removidos e policies legadas eliminadas. | `20261008170000_disable_legacy_acs_data_api.sql`; `018_legacy_acs_surface.sql`. | **CORRIGIDO** |
+| SEC-V30-007 | MEDIUM | Cadastro/Auth | Resposta 409 específica permitia enumeração de e-mails cadastrados. | Resposta de duplicidade passou a ser neutra; confirmação pode ser reenviada sem revelar existência da conta. | Rota `/api/auth/cadastro`; UI de cadastro. | **CORRIGIDO** |
+| SEC-V30-008 | LOW | PDF | Código da gestante era usado diretamente no nome do arquivo em `Content-Disposition`. | Nome do arquivo passou por normalização/allowlist antes de formar o header. | Rota do PDF, commit `5c2583d`. | **CORRIGIDO** |
+| SEC-V30-009 | MEDIUM | Integridade clínica | RLS das tabelas filhas validava ownership da gestante, mas não impedia A de declarar `profissional_id=B` em registro da própria gestante. | INSERT/UPDATE agora exigem `profissional_id = auth.uid()`. | `20261008173000_enforce_child_record_authorship.sql`; `013_child_table_isolation.sql`. | **CORRIGIDO** |
 
-## Testes adversariais
+## Ownership e IDOR/BOLA
 
-### Lotes PEC, mesma UBS e usuário revogado
+O cenário A × B usa dois profissionais da **mesma UBS**.
 
-O teste `011_revoked_professional_import_access.sql` cria dados exclusivamente sintéticos:
+Os testes comprovam que A:
 
-- Profissionais A e B na mesma UBS;
-- lote PEC pertencente a A;
-- B não consegue ler nem apagar o lote de A;
-- depois da desativação de A, o JWT anterior de A ainda consegue ler e apagar o lote, reproduzindo SEC-V30-001.
+- vê a própria gestante e não vê B;
+- não altera nem exclui a gestante de B;
+- não insere consulta, exame, vacina, alta, classificação ou item apontando para B;
+- não lê, altera ou apaga os registros filhos de B;
+- não obtém relatório/PDF da classificação de B;
+- não move, restaura ou exclui definitivamente a gestante de B;
+- não toma ownership durante importação PEC;
+- não falsifica a autoria B em registros da própria gestante.
 
-No estado-base residual, o teste já foi convertido em regressão negativa e confirma que profissional revogado não lê, atualiza nem apaga o próprio lote.
+A compatibilidade `security.usuario_pode_acessar_gestante_v18` delega ao modelo V30, de forma que policies legadas que ainda referenciam V18 herdam o ownership individual.
 
-### Bootstrap administrativo legado
+## Revogação e estados de autorização
 
-A reprodução contra Supabase foi deliberadamente evitada porque alteraria conta e credencial. A exploração foi demonstrada por alcançabilidade estática: havia comando npm público no repositório, fallback de senha reutilizável, identidade fixa, chamada `auth.admin` e log da senha. A regressão exige ausência do comando, do script e da variável associada.
+Foram cobertos:
+
+- profissional ativo/aprovado/completo;
+- cadastro incompleto;
+- aprovação pendente;
+- perfil rejeitado;
+- perfil inativo;
+- perfil logicamente excluído;
+- profissional revogado com JWT antigo;
+- administrador revogado.
+
+Um profissional revogado perde:
+
+- SELECT clínico;
+- acesso às tabelas filhas;
+- acesso ao lote PEC;
+- relatório/PDF;
+- escrita clínica;
+- RPCs que dependem da autorização V30.
+
+O teste `017_authorization_states.sql` impede regressões nos estados pendente/rejeitado/incompleto/inativo/excluído.
+
+## SECURITY DEFINER e grants
+
+A suíte `014_privileged_function_surface.sql` foi endurecida para usar **allowlist exata**, e não prefixo genérico.
+
+Validações permanentes:
+
+- `anon` não executa SECURITY DEFINER privada;
+- `authenticated` não executa helpers privados;
+- SECURITY DEFINER relevantes têm `search_path` explícito;
+- `anon` não executa RPCs privilegiadas públicas;
+- `authenticated` só executa as RPCs V30 explicitamente aprovadas;
+- helpers do schema `security` também possuem allowlist explícita;
+- RPCs profissionais derivam identidade de `auth.uid()`;
+- RPCs administrativas revalidam administrador ativo a partir de `auth.uid()`.
+
+Os default privileges do banco revogam privilégios de cliente por padrão para novas tabelas/funções criadas pelo papel `postgres`.
 
 ## PostgreSQL privilegiado
 
-Após SEC-V30-003, `getPostgresClient` permanece somente em `src/lib/security/rate-limit.ts` e em seu módulo de conexão. Esse uso chama exclusivamente `private.consumir_rate_limit_v30` com ator previamente hasheado e é infraestrutura interna persistente, não acesso clínico ou administrativo. Os scripts `aplicar-migracao*.mjs` são utilitários manuais de migration e não integram o runtime web; sua execução continua dependente de autorização operacional explícita.
+No runtime web, `getPostgresClient` permanece somente em:
 
-## CI
+- `src/lib/security/rate-limit.ts`;
+- `src/lib/db/postgres.ts`.
 
-| Verificação | Estado no commit-base residual `c6624d8` |
-| --- | --- |
-| GitHub Actions | sucesso — run 37725612249 |
-| `npm ci` | sucesso no job App quality |
-| lint | sucesso no job App quality |
-| TypeScript | sucesso no job App quality |
-| build | sucesso no job App quality |
-| `supabase db lint --local --level error` | sucesso no job Supabase schema and security tests |
-| `supabase test db` | sucesso no job Supabase schema and security tests |
-| `npm audit` | auditoria de dependências de produção passou no CI; auditoria completa ainda pendente |
+O uso é restrito ao rate limiter persistente e chama `private.consumir_rate_limit_v30` com identificador previamente hasheado. Não lê nem grava dado clínico.
 
-## Histórico dos checkpoints
+O CI falha caso `getPostgresClient` reapareça em outro arquivo de `src`.
 
-### Checkpoint 0 — persistência inicial
+Os scripts `aplicar-migracao*.mjs` são utilitários operacionais manuais e não integram o runtime web.
 
-- Base: `296afbfb8572ec7b60a70c362d2c3c477f1fdfac`.
-- SHA: `b598924548e11ffd32bab352f56b742763100152`.
-- Descrição: branch independente criada a partir da versão remota mais recente; relatório inicial criado e persistido antes da auditoria.
-- Push: confirmado em `origin/codex/security-audit-v30` com o mesmo SHA.
-- CI: sucesso — [run 37711834136](https://github.com/petsaudemonitoramento-dev/dashboard/actions/runs/37711834136); jobs de aplicação e Supabase efêmero verdes.
-- Próximo passo concluído: branches comparadas, commits novos examinados e documentos obrigatórios lidos integralmente.
+## PEC
 
-### Checkpoint 1 — baseline de escopo e evidências
+A versão auditada:
 
-- SHA: `0e8b7d927f5950720bb4dfaf4cc57c1893c9797b`.
-- Descrição: inventário cumulativo das mudanças desde `profissionais-v1-seguranca`, leitura integral dos documentos obrigatórios e validação do CI do primeiro commit remoto.
-- Testes: `git diff --check` e inspeção de secrets sem ocorrências; suíte completa validada no CI.
-- CI: sucesso — [run 37712175688](https://github.com/petsaudemonitoramento-dev/dashboard/actions/runs/37712175688); aplicação e Supabase efêmero verdes.
-- Próximo passo concluído: iniciada auditoria adversarial de ownership/RLS e revogação.
+- aceita apenas CSV;
+- não possui `xlsx` na árvore;
+- rejeita XLS/XLSX pelo fluxo atual;
+- limita request e arquivo;
+- limita linhas, colunas e tamanho de célula;
+- rejeita CSV com aspas não fechadas;
+- normaliza nome de arquivo e rejeita traversal;
+- não executa fórmulas;
+- não registra arquivo bruto em logs;
+- vincula o lote ao profissional atual;
+- impede takeover de gestante pertencente a outro profissional;
+- bloqueia usuário revogado.
 
-### Checkpoint 2 — finding SEC-V30-001 e reprodução
+O workflow contém guardrail que falha se `xlsx` reaparecer.
 
-- SHA: será registrado no checkpoint seguinte após a publicação deste relatório.
-- Descrição: identificado acesso residual a lotes PEC por profissional revogado; adicionada reprodução pgTAP com controles A × B na mesma UBS.
-- Testes: validação estrutural e `git diff --check` serão executados antes do commit; execução pgTAP ocorrerá no Supabase efêmero do CI.
-- CI: pendente de publicação.
-- Próximo passo: confirmar a reprodução no CI e, se confirmada, criar migration aditiva que bloqueie `SELECT`, `UPDATE` e `DELETE` para profissionais revogados.
+## Auth e sessão
 
-### Checkpoint residual 0 — persistência da auditoria final
+Foram endurecidos:
 
-- SHA-base: `c6624d8b65c664e8c0c19bdc4907a4cece07c82d`.
-- Descrição: branch `codex/security-audit-final-v30` criada diretamente da fonte de verdade remota e publicada sem alterações locais.
-- Push: confirmado no GitHub com o mesmo SHA.
-- CI da base: sucesso — [run 37725612249](https://github.com/petsaudemonitoramento-dev/dashboard/actions/runs/37725612249).
-- Próximo passo concluído: iniciada varredura global residual.
+- login server-side com rate limit;
+- cadastro público fixo em `equipe_ubs`;
+- confirmação obrigatória de posse do e-mail no fluxo de senha;
+- resposta neutra contra enumeração de contas;
+- recuperação de senha com resposta neutra;
+- redefinição protegida por sessão;
+- callback OAuth com destinos em allowlist;
+- conclusão de perfil via RPC usando `auth.uid()`;
+- perfil pendente/inativo/rejeitado não recebe acesso clínico.
 
-### Checkpoint residual 1 — SEC-V30-002
+A chave `SUPABASE_SECRET_KEY` fica restrita à rota server-only de cadastro e o CI impede seu aparecimento em outro arquivo de `src`.
 
-- SHA: `79a7ae7a0978ac1eeaaa3e83c14443d2bdef9741`.
-- Descrição: removido bootstrap administrativo legado capaz de redefinir credencial conhecida e expor senha em logs; guardrail adicionado ao CI.
-- Testes: guardrail local e validação JSON passaram; no CI passaram `npm ci`, dependency audit, guardrails, lint, TypeScript, build, db lint, pgTAP e migration list.
-- CI: sucesso — [run 37821619995](https://github.com/petsaudemonitoramento-dev/dashboard/actions/runs/37821619995).
-- Próximo passo concluído: iniciada auditoria das conexões PostgreSQL privilegiadas restantes.
+## CSRF, validação e limites
 
-### Checkpoint residual 2 — SEC-V30-003
+As mutações sensíveis usam `mutationRequestError` para:
 
-- SHA: será registrado no checkpoint seguinte após a publicação.
-- Descrição: removidas consultas PostgreSQL privilegiadas das páginas de cadastro e conclusão de perfil; leituras migradas para sessão Supabase/RLS; guardrail ampliado.
-- Testes: por restrição de memória do ambiente do usuário, instalação, lint, TypeScript, build e Supabase serão executados exclusivamente no GitHub Actions após o push; localmente foram usados apenas guardrails estáticos leves.
-- CI: pendente.
-- Próximo passo: inventário final de `SECURITY DEFINER`, grants e allowlist exata das RPCs públicas.
+- rejeitar `Sec-Fetch-Site: cross-site`;
+- validar `Origin` quando presente;
+- validar Content-Type;
+- aplicar limite declarado e limite real durante leitura do body.
 
-## Parecer final
+Payloads clínicos e de risco usam allowlists; IDs são validados antes de casts/uso; limites também existem nas RPCs para que chamar a RPC diretamente não contorne o Route Handler.
 
-Ainda não emitido.
+## Logs, PII e secrets
+
+O CI impede:
+
+- `console.log/warn/error` direto em `src`, exceto o logger sanitizado;
+- conexão PostgreSQL privilegiada fora do rate limiter;
+- `SUPABASE_SECRET_KEY` fora da rota server-only autorizada;
+- credenciais privilegiadas com prefixo `NEXT_PUBLIC_`;
+- retorno do bootstrap legado com senha reutilizável.
+
+`logServerFailure` registra contexto técnico/código e não imprime payload clínico ou a exception completa.
+
+## Páginas e superfícies legadas
+
+No produto profissional:
+
+- indicadores, território, mapa, visitas e configurações redirecionam;
+- endpoint ACS legado responde 404;
+- usuários, autorizações e UBS dependem das RPCs administrativas e falham para profissional comum/admin revogado;
+- `visitas_acs_v21` não possui mais acesso pela Data API para `anon/authenticated`;
+- analytics publicado é exclusivo do papel `metabase_reader`.
+
+## Dependências
+
+No run `37834086143`:
+
+- `npm audit --omit=dev --audit-level=high`: **0 vulnerabilidades de produção**;
+- audit completo: **5 HIGH apenas na cadeia de desenvolvimento** `eslint-config-next -> @next/eslint-plugin-next -> fast-glob -> micromatch -> braces`.
+
+O finding upstream é `GHSA-vfj7-8cjw-p6xm`. No momento desta auditoria não existe release corrigida de `braces`; o próprio npm sugere `--force` com downgrade incompatível do `eslint-config-next`. Por isso não foi aplicado `npm audit fix --force`.
+
+Essa ressalva afeta tooling de lint/build, não o bundle/runtime de produção, e deve ser reavaliada quando houver patch upstream.
+
+## Headers/CSP
+
+O código configura:
+
+- Content-Security-Policy;
+- `frame-ancestors 'none'`;
+- `X-Frame-Options: DENY`;
+- `X-Content-Type-Options: nosniff`;
+- Referrer-Policy;
+- Permissions-Policy;
+- HSTS somente em produção;
+- COOP.
+
+`unsafe-eval` não é incluído em produção. `unsafe-inline` ainda existe para compatibilidade com o stack Next.js atual e fica registrado como hardening futuro de baixa severidade.
+
+A resposta real entregue pela Vercel deve ser verificada na homologação.
+
+## Rate limiting
+
+O rate limiter é persistente em PostgreSQL, possui retenção testada e usa hashes para o ator.
+
+O deploy esperado é Vercel; a confiança em `x-forwarded-for` deve ser confirmada no ambiente real. Não foi substituído por contador em memória.
+
+## Resultado do CI
+
+Run consolidado de implementação: **37834086143**
+
+SHA: `ab61d3445b194ffd11182a80106f004e96733ac4`
+
+Resultados:
+
+- `npm ci`: sucesso;
+- audit de produção: 0 vulnerabilidades;
+- audit completo: ressalva de tooling descrita acima;
+- guardrails de segurança: sucesso;
+- ESLint: sucesso;
+- TypeScript: sucesso;
+- Next.js build: sucesso;
+- Supabase efêmero a partir das migrations: sucesso;
+- `supabase db lint --local --level error`: sucesso;
+- pgTAP: sucesso;
+- migration list: sucesso.
+
+## Pendências que exigem ambiente real
+
+Antes de produção:
+
+1. Fazer backup e plano de rollback do `dashboard-v2`.
+2. Comparar/dry-run das migrations contra `bhkyfcnuxcvjgvusgpgm`.
+3. Aplicar migrations somente após revisão humana.
+4. Executar Security Advisor após a migration e tratar achados críticos não explicados.
+5. Habilitar/verificar proteção contra senhas vazadas.
+6. Confirmar que confirmação de e-mail está habilitada e que SMTP/template funcionam.
+7. Adicionar/confirmar domínio oficial nas Redirect URLs do Auth.
+8. Testar Google OAuth no domínio oficial.
+9. Confirmar headers/CSP efetivamente entregues pela Vercel.
+10. Revisar logs Vercel/Supabase para ausência de PII.
+11. Executar smoke test com contas sintéticas A × B na mesma UBS.
+12. Confirmar/rotacionar qualquer credencial histórica que possa ter sido usada pelo bootstrap legado removido.
+13. Não executar `db reset --linked` e não enviar seed sintético para produção.
+14. Acompanhar patch upstream de `braces`/cadeia ESLint.
+
+## Critério final
+
+A auditoria não encontrou, no estado aprovado para homologação, caminho conhecido em que um profissional obtenha dados de outro profissional apenas por pertencer à mesma UBS ou conhecer um UUID.
+
+**PARECER FINAL: `APROVADO PARA HOMOLOGAÇÃO`**
