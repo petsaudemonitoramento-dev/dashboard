@@ -48,7 +48,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const rawPayload = await readJsonObject(request);
+    const rawPayload = await readJsonObject(request, 256 * 1024);
     if (!rawPayload) {
       return NextResponse.json(
         { error: "Dados inválidos." },
