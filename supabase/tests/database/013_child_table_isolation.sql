@@ -301,132 +301,169 @@ select set_config(
   true
 );
 
-select is((select count(*)::bigint from public.gestante_consultas), 1::bigint,
-  'A vê somente as próprias consultas');
-select is((select count(*)::bigint from public.gestante_exames), 1::bigint,
-  'A vê somente os próprios exames');
-select is((select count(*)::bigint from public.gestante_vacinas), 1::bigint,
-  'A vê somente as próprias vacinas');
-select is((select count(*)::bigint from public.gestante_altas), 1::bigint,
-  'A vê somente a própria alta');
-select is((select count(*)::bigint from public.classificacoes_risco_gestacional), 1::bigint,
-  'A vê somente a própria classificação');
-select is((select count(*)::bigint from public.classificacao_risco_itens), 1::bigint,
-  'A vê somente os itens da própria classificação');
+select is((
+  select count(*)::bigint
+  from public.gestante_consultas
+  where id = '33000000-0000-4000-8000-000000000001'::uuid
+), 1::bigint, 'A vê a própria consulta');
 
 select is((
-  with changed as (
-    update public.gestante_consultas
-    set observacao = 'BREACH'
-    where id = '33000000-0000-4000-8000-000000000002'::uuid
-    returning id
-  )
-  select count(*)::bigint from changed
-), 0::bigint, 'A não atualiza consulta de B');
+  select count(*)::bigint
+  from public.gestante_exames
+  where id = '34000000-0000-4000-8000-000000000001'::uuid
+), 1::bigint, 'A vê o próprio exame');
 
 select is((
-  with changed as (
-    update public.gestante_exames
-    set observacao = 'BREACH'
-    where id = '34000000-0000-4000-8000-000000000002'::uuid
-    returning id
-  )
-  select count(*)::bigint from changed
-), 0::bigint, 'A não atualiza exame de B');
+  select count(*)::bigint
+  from public.gestante_vacinas
+  where id = '35000000-0000-4000-8000-000000000001'::uuid
+), 1::bigint, 'A vê a própria vacina');
 
 select is((
-  with changed as (
-    update public.gestante_vacinas
-    set observacao = 'BREACH'
-    where id = '35000000-0000-4000-8000-000000000002'::uuid
-    returning id
-  )
-  select count(*)::bigint from changed
-), 0::bigint, 'A não atualiza vacina de B');
+  select count(*)::bigint
+  from public.gestante_altas
+  where id = '36000000-0000-4000-8000-000000000001'::uuid
+), 1::bigint, 'A vê a própria alta');
 
 select is((
-  with changed as (
-    update public.gestante_altas
-    set observacao = 'BREACH'
-    where id = '36000000-0000-4000-8000-000000000002'::uuid
-    returning id
-  )
-  select count(*)::bigint from changed
-), 0::bigint, 'A não atualiza alta de B');
+  select count(*)::bigint
+  from public.classificacoes_risco_gestacional
+  where id = '37000000-0000-4000-8000-000000000001'::uuid
+), 1::bigint, 'A vê a própria classificação');
 
 select is((
-  with changed as (
-    update public.classificacoes_risco_gestacional
-    set observacao = 'BREACH'
-    where id = '37000000-0000-4000-8000-000000000002'::uuid
-    returning id
-  )
-  select count(*)::bigint from changed
-), 0::bigint, 'A não atualiza classificação de B');
+  select count(*)::bigint
+  from public.classificacao_risco_itens
+  where id = '38000000-0000-4000-8000-000000000001'::uuid
+), 1::bigint, 'A vê o item da própria classificação');
 
-select is((
-  with changed as (
-    update public.classificacao_risco_itens
-    set detalhe_origem = 'BREACH'
-    where id = '38000000-0000-4000-8000-000000000002'::uuid
-    returning id
-  )
-  select count(*)::bigint from changed
-), 0::bigint, 'A não atualiza item de classificação de B');
+-- UPDATE contra B deve afetar zero linhas por RLS.
+update public.gestante_consultas
+set observacao = 'BREACH'
+where id = '33000000-0000-4000-8000-000000000002'::uuid;
 
-select is((
-  with removed as (
-    delete from public.gestante_consultas
-    where id = '33000000-0000-4000-8000-000000000002'::uuid
-    returning id
-  )
-  select count(*)::bigint from removed
-), 0::bigint, 'A não apaga consulta de B');
+update public.gestante_exames
+set observacao = 'BREACH'
+where id = '34000000-0000-4000-8000-000000000002'::uuid;
 
-select is((
-  with removed as (
-    delete from public.gestante_exames
-    where id = '34000000-0000-4000-8000-000000000002'::uuid
-    returning id
-  )
-  select count(*)::bigint from removed
-), 0::bigint, 'A não apaga exame de B');
+update public.gestante_vacinas
+set observacao = 'BREACH'
+where id = '35000000-0000-4000-8000-000000000002'::uuid;
 
-select is((
-  with removed as (
-    delete from public.gestante_vacinas
-    where id = '35000000-0000-4000-8000-000000000002'::uuid
-    returning id
-  )
-  select count(*)::bigint from removed
-), 0::bigint, 'A não apaga vacina de B');
+update public.gestante_altas
+set observacao = 'BREACH'
+where id = '36000000-0000-4000-8000-000000000002'::uuid;
 
-select is((
-  with removed as (
-    delete from public.gestante_altas
-    where id = '36000000-0000-4000-8000-000000000002'::uuid
-    returning id
-  )
-  select count(*)::bigint from removed
-), 0::bigint, 'A não apaga alta de B');
+update public.classificacoes_risco_gestacional
+set observacao = 'BREACH'
+where id = '37000000-0000-4000-8000-000000000002'::uuid;
 
-select is((
-  with removed as (
-    delete from public.classificacao_risco_itens
-    where id = '38000000-0000-4000-8000-000000000002'::uuid
-    returning id
-  )
-  select count(*)::bigint from removed
-), 0::bigint, 'A não apaga item de classificação de B');
+update public.classificacao_risco_itens
+set detalhe_origem = 'BREACH'
+where id = '38000000-0000-4000-8000-000000000002'::uuid;
 
-select is((
-  with removed as (
-    delete from public.classificacoes_risco_gestacional
-    where id = '37000000-0000-4000-8000-000000000002'::uuid
-    returning id
-  )
-  select count(*)::bigint from removed
-), 0::bigint, 'A não apaga classificação de B');
+reset role;
+
+select ok((
+  select observacao is null
+  from public.gestante_consultas
+  where id = '33000000-0000-4000-8000-000000000002'::uuid
+), 'A não atualiza consulta de B');
+
+select ok((
+  select observacao is null
+  from public.gestante_exames
+  where id = '34000000-0000-4000-8000-000000000002'::uuid
+), 'A não atualiza exame de B');
+
+select ok((
+  select observacao is null
+  from public.gestante_vacinas
+  where id = '35000000-0000-4000-8000-000000000002'::uuid
+), 'A não atualiza vacina de B');
+
+select ok((
+  select observacao is null
+  from public.gestante_altas
+  where id = '36000000-0000-4000-8000-000000000002'::uuid
+), 'A não atualiza alta de B');
+
+select ok((
+  select observacao is null
+  from public.classificacoes_risco_gestacional
+  where id = '37000000-0000-4000-8000-000000000002'::uuid
+), 'A não atualiza classificação de B');
+
+select ok((
+  select detalhe_origem is null
+  from public.classificacao_risco_itens
+  where id = '38000000-0000-4000-8000-000000000002'::uuid
+), 'A não atualiza item de classificação de B');
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  '13000000-0000-4000-8000-000000000001',
+  true
+);
+
+-- DELETE contra B também deve afetar zero linhas.
+delete from public.gestante_consultas
+where id = '33000000-0000-4000-8000-000000000002'::uuid;
+
+delete from public.gestante_exames
+where id = '34000000-0000-4000-8000-000000000002'::uuid;
+
+delete from public.gestante_vacinas
+where id = '35000000-0000-4000-8000-000000000002'::uuid;
+
+delete from public.gestante_altas
+where id = '36000000-0000-4000-8000-000000000002'::uuid;
+
+delete from public.classificacao_risco_itens
+where id = '38000000-0000-4000-8000-000000000002'::uuid;
+
+delete from public.classificacoes_risco_gestacional
+where id = '37000000-0000-4000-8000-000000000002'::uuid;
+
+reset role;
+
+select ok(exists (
+  select 1 from public.gestante_consultas
+  where id = '33000000-0000-4000-8000-000000000002'::uuid
+), 'A não apaga consulta de B');
+
+select ok(exists (
+  select 1 from public.gestante_exames
+  where id = '34000000-0000-4000-8000-000000000002'::uuid
+), 'A não apaga exame de B');
+
+select ok(exists (
+  select 1 from public.gestante_vacinas
+  where id = '35000000-0000-4000-8000-000000000002'::uuid
+), 'A não apaga vacina de B');
+
+select ok(exists (
+  select 1 from public.gestante_altas
+  where id = '36000000-0000-4000-8000-000000000002'::uuid
+), 'A não apaga alta de B');
+
+select ok(exists (
+  select 1 from public.classificacao_risco_itens
+  where id = '38000000-0000-4000-8000-000000000002'::uuid
+), 'A não apaga item de classificação de B');
+
+select ok(exists (
+  select 1 from public.classificacoes_risco_gestacional
+  where id = '37000000-0000-4000-8000-000000000002'::uuid
+), 'A não apaga classificação de B');
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  '13000000-0000-4000-8000-000000000001',
+  true
+);
 
 select throws_ok(
   $test$
@@ -562,12 +599,18 @@ select set_config(
 select is(
   (
     select
-      (select count(*) from public.gestante_consultas)
-      + (select count(*) from public.gestante_exames)
-      + (select count(*) from public.gestante_vacinas)
-      + (select count(*) from public.gestante_altas)
-      + (select count(*) from public.classificacoes_risco_gestacional)
-      + (select count(*) from public.classificacao_risco_itens)
+      (select count(*) from public.gestante_consultas
+       where gestante_id = '23000000-0000-4000-8000-000000000001'::uuid)
+      + (select count(*) from public.gestante_exames
+       where gestante_id = '23000000-0000-4000-8000-000000000001'::uuid)
+      + (select count(*) from public.gestante_vacinas
+       where gestante_id = '23000000-0000-4000-8000-000000000001'::uuid)
+      + (select count(*) from public.gestante_altas
+       where gestante_id = '23000000-0000-4000-8000-000000000001'::uuid)
+      + (select count(*) from public.classificacoes_risco_gestacional
+       where gestante_id = '23000000-0000-4000-8000-000000000001'::uuid)
+      + (select count(*) from public.classificacao_risco_itens
+       where classificacao_id = '37000000-0000-4000-8000-000000000001'::uuid)
   )::bigint,
   0::bigint,
   'Profissional A revogado perde SELECT em todas as tabelas clínicas filhas'
