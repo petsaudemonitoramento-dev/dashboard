@@ -48,3 +48,9 @@ a {
   color: inherit;
   text-decoration: none;
 }
+
+
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid currentColor;
+  outline-offset: 3px;
+}
