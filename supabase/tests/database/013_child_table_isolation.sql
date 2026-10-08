@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(29);
+select plan(35);
 
 -- Dois profissionais sintéticos da mesma UBS.
 insert into auth.users (
@@ -601,6 +601,114 @@ select throws_ok(
   '42501',
   'new row violates row-level security policy for table "classificacao_risco_itens"',
   'A não insere item na classificação de B'
+);
+
+select throws_ok(
+  $test$
+    insert into public.gestante_consultas (
+      gestante_id, data_atendimento, profissional_id
+    ) values (
+      '23000000-0000-4000-8000-000000000001'::uuid,
+      current_date,
+      '13000000-0000-4000-8000-000000000002'::uuid
+    )
+  $test$,
+  '42501',
+  'new row violates row-level security policy for table "gestante_consultas"',
+  'A não forja autoria B em consulta da própria gestante'
+);
+
+select throws_ok(
+  $test$
+    insert into public.gestante_exames (
+      gestante_id, codigo, nome, trimestre, profissional_id
+    ) values (
+      '23000000-0000-4000-8000-000000000001'::uuid,
+      'FORGED-AUTHOR', 'Autoria forjada', 2,
+      '13000000-0000-4000-8000-000000000002'::uuid
+    )
+  $test$,
+  '42501',
+  'new row violates row-level security policy for table "gestante_exames"',
+  'A não forja autoria B em exame da própria gestante'
+);
+
+select throws_ok(
+  $test$
+    insert into public.gestante_vacinas (
+      gestante_id, codigo, nome, profissional_id
+    ) values (
+      '23000000-0000-4000-8000-000000000001'::uuid,
+      'FORGED-AUTHOR', 'Autoria forjada',
+      '13000000-0000-4000-8000-000000000002'::uuid
+    )
+  $test$,
+  '42501',
+  'new row violates row-level security policy for table "gestante_vacinas"',
+  'A não forja autoria B em vacina da própria gestante'
+);
+
+select throws_ok(
+  $test$
+    insert into public.gestante_altas (
+      gestante_id, data_alta, motivo, ubs_id, profissional_id
+    ) values (
+      '23000000-0000-4000-8000-000000000001'::uuid,
+      current_date,
+      'Autoria forjada',
+      '00000000-0000-4000-8000-000000000101'::uuid,
+      '13000000-0000-4000-8000-000000000002'::uuid
+    )
+  $test$,
+  '42501',
+  'new row violates row-level security policy for table "gestante_altas"',
+  'A não forja autoria B em alta da própria gestante'
+);
+
+select throws_ok(
+  $test$
+    insert into public.classificacoes_risco_gestacional (
+      gestante_id,
+      instrumento_versao,
+      trimestre,
+      faixa_imc,
+      classificacao,
+      conduta_sugerida,
+      profissional_id,
+      profissional_nome_snapshot,
+      perfil_snapshot,
+      ubs_origem_profissional_id,
+      ubs_origem_nome_snapshot,
+      ubs_atendimento_id,
+      ubs_atendimento_nome_snapshot
+    ) values (
+      '23000000-0000-4000-8000-000000000001'::uuid,
+      'CI', 1, 'normal', 'baixo', 'autoria forjada',
+      '13000000-0000-4000-8000-000000000002'::uuid,
+      'Profissional B',
+      'equipe_ubs',
+      '00000000-0000-4000-8000-000000000101'::uuid,
+      'UBS Teste Segurança CI',
+      '00000000-0000-4000-8000-000000000101'::uuid,
+      'UBS Teste Segurança CI'
+    )
+  $test$,
+  '42501',
+  'new row violates row-level security policy for table "classificacoes_risco_gestacional"',
+  'A não forja autoria B em classificação da própria gestante'
+);
+
+select throws_ok(
+  $test$
+    update public.gestante_consultas
+    set profissional_id =
+      '13000000-0000-4000-8000-000000000002'::uuid
+    where id =
+      '33000000-0000-4000-8000-000000000001'::uuid
+  $test$,
+  '42501',
+  'new row violates row-level security policy for table "gestante_consultas"',
+  'A não transfere autoria de consulta existente para B'
 );
 
 reset role;
