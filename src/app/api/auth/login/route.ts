@@ -57,15 +57,23 @@ export async function POST(request: Request) {
   }
 
   try {
-    const actorKey = `${clientKey(request)}:${email}`;
-    const allowed = await consumeRateLimit({
-      scope: "password-login",
-      actorKey,
-      limit: 8,
-      windowSeconds: 900,
-    });
+    const [accountAllowed, networkAllowed] =
+      await Promise.all([
+        consumeRateLimit({
+          scope: "password-login-account",
+          actorKey: email,
+          limit: 8,
+          windowSeconds: 900,
+        }),
+        consumeRateLimit({
+          scope: "password-login-network",
+          actorKey: clientKey(request),
+          limit: 60,
+          windowSeconds: 900,
+        }),
+      ]);
 
-    if (!allowed) {
+    if (!accountAllowed || !networkAllowed) {
       return NextResponse.json(
         {
           error:
