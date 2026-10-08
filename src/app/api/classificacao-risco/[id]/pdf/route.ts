@@ -188,10 +188,16 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     page.drawText(`Registro auditável: ${report.id}`, { x:MARGIN, y:y-10, size:6.5, font:regular, color:muted });
 
     const bytes = await doc.save();
+    const safeFileCode =
+      pdfSafe(report.codigo)
+        .replace(/[^A-Za-z0-9._-]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 80) || "registro";
+
     return new NextResponse(Buffer.from(bytes), {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="classificacao-risco-${report.codigo}.pdf"`,
+        "Content-Disposition": `attachment; filename="classificacao-risco-${safeFileCode}.pdf"`,
         "Cache-Control": "no-store",
       },
     });
