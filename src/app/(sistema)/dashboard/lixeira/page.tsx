@@ -4,6 +4,7 @@ import {
   type TrashItem,
 } from "@/components/lixeira/trash-bin";
 import { createClient } from "@/lib/supabase/server";
+import { logServerFailure } from "@/lib/security/request";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -78,8 +79,8 @@ export default async function LixeiraPage() {
       excluirEm: toIso(row.excluir_em),
       motivo: row.exclusao_motivo,
     }));
-  } catch {
-    console.error("Erro ao carregar lixeira.");
+  } catch (error) {
+    logServerFailure("trash-page-load", error);
     loadError = "Não foi possível consultar os registros removidos.";
   }
 
