@@ -12,6 +12,7 @@ export function mutationRequestError(
   options: {
     maxBytes?: number;
     contentTypes?: string[];
+    requireContentLength?: boolean;
   } = {}
 ): NextResponse | null {
   const requestUrl = new URL(request.url);
@@ -58,16 +59,22 @@ export function mutationRequestError(
   }
 
   const maxBytes = options.maxBytes;
-  if (maxBytes) {
-    const rawLength = request.headers.get("content-length");
-    if (rawLength) {
-      const length = Number(rawLength);
-      if (!Number.isFinite(length) || length < 0 || length > maxBytes) {
-        return NextResponse.json(
-          { error: "Requisição maior que o limite permitido." },
-          { status: 413 }
-        );
-      }
+  const rawLength = request.headers.get("content-length");
+
+  if (options.requireContentLength && !rawLength) {
+    return NextResponse.json(
+      { error: "Tamanho da requisição não informado." },
+      { status: 411 }
+    );
+  }
+
+  if (maxBytes && rawLength) {
+    const length = Number(rawLength);
+    if (!Number.isFinite(length) || length < 0 || length > maxBytes) {
+      return NextResponse.json(
+        { error: "Requisição maior que o limite permitido." },
+        { status: 413 }
+      );
     }
   }
 
@@ -94,10 +101,47 @@ export function logServerFailure(
 }
 
 export async function readJsonObject(
-  request: Request
+  request: Request,
+  maxBytes = 256 * 1024
 ): Promise<Record<string, unknown> | null> {
   try {
-    const value: unknown = await request.json();
+    if (!request.body) {
+      return null;
+    }
+
+    const reader = request.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        return null;
+      }
+
+      chunks.push(value);
+    }
+
+    if (total === 0) {
+      return null;
+    }
+
+    const bytes = new Uint8Array(total);
+    let offset = 0;
+
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+
+    const value: unknown = JSON.parse(
+      new TextDecoder("utf-8", { fatal: true }).decode(bytes)
+    );
+
     if (
       !value ||
       typeof value !== "object" ||
