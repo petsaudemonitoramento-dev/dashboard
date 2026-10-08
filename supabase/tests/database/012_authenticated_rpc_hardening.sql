@@ -2,7 +2,21 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(10);
+select plan(11);
+
+select lives_ok(
+  $test$
+    select private.exigir_payload_pec_rpc_v30(
+      'arquivo.csv',
+      repeat('a', 64),
+      1,
+      '{}'::jsonb,
+      '[{"linha":1,"raw":{},"canonical":{},"extras":{}}]'::jsonb,
+      '[]'::jsonb
+    )
+  $test$,
+  'validador interno aceita uma estrutura CSV válida'
+);
 
 set local role authenticated;
 select set_config(
