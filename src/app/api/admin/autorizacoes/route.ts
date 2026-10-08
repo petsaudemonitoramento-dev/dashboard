@@ -11,14 +11,39 @@ import { isUuid } from "@/lib/validation/profile-input";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const ALLOWED_PROFILES = new Set(["equipe_ubs"]);
-
 type ApprovalRequest = {
   targetId: string;
-  perfil: string;
-  ubsId: string;
-  microareaId?: string | null;
+  perfil?: string;
+  ubsId?: string;
 };
+
+type AuditSnapshot = {
+  perfil: string;
+  status: string;
+  ativo: boolean;
+  cadastroCompleto: boolean;
+  aprovacaoStatus: string;
+  ubsId: string | null;
+  ubsSolicitadaId: string | null;
+  excluido: boolean;
+};
+
+function snapshot(row: Record<string, unknown>): AuditSnapshot {
+  return {
+    perfil: String(row.perfil ?? ""),
+    status: String(row.status ?? ""),
+    ativo: row.ativo === true,
+    cadastroCompleto: row.cadastro_completo === true,
+    aprovacaoStatus: String(row.aprovacao_status ?? ""),
+    ubsId:
+      typeof row.ubs_id === "string" ? row.ubs_id : null,
+    ubsSolicitadaId:
+      typeof row.ubs_solicitada_id === "string"
+        ? row.ubs_solicitada_id
+        : null,
+    excluido: Boolean(row.perfil_excluido_em),
+  };
+}
 
 export async function POST(request: Request) {
   const requestError = mutationRequestError(request, {
@@ -41,13 +66,18 @@ export async function POST(request: Request) {
     }
 
     const sql = getPostgresClient();
-    const permission = await sql`
-      select private.usuario_admin_v20(${user.id}::uuid) as autorizado
+    const permission = await sql<{ autorizado: boolean }[]>`
+      select private.usuario_admin_v20(
+        ${user.id}::uuid
+      ) as autorizado
     `;
 
     if (!permission[0]?.autorizado) {
       return NextResponse.json(
-        { error: "Apenas a gestão pode autorizar perfis." },
+        {
+          error:
+            "Apenas o administrador técnico pode autorizar perfis.",
+        },
         { status: 403 }
       );
     }
@@ -59,6 +89,7 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
     const action = String(body.action ?? "approve");
     const items = Array.isArray(body.items)
       ? (body.items as ApprovalRequest[])
@@ -85,30 +116,35 @@ export async function POST(request: Request) {
 
       if (!isUuid(targetId) || uniqueIds.has(targetId)) {
         return NextResponse.json(
-          { error: "Existe uma solicitação inválida ou repetida." },
+          {
+            error:
+              "Existe uma solicitação inválida ou repetida.",
+          },
           { status: 400 }
         );
       }
 
       uniqueIds.add(targetId);
 
+      if (targetId === user.id) {
+        return NextResponse.json(
+          {
+            error:
+              "A própria conta administrativa não pode ser processada neste lote.",
+          },
+          { status: 400 }
+        );
+      }
+
       if (action === "approve") {
         const perfil = String(item.perfil ?? "").trim();
         const ubsId = String(item.ubsId ?? "").trim();
-        const microareaId = String(item.microareaId ?? "").trim();
 
-        if (!ALLOWED_PROFILES.has(perfil) || !isUuid(ubsId)) {
-          return NextResponse.json(
-            { error: "Revise o perfil e a UBS das solicitações." },
-            { status: 400 }
-          );
-        }
-
-        if (perfil === "acs" && !isUuid(microareaId)) {
+        if (perfil !== "equipe_ubs" || !isUuid(ubsId)) {
           return NextResponse.json(
             {
               error:
-                "Toda ACS precisa receber uma microárea antes da aprovação.",
+                "Toda aprovação deve ser para Profissional da UBS com uma UBS válida.",
             },
             { status: 400 }
           );
@@ -116,25 +152,39 @@ export async function POST(request: Request) {
       }
     }
 
-    await sql.begin(async (transaction) => {
+    await sql.begin(async (tx) => {
       for (const item of items) {
         const targetId = String(item.targetId).trim();
-        const beforeRows = await transaction`
-          select to_jsonb(p.*) as dados
-          from public.perfis p
-          where p.id = ${targetId}::uuid
-            and p.aprovacao_status = 'pendente'
-          limit 1
-        `;
 
-        if (!beforeRows[0]) {
-          throw new Error(
-            "Uma das solicitações não está mais pendente. Atualize a página."
-          );
+        const beforeRows =
+          await tx<Record<string, unknown>[]>`
+            select
+              perfil::text,
+              status::text,
+              ativo,
+              cadastro_completo,
+              aprovacao_status,
+              ubs_id::text,
+              ubs_solicitada_id::text,
+              perfil_excluido_em
+            from public.perfis
+            where id = ${targetId}::uuid
+              and aprovacao_status = 'pendente'
+            for update
+          `;
+
+        const before = beforeRows[0];
+
+        if (!before) {
+          throw new Error("REQUEST_NOT_PENDING");
+        }
+
+        if (String(before.perfil) === "administrador") {
+          throw new Error("ADMIN_TARGET_FORBIDDEN");
         }
 
         if (action === "reject") {
-          await transaction`
+          await tx`
             update public.perfis
             set
               perfil = 'aluno'::public.perfil_usuario,
@@ -146,11 +196,9 @@ export async function POST(request: Request) {
             where id = ${targetId}::uuid
           `;
         } else {
-          const perfil = String(item.perfil).trim();
           const ubsId = String(item.ubsId).trim();
-          const microareaId = String(item.microareaId ?? "").trim();
 
-          const ubsRows = await transaction`
+          const ubsRows = await tx<{ id: string }[]>`
             select id
             from public.ubs
             where id = ${ubsId}::uuid
@@ -159,36 +207,17 @@ export async function POST(request: Request) {
           `;
 
           if (!ubsRows[0]) {
-            throw new Error("Uma das UBS selecionadas está desativada.");
+            throw new Error("UBS_INACTIVE");
           }
 
-          if (perfil === "acs") {
-            const microRows = await transaction`
-              select id
-              from public.microareas
-              where id = ${microareaId}::uuid
-                and ubs_id = ${ubsId}::uuid
-                and ativa = true
-              limit 1
-            `;
-
-            if (!microRows[0]) {
-              throw new Error(
-                "A microárea escolhida não pertence à UBS da ACS."
-              );
-            }
-          }
-
-          await transaction`
+          await tx`
             update public.perfis
             set
-              perfil = ${perfil}::public.perfil_usuario,
-              perfil_solicitado = ${perfil},
+              perfil = 'equipe_ubs'::public.perfil_usuario,
+              perfil_solicitado = 'equipe_ubs',
               ubs_id = ${ubsId}::uuid,
               ubs_solicitada_id = ${ubsId}::uuid,
-              microarea_id = ${
-                perfil === "acs" ? microareaId : null
-              }::uuid,
+              microarea_id = null,
               aprovacao_status = 'aprovado',
               cadastro_completo = true,
               status = 'ativo',
@@ -201,14 +230,23 @@ export async function POST(request: Request) {
           `;
         }
 
-        const afterRows = await transaction`
-          select to_jsonb(p.*) as dados
-          from public.perfis p
-          where p.id = ${targetId}::uuid
-          limit 1
-        `;
+        const afterRows =
+          await tx<Record<string, unknown>[]>`
+            select
+              perfil::text,
+              status::text,
+              ativo,
+              cadastro_completo,
+              aprovacao_status,
+              ubs_id::text,
+              ubs_solicitada_id::text,
+              perfil_excluido_em
+            from public.perfis
+            where id = ${targetId}::uuid
+            limit 1
+          `;
 
-        await transaction`
+        await tx`
           insert into private.auditoria_perfis_v20 (
             administrador_id,
             perfil_alvo_id,
@@ -219,20 +257,57 @@ export async function POST(request: Request) {
           values (
             ${user.id}::uuid,
             ${targetId}::uuid,
-            ${action === "approve" ? "aprovar_lote_v21" : "rejeitar_lote_v21"},
-            ${sql.json(beforeRows[0].dados)},
-            ${sql.json(afterRows[0]?.dados ?? {})}
+            ${
+              action === "approve"
+                ? "aprovar_lote_profissionais_v30"
+                : "rejeitar_lote_profissionais_v30"
+            },
+            ${sql.json(snapshot(before))},
+            ${sql.json(snapshot(afterRows[0] ?? {}))}
           )
         `;
       }
     });
 
-    return NextResponse.json({
-      ok: true,
-      processed: items.length,
-      action,
-    });
+    return NextResponse.json(
+      {
+        ok: true,
+        processed: items.length,
+        action,
+      },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (error) {
+    const code =
+      error instanceof Error ? error.message : "";
+
+    if (code === "REQUEST_NOT_PENDING") {
+      return NextResponse.json(
+        {
+          error:
+            "Uma das solicitações não está mais pendente. Atualize a página.",
+        },
+        { status: 409 }
+      );
+    }
+
+    if (code === "ADMIN_TARGET_FORBIDDEN") {
+      return NextResponse.json(
+        {
+          error:
+            "Conta administrativa não pode ser processada nesta rotina.",
+        },
+        { status: 403 }
+      );
+    }
+
+    if (code === "UBS_INACTIVE") {
+      return NextResponse.json(
+        { error: "Uma das UBS selecionadas está desativada." },
+        { status: 400 }
+      );
+    }
+
     logServerFailure("admin-approvals", error);
     return NextResponse.json(
       { error: "Não foi possível processar as autorizações." },
