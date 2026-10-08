@@ -31,6 +31,17 @@ export default async function DashboardPage() {
     .maybeSingle();
 
   if (
+    profile?.perfil === "administrador" &&
+    profile.status === "ativo" &&
+    profile.ativo &&
+    profile.cadastro_completo === true &&
+    profile.aprovacao_status === "aprovado" &&
+    !profile.perfil_excluido_em
+  ) {
+    redirect("/dashboard/autorizacoes");
+  }
+
+  if (
     !profile ||
     profile.perfil !== "equipe_ubs" ||
     profile.status !== "ativo" ||
