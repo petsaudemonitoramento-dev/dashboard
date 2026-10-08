@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(25);
+select plan(29);
 
 -- Dois profissionais sintéticos da mesma UBS.
 insert into auth.users (
@@ -337,6 +337,26 @@ select is((
   where id = '38000000-0000-4000-8000-000000000001'::uuid
 ), 1::bigint, 'A vê o item da própria classificação');
 
+select lives_ok(
+  $test$
+    select public.profissionais_obter_relatorio_classificacao_v30(
+      '37000000-0000-4000-8000-000000000001'::uuid
+    )
+  $test$,
+  'A obtém o relatório/PDF da própria classificação'
+);
+
+select throws_ok(
+  $test$
+    select public.profissionais_obter_relatorio_classificacao_v30(
+      '37000000-0000-4000-8000-000000000002'::uuid
+    )
+  $test$,
+  'P0001',
+  'Gestante não encontrada ou não vinculada ao profissional',
+  'A não obtém relatório/PDF da classificação de B'
+);
+
 -- UPDATE contra B deve afetar zero linhas por RLS.
 update public.gestante_consultas
 set observacao = 'BREACH'
@@ -614,6 +634,39 @@ select is(
   )::bigint,
   0::bigint,
   'Profissional A revogado perde SELECT em todas as tabelas clínicas filhas'
+);
+
+select throws_ok(
+  $test$
+    select public.profissionais_obter_relatorio_classificacao_v30(
+      '37000000-0000-4000-8000-000000000001'::uuid
+    )
+  $test$,
+  'P0001',
+  'Gestante não encontrada ou não vinculada ao profissional',
+  'Profissional revogado não obtém relatório/PDF da própria classificação'
+);
+
+update public.gestante_consultas
+set observacao = 'REVOKED-BREACH'
+where id = '33000000-0000-4000-8000-000000000001'::uuid;
+
+reset role;
+
+select ok(
+  (
+    select observacao is null
+    from public.gestante_consultas
+    where id = '33000000-0000-4000-8000-000000000001'::uuid
+  ),
+  'Profissional revogado não atualiza a própria consulta'
+);
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  '13000000-0000-4000-8000-000000000001',
+  true
 );
 
 reset role;
