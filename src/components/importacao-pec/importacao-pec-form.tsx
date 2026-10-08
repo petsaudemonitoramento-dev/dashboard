@@ -195,7 +195,11 @@ export function ImportacaoPecForm({
           </p>
         </div>
 
-        {error && <div className="pec-error">{error}</div>}
+        {error && (
+          <div className="pec-error" role="alert" aria-live="assertive">
+            {error}
+          </div>
+        )}
       </section>
 
       <section className="pec-card">
@@ -236,6 +240,9 @@ export function ImportacaoPecForm({
           <h3>Prévia sem identificadores diretos</h3>
           <div className="pec-table-wrap">
             <table className="pec-table">
+              <caption>
+                Prévia pseudonimizada dos registros encontrados no CSV
+              </caption>
               <thead>
                 <tr>
                   <th>Linha</th>
