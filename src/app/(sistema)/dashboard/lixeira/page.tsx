@@ -3,7 +3,6 @@ import {
   TrashBin,
   type TrashItem,
 } from "@/components/lixeira/trash-bin";
-import { getPostgresClient } from "@/lib/db/postgres";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -37,46 +36,48 @@ export default async function LixeiraPage() {
 
   const { data: profile } = await supabase
     .from("perfis")
-    .select("perfil, status, ativo")
+    .select(
+      "perfil, status, ativo, cadastro_completo, aprovacao_status, perfil_excluido_em"
+    )
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
-  if (!profile || !profile.ativo || profile.status !== "ativo") {
-    redirect("/login");
+  if (
+    !profile ||
+    profile.perfil !== "equipe_ubs" ||
+    profile.status !== "ativo" ||
+    !profile.ativo ||
+    profile.cadastro_completo !== true ||
+    profile.aprovacao_status !== "aprovado" ||
+    profile.perfil_excluido_em
+  ) {
+    redirect("/aguardando-aprovacao");
   }
-
-  const canShowIdentity = [
-    "administrador",
-    "profissional_ubs",
-    "equipe_ubs",
-  ].includes(String(profile.perfil));
 
   let items: TrashItem[] = [];
   let loadError: string | null = null;
 
   try {
-      const sql = getPostgresClient();
+    const { data, error } = await supabase.rpc(
+      "profissionais_listar_lixeira_v30",
+      { p_exibir_identidade: true }
+    );
 
-      await sql`select private.esvaziar_lixeira_v19()`;
+    if (error) {
+      throw error;
+    }
 
-      const rows = await sql<DatabaseRow[]>`
-        select *
-        from private.listar_lixeira_gestantes_v19(
-          ${user.id}::uuid,
-          ${canShowIdentity}
-        )
-      `;
-
-      items = rows.map((row) => ({
-        id: row.gestante_id,
-        codigo: row.codigo,
-        nomeVisual: row.nome_visual,
-        ubsNome: row.ubs_nome,
-        microarea: row.microarea_codigo,
-        excluidaEm: toIso(row.excluida_em),
-        excluirEm: toIso(row.excluir_em),
-        motivo: row.exclusao_motivo,
-      }));
+    const rows = (data ?? []) as DatabaseRow[];
+    items = rows.map((row) => ({
+      id: row.gestante_id,
+      codigo: row.codigo,
+      nomeVisual: row.nome_visual,
+      ubsNome: row.ubs_nome,
+      microarea: row.microarea_codigo,
+      excluidaEm: toIso(row.excluida_em),
+      excluirEm: toIso(row.excluir_em),
+      motivo: row.exclusao_motivo,
+    }));
   } catch {
     console.error("Erro ao carregar lixeira.");
     loadError = "Não foi possível consultar os registros removidos.";
@@ -95,14 +96,14 @@ export default async function LixeiraPage() {
     );
   }
 
-return (
+  return (
     <>
       <section className="heading">
         <p>PET-Saúde UFCG</p>
         <h1>Lixeira</h1>
         <span>
-          Cadastros removidos ficam disponíveis por 10 dias antes da
-          exclusão definitiva.
+          Aqui aparecem somente cadastros removidos sob sua
+          responsabilidade.
         </span>
       </section>
 
