@@ -184,20 +184,19 @@ select is(
   'controle A x B: profissional B da mesma UBS não lê o lote de A'
 );
 
-select is(
-  (
-    with removido as (
-      delete from public.importacoes_pec_resumo
-      where id = '31000000-0000-4000-8000-000000000001'::uuid
-      returning id
-    )
-    select count(*)::bigint from removido
-  ),
-  0::bigint,
-  'controle A x B: profissional B da mesma UBS não apaga o lote de A'
-);
+delete from public.importacoes_pec_resumo
+where id = '31000000-0000-4000-8000-000000000001'::uuid;
 
 reset role;
+
+select ok(
+  exists (
+    select 1
+    from public.importacoes_pec_resumo
+    where id = '31000000-0000-4000-8000-000000000001'::uuid
+  ),
+  'controle A x B: profissional B da mesma UBS não apaga o lote de A'
+);
 
 update public.perfis
 set ativo = false
@@ -220,35 +219,33 @@ select is(
   'regressão SEC-V30-001: profissional A revogado não lê o próprio lote PEC'
 );
 
-select is(
-  (
-    with removido as (
-      delete from public.importacoes_pec_resumo
-      where id = '31000000-0000-4000-8000-000000000001'::uuid
-      returning id
-    )
-    select count(*)::bigint from removido
+delete from public.importacoes_pec_resumo
+where id = '31000000-0000-4000-8000-000000000001'::uuid;
+
+update public.importacoes_pec_resumo
+set arquivo_nome = 'nao-deve-atualizar.csv'
+where id = '31000000-0000-4000-8000-000000000001'::uuid;
+
+reset role;
+
+select ok(
+  exists (
+    select 1
+    from public.importacoes_pec_resumo
+    where id = '31000000-0000-4000-8000-000000000001'::uuid
   ),
-  0::bigint,
   'regressão SEC-V30-001: profissional A revogado não apaga o próprio lote PEC'
 );
 
-
 select is(
   (
-    with atualizado as (
-      update public.importacoes_pec_resumo
-      set arquivo_nome = 'nao-deve-atualizar.csv'
-      where id = '31000000-0000-4000-8000-000000000001'::uuid
-      returning id
-    )
-    select count(*)::bigint from atualizado
+    select arquivo_nome
+    from public.importacoes_pec_resumo
+    where id = '31000000-0000-4000-8000-000000000001'::uuid
   ),
-  0::bigint,
+  'fixture-revogacao.csv',
   'regressão SEC-V30-001: profissional A revogado não atualiza o próprio lote PEC'
 );
-
-reset role;
 
 select * from finish();
 
