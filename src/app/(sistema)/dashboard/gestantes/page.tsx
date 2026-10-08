@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { GestantesGrid } from "@/components/gestantes/gestantes-grid";
 import type { GestanteCardData } from "@/components/gestantes/gestantes-grid";
 import { createClient } from "@/lib/supabase/server";
+import { logServerFailure } from "@/lib/security/request";
 
 type PageProps = {
   searchParams: Promise<{
@@ -162,8 +163,8 @@ gestantes = rows.map((row) => ({
         pendencias: Number(row.pendencias_count ?? 0),
         atualizadoEm: dateTimeToIso(row.atualizado_em),
       }));
-  } catch {
-      console.error("Erro ao consultar gestantes.");
+  } catch (error) {
+      logServerFailure("gestantes-page-load", error);
       loadError = "Não foi possível carregar as fichas neste momento.";
   }
 
