@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = await readJsonObject(request);
+    const body = await readJsonObject(request, 256 * 1024);
     if (!body) {
       return NextResponse.json(
         { error: "Dados inválidos." },
