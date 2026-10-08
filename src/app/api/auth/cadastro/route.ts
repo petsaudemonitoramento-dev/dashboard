@@ -1,6 +1,5 @@
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { getPostgresClient } from "@/lib/db/postgres";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
 import {
   logServerFailure,
@@ -104,14 +103,23 @@ export async function POST(request: Request) {
       );
     }
 
-    const allowed = await consumeRateLimit({
-      scope: "public-signup-api",
-      actorKey: `${clientKey(request)}:${email}`,
-      limit: 10,
-      windowSeconds: 3600,
-    });
+    const [emailAllowed, networkAllowed] =
+      await Promise.all([
+        consumeRateLimit({
+          scope: "public-signup-email",
+          actorKey: email,
+          limit: 3,
+          windowSeconds: 3600,
+        }),
+        consumeRateLimit({
+          scope: "public-signup-network",
+          actorKey: clientKey(request),
+          limit: 20,
+          windowSeconds: 3600,
+        }),
+      ]);
 
-    if (!allowed) {
+    if (!emailAllowed || !networkAllowed) {
       return NextResponse.json(
         {
           error:
@@ -132,16 +140,26 @@ export async function POST(request: Request) {
       );
     }
 
-    const sql = getPostgresClient();
-    const ubsRows = await sql`
-      select id
-      from public.ubs
-      where id = ${ubsId}::uuid
-        and ativa = true
-      limit 1
-    `;
+    const admin = createAdminClient(url, secret, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false,
+      },
+    });
 
-    if (!ubsRows[0]) {
+    const { data: ubs, error: ubsError } = await admin
+      .from("ubs")
+      .select("id")
+      .eq("id", ubsId)
+      .eq("ativa", true)
+      .maybeSingle();
+
+    if (ubsError) {
+      throw ubsError;
+    }
+
+    if (!ubs) {
       return NextResponse.json(
         {
           error:
@@ -150,14 +168,6 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-
-    const admin = createAdminClient(url, secret, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-        detectSessionInUrl: false,
-      },
-    });
 
     const { data, error } = await admin.auth.admin.createUser({
       email,
@@ -183,65 +193,37 @@ export async function POST(request: Request) {
 
     createdUserId = data.user.id;
 
-    await sql`
-      insert into public.perfis (
-        id,
-        nome_completo,
-        email,
-        perfil,
-        status,
-        ativo,
-        primeiro_acesso,
-        data_nascimento,
-        cadastro_completo,
-        aprovacao_status,
-        perfil_solicitado,
-        ubs_id,
-        ubs_solicitada_id,
-        origem_cadastro,
-        solicitado_em,
-        microarea_id
-      )
-      values (
-        ${data.user.id}::uuid,
-        ${nomeCompleto},
-        ${email},
-        'aluno'::public.perfil_usuario,
-        'ativo',
-        true,
-        false,
-        ${dataNascimento}::date,
-        true,
-        'pendente',
-        ${REQUESTED_PROFILE},
-        null,
-        ${ubsId}::uuid,
-        'email',
-        now(),
-        null
-      )
-      on conflict (id)
-      do update set
-        nome_completo = excluded.nome_completo,
-        email = excluded.email,
-        perfil = 'aluno'::public.perfil_usuario,
-        status = 'ativo',
-        ativo = true,
-        primeiro_acesso = false,
-        data_nascimento = excluded.data_nascimento,
-        cadastro_completo = true,
-        aprovacao_status = 'pendente',
-        perfil_solicitado = ${REQUESTED_PROFILE},
-        ubs_id = null,
-        ubs_solicitada_id = excluded.ubs_solicitada_id,
-        origem_cadastro = 'email',
-        solicitado_em = now(),
-        aprovado_em = null,
-        aprovado_por = null,
-        perfil_excluido_em = null,
-        perfil_excluido_por = null,
-        microarea_id = null
-    `;
+    const { error: profileError } = await admin
+      .from("perfis")
+      .upsert(
+        {
+          id: data.user.id,
+          nome_completo: nomeCompleto,
+          email,
+          perfil: "aluno",
+          status: "ativo",
+          ativo: true,
+          primeiro_acesso: false,
+          data_nascimento: dataNascimento,
+          cadastro_completo: true,
+          aprovacao_status: "pendente",
+          perfil_solicitado: REQUESTED_PROFILE,
+          ubs_id: null,
+          ubs_solicitada_id: ubsId,
+          origem_cadastro: "email",
+          solicitado_em: new Date().toISOString(),
+          microarea_id: null,
+          aprovado_em: null,
+          aprovado_por: null,
+          perfil_excluido_em: null,
+          perfil_excluido_por: null,
+        },
+        { onConflict: "id" }
+      );
+
+    if (profileError) {
+      throw profileError;
+    }
 
     return NextResponse.json(
       { ok: true },
