@@ -1,14 +1,30 @@
-﻿import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const secretKey = process.env.SUPABASE_SECRET_KEY;
-
-const emailAntigo = "luccanspaaufcg@gmail.com";
-const emailNovo = "luccanspaufcg@gmail.com";
+const oldEmail = process.env.OLD_PROFESSIONAL_EMAIL
+  ?.trim()
+  .toLowerCase();
+const newEmail = process.env.NEW_PROFESSIONAL_EMAIL
+  ?.trim()
+  .toLowerCase();
 
 if (!supabaseUrl || !secretKey) {
   throw new Error(
-    "NEXT_PUBLIC_SUPABASE_URL ou SUPABASE_SECRET_KEY não configurada."
+    "Configure NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SECRET_KEY."
+  );
+}
+
+if (
+  !oldEmail ||
+  !newEmail ||
+  !oldEmail.includes("@") ||
+  !newEmail.includes("@") ||
+  oldEmail.length > 254 ||
+  newEmail.length > 254
+) {
+  throw new Error(
+    "Configure OLD_PROFESSIONAL_EMAIL e NEW_PROFESSIONAL_EMAIL."
   );
 }
 
@@ -30,38 +46,30 @@ if (listError) {
   throw listError;
 }
 
-const usuarioAntigo = usersData.users.find(
-  (usuario) =>
-    usuario.email?.toLowerCase() === emailAntigo.toLowerCase()
+const oldUser = usersData.users.find(
+  (user) => user.email?.toLowerCase() === oldEmail
 );
 
-const usuarioNovo = usersData.users.find(
-  (usuario) =>
-    usuario.email?.toLowerCase() === emailNovo.toLowerCase()
+const newUser = usersData.users.find(
+  (user) => user.email?.toLowerCase() === newEmail
 );
 
-if (
-  usuarioNovo &&
-  usuarioAntigo &&
-  usuarioNovo.id !== usuarioAntigo.id
-) {
+if (newUser && oldUser && newUser.id !== oldUser.id) {
   throw new Error(
-    `O e-mail ${emailNovo} já pertence a outro usuário.`
+    "O novo e-mail já pertence a outro usuário."
   );
 }
 
-const usuario = usuarioAntigo ?? usuarioNovo;
+const user = oldUser ?? newUser;
 
-if (!usuario) {
-  throw new Error(
-    `Nenhum usuário foi encontrado com ${emailAntigo} ou ${emailNovo}.`
-  );
+if (!user) {
+  throw new Error("Usuário não encontrado.");
 }
 
-if (usuario.email?.toLowerCase() !== emailNovo.toLowerCase()) {
+if (user.email?.toLowerCase() !== newEmail) {
   const { error: updateAuthError } =
-    await supabase.auth.admin.updateUserById(usuario.id, {
-      email: emailNovo,
+    await supabase.auth.admin.updateUserById(user.id, {
+      email: newEmail,
       email_confirm: true,
     });
 
@@ -72,16 +80,12 @@ if (usuario.email?.toLowerCase() !== emailNovo.toLowerCase()) {
 
 const { error: updateProfileError } = await supabase
   .from("perfis")
-  .update({
-    email: emailNovo,
-  })
-  .eq("id", usuario.id);
+  .update({ email: newEmail })
+  .eq("id", user.id);
 
 if (updateProfileError) {
   throw updateProfileError;
 }
 
-console.log("E-mail alterado com sucesso.");
-console.log(`E-mail anterior: ${emailAntigo}`);
-console.log(`Novo e-mail: ${emailNovo}`);
-console.log(`ID preservado: ${usuario.id}`);
+console.log("E-mail do profissional alterado com sucesso.");
+console.log("ID técnico preservado.");
