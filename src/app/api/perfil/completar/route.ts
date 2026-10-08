@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getPostgresClient } from "@/lib/db/postgres";
 import {
   logServerFailure,
   mutationRequestError,
@@ -13,8 +12,6 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const REQUESTED_PROFILE = "equipe_ubs";
 
 export async function POST(request: Request) {
   const requestError = mutationRequestError(request, {
@@ -74,21 +71,20 @@ export async function POST(request: Request) {
       );
     }
 
-    const sql = getPostgresClient();
+    const { data: existing, error: profileError } = await supabase
+      .from("perfis")
+      .select("aprovacao_status, perfil_excluido_em, ativo")
+      .eq("id", user.id)
+      .maybeSingle();
 
-    const existingRows = await sql`
-      select
-        aprovacao_status,
-        perfil_excluido_em
-      from public.perfis
-      where id = ${user.id}::uuid
-      limit 1
-    `;
-    const existing = existingRows[0];
+    if (profileError) {
+      throw profileError;
+    }
 
     if (
       existing?.aprovacao_status === "desativado" ||
-      existing?.perfil_excluido_em
+      existing?.perfil_excluido_em ||
+      existing?.ativo === false
     ) {
       return NextResponse.json(
         { error: "Este acesso está desativado." },
@@ -103,15 +99,18 @@ export async function POST(request: Request) {
       );
     }
 
-    const ubsRows = await sql`
-      select id
-      from public.ubs
-      where id = ${ubsId}::uuid
-        and ativa = true
-      limit 1
-    `;
+    const { data: ubs, error: ubsError } = await supabase
+      .from("ubs")
+      .select("id")
+      .eq("id", ubsId)
+      .eq("ativa", true)
+      .maybeSingle();
 
-    if (!ubsRows[0]) {
+    if (ubsError) {
+      throw ubsError;
+    }
+
+    if (!ubs) {
       return NextResponse.json(
         {
           error:
@@ -121,63 +120,18 @@ export async function POST(request: Request) {
       );
     }
 
-    await sql`
-      insert into public.perfis (
-        id,
-        nome_completo,
-        email,
-        perfil,
-        status,
-        ativo,
-        primeiro_acesso,
-        data_nascimento,
-        cadastro_completo,
-        aprovacao_status,
-        perfil_solicitado,
-        ubs_id,
-        ubs_solicitada_id,
-        origem_cadastro,
-        solicitado_em,
-        microarea_id
-      )
-      values (
-        ${user.id}::uuid,
-        ${nomeCompleto},
-        ${user.email.toLowerCase()},
-        'aluno'::public.perfil_usuario,
-        'ativo',
-        true,
-        false,
-        ${dataNascimento}::date,
-        true,
-        'pendente',
-        ${REQUESTED_PROFILE},
-        null,
-        ${ubsId}::uuid,
-        'google',
-        now(),
-        null
-      )
-      on conflict (id)
-      do update set
-        nome_completo = excluded.nome_completo,
-        email = excluded.email,
-        perfil = 'aluno'::public.perfil_usuario,
-        status = 'ativo',
-        ativo = true,
-        primeiro_acesso = false,
-        data_nascimento = excluded.data_nascimento,
-        cadastro_completo = true,
-        aprovacao_status = 'pendente',
-        perfil_solicitado = ${REQUESTED_PROFILE},
-        ubs_id = null,
-        ubs_solicitada_id = excluded.ubs_solicitada_id,
-        origem_cadastro = 'google',
-        solicitado_em = now(),
-        aprovado_em = null,
-        aprovado_por = null,
-        microarea_id = null
-    `;
+    const { error: completionError } = await supabase.rpc(
+      "profissionais_completar_perfil_v30",
+      {
+        p_nome_completo: nomeCompleto,
+        p_data_nascimento: dataNascimento,
+        p_ubs_id: ubsId,
+      }
+    );
+
+    if (completionError) {
+      throw completionError;
+    }
 
     return NextResponse.json(
       { ok: true },
