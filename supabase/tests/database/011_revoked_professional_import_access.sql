@@ -25,6 +25,14 @@ values
     'revoked-import-b@ci.invalid',
     now(),
     now()
+  ),
+  (
+    '11000000-0000-4000-8000-000000000099'::uuid,
+    'authenticated',
+    'authenticated',
+    'auditor-revogacao@ci.invalid',
+    now(),
+    now()
   )
 on conflict (id) do nothing;
 
@@ -82,6 +90,44 @@ on conflict (id) do update set
   cadastro_completo = excluded.cadastro_completo,
   aprovacao_status = excluded.aprovacao_status,
   perfil_excluido_em = null;
+
+insert into private.credenciais_profissionais (
+  usuario_id,
+  cargo_funcao,
+  conselho,
+  uf,
+  numero_registro,
+  categoria,
+  situacao,
+  decidido_em,
+  decidido_por,
+  fonte_verificacao
+)
+values
+  (
+    '11000000-0000-4000-8000-000000000001'::uuid,
+    'medico',
+    'CRM',
+    'PB',
+    '110001',
+    'MEDICO',
+    'validado',
+    now(),
+    '11000000-0000-4000-8000-000000000099'::uuid,
+    'portal_cfm'
+  ),
+  (
+    '11000000-0000-4000-8000-000000000002'::uuid,
+    'enfermeiro',
+    'COREN',
+    'PB',
+    '220002',
+    'ENFERMEIRO',
+    'validado',
+    now(),
+    '11000000-0000-4000-8000-000000000099'::uuid,
+    'consulta_cofen'
+  );
 
 insert into public.importacoes_pec_resumo (
   id,
