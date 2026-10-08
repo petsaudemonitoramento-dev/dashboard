@@ -157,7 +157,7 @@ export async function POST(request: Request) {
       },
     });
 
-    const { data: ubs, error: ubsError } = await admin
+    const { data: ubs, error: ubsError } = await publicAuth
       .from("ubs")
       .select("id")
       .eq("id", ubsId)
