@@ -130,9 +130,11 @@ export async function POST(request: Request) {
     }
 
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const publishableKey =
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
     const secret = process.env.SUPABASE_SECRET_KEY;
 
-    if (!url || !secret) {
+    if (!url || !publishableKey || !secret) {
       logServerFailure("signup-config");
       return NextResponse.json(
         { error: "Cadastro temporariamente indisponível." },
@@ -141,6 +143,13 @@ export async function POST(request: Request) {
     }
 
     const admin = createAdminClient(url, secret, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false,
+      },
+    });
+    const publicAuth = createAdminClient(url, publishableKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
@@ -172,7 +181,7 @@ export async function POST(request: Request) {
     const { data, error } = await admin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true,
+      email_confirm: false,
     });
 
     if (error || !data.user) {
@@ -192,6 +201,21 @@ export async function POST(request: Request) {
     }
 
     createdUserId = data.user.id;
+
+    const confirmationRedirect =
+      `${new URL(request.url).origin}/login?email_confirmed=1`;
+    const { error: confirmationError } =
+      await publicAuth.auth.resend({
+        type: "signup",
+        email,
+        options: {
+          emailRedirectTo: confirmationRedirect,
+        },
+      });
+
+    if (confirmationError) {
+      throw confirmationError;
+    }
 
     const { error: profileError } = await admin
       .from("perfis")
