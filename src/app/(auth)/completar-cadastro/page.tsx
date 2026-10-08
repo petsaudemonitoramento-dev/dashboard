@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { CompleteProfileForm } from "@/components/auth/complete-profile-form";
-import { getPostgresClient } from "@/lib/db/postgres";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -15,23 +14,25 @@ export default async function CompleteProfilePage() {
     redirect("/login");
   }
 
-  const sql = getPostgresClient();
-  const [profiles, ubsOptions] = await Promise.all([
-    sql`
-      select cadastro_completo, aprovacao_status
-      from public.perfis
-      where id = ${user.id}::uuid
-      limit 1
-    `,
-    sql<{ id: string; nome: string }[]>`
-      select id, nome
-      from public.ubs
-      where ativa = true
-      order by nome
-    `,
+  const [profileResult, ubsResult] = await Promise.all([
+    supabase
+      .from("perfis")
+      .select("cadastro_completo, aprovacao_status")
+      .eq("id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("ubs")
+      .select("id, nome")
+      .eq("ativa", true)
+      .order("nome"),
   ]);
 
-  const profile = profiles[0];
+  if (profileResult.error || ubsResult.error) {
+    throw new Error("Não foi possível carregar o cadastro.");
+  }
+
+  const profile = profileResult.data;
+  const ubsOptions = ubsResult.data ?? [];
 
   if (profile?.cadastro_completo) {
     if (profile.aprovacao_status === "aprovado") {

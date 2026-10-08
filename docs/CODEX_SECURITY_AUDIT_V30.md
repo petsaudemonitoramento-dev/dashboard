@@ -32,7 +32,8 @@ A fonte de verdade da auditoria residual, `c6624d8b65c664e8c0c19bdc4907a4cece07c
 | ID | Severidade | Componente | Descrição | Exploração | Evidência | Correção | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | SEC-V30-001 | HIGH | RLS de `importacoes_pec_resumo` | As policies de lotes PEC validavam apenas `usuario_id = auth.uid()` no `USING`, preservando leitura e `DELETE` após revogação. | Desativar A e reutilizar seu JWT para `SELECT`/`UPDATE`/`DELETE` no próprio lote. | `20261008011000_fix_revoked_professional_pec_access.sql` e `011_revoked_professional_import_access.sql`. | Helper de profissional ativo aplicado a todas as operações e regressão negativa pgTAP. | Corrigido antes da auditoria residual; CI da base verde. |
-| SEC-V30-002 | HIGH | Script administrativo legado | Um comando npm ainda acionava script com chave privilegiada, identidade real hardcoded, senha temporária reutilizável e impressão da senha. A execução em ambiente configurado podia criar/alterar a conta e redefinir sua credencial. | Operador ou automação executa o comando legado com variáveis de produção; não foi executado durante a auditoria. | `package.json` e `scripts/criar-profissional-ubs.mjs` no SHA-base `c6624d8`. Valores sensíveis não são reproduzidos neste relatório. | Remover comando, script e variável obsoleta; adicionar guardrail no CI contra sua reintrodução. | Correção implementada neste checkpoint; testes/CI pendentes. |
+| SEC-V30-002 | HIGH | Script administrativo legado | Um comando npm ainda acionava script com chave privilegiada, identidade real hardcoded, senha temporária reutilizável e impressão da senha. A execução em ambiente configurado podia criar/alterar a conta e redefinir sua credencial. | Operador ou automação executa o comando legado com variáveis de produção; não foi executado durante a auditoria. | `package.json` e `scripts/criar-profissional-ubs.mjs` no SHA-base `c6624d8`. Valores sensíveis não são reproduzidos neste relatório. | Remover comando, script e variável obsoleta; adicionar guardrail no CI contra sua reintrodução. | Corrigido em `79a7ae7`; CI 37821619995 verde. |
+| SEC-V30-003 | MEDIUM | Auth/perfil e PostgreSQL privilegiado | As páginas de cadastro público e conclusão de perfil consultavam `ubs`/`perfis` pela conexão PostgreSQL privilegiada, fora da sessão/RLS. Os parâmetros atuais eram fixos ou derivados de `getUser`, sem IDOR demonstrado, mas mantinham bypass no fluxo normal alcançável. | Acessar `/cadastro` ou `/completar-cadastro`; a renderização abria `SUPABASE_DATABASE_URL` em vez da Data API. | Imports de `getPostgresClient` nas duas páginas no SHA `79a7ae7`. | Migrar leituras para o cliente SSR Supabase; `perfis` permanece limitado pela RLS própria e `ubs` pela policy pública; ampliar guardrail do CI. | Correção implementada; testes/CI pendentes. |
 
 ## Testes adversariais
 
@@ -50,6 +51,10 @@ No estado-base residual, o teste já foi convertido em regressão negativa e con
 ### Bootstrap administrativo legado
 
 A reprodução contra Supabase foi deliberadamente evitada porque alteraria conta e credencial. A exploração foi demonstrada por alcançabilidade estática: havia comando npm público no repositório, fallback de senha reutilizável, identidade fixa, chamada `auth.admin` e log da senha. A regressão exige ausência do comando, do script e da variável associada.
+
+## PostgreSQL privilegiado
+
+Após SEC-V30-003, `getPostgresClient` permanece somente em `src/lib/security/rate-limit.ts` e em seu módulo de conexão. Esse uso chama exclusivamente `private.consumir_rate_limit_v30` com ator previamente hasheado e é infraestrutura interna persistente, não acesso clínico ou administrativo. Os scripts `aplicar-migracao*.mjs` são utilitários manuais de migration e não integram o runtime web; sua execução continua dependente de autorização operacional explícita.
 
 ## CI
 
@@ -101,11 +106,19 @@ A reprodução contra Supabase foi deliberadamente evitada porque alteraria cont
 
 ### Checkpoint residual 1 — SEC-V30-002
 
-- SHA: será registrado no checkpoint seguinte após a publicação.
+- SHA: `79a7ae7a0978ac1eeaaa3e83c14443d2bdef9741`.
 - Descrição: removido bootstrap administrativo legado capaz de redefinir credencial conhecida e expor senha em logs; guardrail adicionado ao CI.
-- Testes: guardrails locais, lint, TypeScript e build serão registrados antes do commit; GitHub Actions será disparado manualmente.
+- Testes: guardrail local e validação JSON passaram; no CI passaram `npm ci`, dependency audit, guardrails, lint, TypeScript, build, db lint, pgTAP e migration list.
+- CI: sucesso — [run 37821619995](https://github.com/petsaudemonitoramento-dev/dashboard/actions/runs/37821619995).
+- Próximo passo concluído: iniciada auditoria das conexões PostgreSQL privilegiadas restantes.
+
+### Checkpoint residual 2 — SEC-V30-003
+
+- SHA: será registrado no checkpoint seguinte após a publicação.
+- Descrição: removidas consultas PostgreSQL privilegiadas das páginas de cadastro e conclusão de perfil; leituras migradas para sessão Supabase/RLS; guardrail ampliado.
+- Testes: por restrição de memória do ambiente do usuário, instalação, lint, TypeScript, build e Supabase serão executados exclusivamente no GitHub Actions após o push; localmente foram usados apenas guardrails estáticos leves.
 - CI: pendente.
-- Próximo passo: confirmar o checkpoint e continuar a varredura por conexões privilegiadas, superfícies `SECURITY DEFINER`, logs/PII e secrets.
+- Próximo passo: inventário final de `SECURITY DEFINER`, grants e allowlist exata das RPCs públicas.
 
 ## Parecer final
 

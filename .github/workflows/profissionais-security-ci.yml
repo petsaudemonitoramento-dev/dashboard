@@ -63,6 +63,8 @@ jobs:
             "src/app/api/importacoes/pec/route.ts"
             "src/app/api/auth/cadastro/route.ts"
             "src/app/api/perfil/completar/route.ts"
+            "src/app/(auth)/cadastro/page.tsx"
+            "src/app/(auth)/completar-cadastro/page.tsx"
             "src/app/(auth)/aguardando-aprovacao/page.tsx"
             "src/app/(sistema)/dashboard/page.tsx"
             "src/app/(sistema)/dashboard/gestantes/page.tsx"
