@@ -29,6 +29,7 @@ export async function POST(request: Request) {
   const requestError = mutationRequestError(request, {
     maxBytes: MAX_REQUEST_SIZE,
     contentTypes: ["multipart/form-data"],
+    requireContentLength: true,
   });
   if (requestError) return requestError;
 
