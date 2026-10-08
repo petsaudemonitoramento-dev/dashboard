@@ -86,6 +86,27 @@ jobs:
             exit 1
           fi
 
+
+          if git grep -n "getPostgresClient" -- src             ':(exclude)src/lib/security/rate-limit.ts'             ':(exclude)src/lib/db/postgres.ts'; then
+            echo "::error::Conexão PostgreSQL privilegiada só é permitida no rate limiter interno."
+            exit 1
+          fi
+
+          if git grep -n "SUPABASE_SECRET_KEY" -- src             ':(exclude)src/app/api/auth/cadastro/route.ts'; then
+            echo "::error::SUPABASE_SECRET_KEY apareceu fora da rota server-only autorizada."
+            exit 1
+          fi
+
+          if git grep -n -E 'console\.(log|warn|error)\(' -- src             ':(exclude)src/lib/security/request.ts'; then
+            echo "::error::Logs diretos em src podem vazar PII; use o logger sanitizado."
+            exit 1
+          fi
+
+          if git grep -n -E 'NEXT_PUBLIC_.*(SECRET|SERVICE_ROLE|DATABASE_URL)' -- src .env.example; then
+            echo "::error::Credencial privilegiada não pode usar prefixo NEXT_PUBLIC_."
+            exit 1
+          fi
+
       - name: ESLint
         run: npm run lint
 
