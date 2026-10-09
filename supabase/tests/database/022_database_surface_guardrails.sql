@@ -224,19 +224,31 @@ with allowlist(schema_name, function_name) as (
     ('security', 'usuario_profissional_ativo_v30'),
     ('security', 'usuario_ubs_id')
 )
-select ok(
-  not exists (
-    select 1
-    from pg_proc p
-    join pg_namespace n on n.oid = p.pronamespace
-    left join allowlist a
-      on a.schema_name = n.nspname
-      and a.function_name = p.proname
-    where n.nspname in ('public', 'private', 'security')
-      and p.prosecdef
-      and pg_get_userbyid(p.proowner) = 'postgres'
-      and a.function_name is null
-  ),
+), unexpected_security_definers as (
+  select
+    n.nspname as schema_name,
+    p.proname as function_name,
+    pg_get_function_identity_arguments(p.oid) as identity_arguments
+  from pg_proc p
+  join pg_namespace n on n.oid = p.pronamespace
+  left join allowlist a
+    on a.schema_name = n.nspname
+    and a.function_name = p.proname
+  where n.nspname in ('public', 'private', 'security')
+    and p.prosecdef
+    and pg_get_userbyid(p.proowner) = 'postgres'
+    and a.function_name is null
+)
+select is(
+  coalesce((
+    select string_agg(
+      format('%I.%I(%s)', schema_name, function_name, identity_arguments),
+      ', '
+      order by schema_name, function_name, identity_arguments
+    )
+    from unexpected_security_definers
+  ), ''),
+  '',
   'toda SECURITY DEFINER pertence à allowlist explícita'
 );
 

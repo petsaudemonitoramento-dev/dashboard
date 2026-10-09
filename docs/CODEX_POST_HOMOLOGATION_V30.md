@@ -67,7 +67,7 @@ supabase/tests/database/021_clinical_audit_integrity.sql valida:
 | CI inicial da base | Sucesso — run 37863928345 |
 | Fase 1 — migration/pgTAP | Sucesso — run 37881333306 |
 | App quality | Sucesso — run 37881333306 |
-| Supabase schema/security | Sucesso — run 37881333306 |
+| Supabase schema/security | Fase 1: sucesso — run 37881333306; Fase 2: 170/171 asserções, inventário SECURITY DEFINER pendente — run 37882033548 |
 
 ## Fase 2 — Guardrail global da superfície do banco
 
@@ -82,7 +82,7 @@ Foi adicionado o teste estrutural 022_database_surface_guardrails.sql. Ele falha
 - policy clínica permissiva sem vínculo individual por owner/auth.uid();
 - default privilege que volte a expor tabelas ou funções a PUBLIC, anon ou authenticated.
 
-O teste mantém USAGE de authenticated em security somente porque as policies e helpers RLS o exigem; CREATE continua revogado. Resultado do CI deste checkpoint: pendente.
+O teste mantém USAGE de authenticated em security somente porque as policies e helpers RLS o exigem; CREATE continua revogado. O run 37882033548 confirmou app quality, migrations, db lint e 170 de 171 asserções. A única falha restante é o inventário SECURITY DEFINER; o guardrail foi tornado diagnóstico para revelar nome e assinatura do objeto não enumerado, sem ampliar a allowlist às cegas.
 ## Itens não corrigidos e justificativa
 
 - Registros históricos já existentes podem conter snapshots clínicos. Não foram reescritos porque apagar ou transformar retroativamente uma trilha aplicada exige política de retenção e auditoria humana.
@@ -123,4 +123,4 @@ Média provisória: **7,85/10**.
 
 ## Próximo passo
 
-Executar o CI da fase 2. Somente após os guardrails estruturais verdes, iniciar a fase 3 de acessibilidade automatizada.
+Usar o diagnóstico do próximo run para identificar e revisar a SECURITY DEFINER fora da allowlist. Somente com as 171 asserções verdes iniciar a fase 3 de acessibilidade automatizada.
