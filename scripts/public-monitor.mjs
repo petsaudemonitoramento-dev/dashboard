@@ -9,11 +9,20 @@ function check(condition, message) {
 
 async function probe(path, expectedStatus, method = "GET") {
   const started = performance.now();
+  const clinicalPost = method === "POST" && path === "/api/gestantes/clinico";
   const response = await fetch(base + path, {
     method,
     redirect: "manual",
     cache: "no-store",
-    headers: { "user-agent": "profissionais-v30-github-health-monitor/1.0" },
+    headers: {
+      "user-agent": "profissionais-v30-github-health-monitor/1.0",
+      ...(clinicalPost ? {
+        "content-type": "application/json",
+        origin: base,
+        "sec-fetch-site": "same-origin",
+      } : {}),
+    },
+    ...(clinicalPost ? { body: "{}" } : {}),
     signal: AbortSignal.timeout(timeoutMs),
   });
   const ms = Math.round(performance.now() - started);
