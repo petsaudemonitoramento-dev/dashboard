@@ -67,7 +67,7 @@ supabase/tests/database/021_clinical_audit_integrity.sql valida:
 | CI inicial da base | Sucesso — run 37863928345 |
 | Fase 1 — migration/pgTAP | Sucesso — run 37881333306 |
 | App quality | Sucesso — run 37881333306 |
-| Supabase schema/security | Fase 1: sucesso — run 37881333306; Fase 2: 170/171 asserções, inventário SECURITY DEFINER pendente — run 37882033548 |
+| Supabase schema/security | Fase 1: sucesso — run 37881333306; Fase 2: sucesso, 171 asserções — run 37923003584 |
 
 ## Fase 2 — Guardrail global da superfície do banco
 
@@ -82,7 +82,7 @@ Foi adicionado o teste estrutural 022_database_surface_guardrails.sql. Ele falha
 - policy clínica permissiva sem vínculo individual por owner/auth.uid();
 - default privilege que volte a expor tabelas ou funções a PUBLIC, anon ou authenticated.
 
-O teste mantém USAGE de authenticated em security somente porque as policies e helpers RLS o exigem; CREATE continua revogado. O run 37882033548 confirmou app quality, migrations, db lint e 170 de 171 asserções. O run diagnóstico 37922318014 manteve app quality e db lint verdes, mas encontrou um parêntese duplicado no SQL do próprio teste antes de executar as quatro asserções finais; a sintaxe foi corrigida no checkpoint seguinte. O run 37922619276 identificou exatamente private.importar_pec_impl_v22(uuid, uuid, text, text, integer, jsonb, jsonb, jsonb). A revisão confirmou que é o corpo legado renomeado ainda necessário à cadeia interna de importação, que preserva search_path fixo e possui EXECUTE revogado de PUBLIC, anon, authenticated e service_role. A função foi então incluída explicitamente na allowlist; validação final da Fase 2 pendente.
+O teste mantém USAGE de authenticated em security somente porque as policies e helpers RLS o exigem; CREATE continua revogado. O run 37882033548 confirmou app quality, migrations, db lint e 170 de 171 asserções. O run diagnóstico 37922318014 manteve app quality e db lint verdes, mas encontrou um parêntese duplicado no SQL do próprio teste antes de executar as quatro asserções finais; a sintaxe foi corrigida no checkpoint seguinte. O run 37922619276 identificou exatamente private.importar_pec_impl_v22(uuid, uuid, text, text, integer, jsonb, jsonb, jsonb). A revisão confirmou que é o corpo legado renomeado ainda necessário à cadeia interna de importação, que preserva search_path fixo e possui EXECUTE revogado de PUBLIC, anon, authenticated e service_role. A função foi então incluída explicitamente na allowlist. A validação final da Fase 2 passou no run 37923003584: app quality, migrations, db lint e todas as 171 asserções pgTAP ficaram verdes no Supabase efêmero.
 ## Itens não corrigidos e justificativa
 
 - Registros históricos já existentes podem conter snapshots clínicos. Não foram reescritos porque apagar ou transformar retroativamente uma trilha aplicada exige política de retenção e auditoria humana.
@@ -111,7 +111,6 @@ Média provisória: **7,85/10**.
 
 ## O que ainda impede 10/10
 
-- guardrails estruturais globais do banco ainda não foram adicionados;
 - acessibilidade automatizada e homologação manual assistiva ainda não foram concluídas;
 - restore descartável ainda não mede RTO;
 - observabilidade agendada ainda não existe;
@@ -123,4 +122,4 @@ Média provisória: **7,85/10**.
 
 ## Próximo passo
 
-Confirmar as 171 asserções da Fase 2 no GitHub Actions. Somente com o run integralmente verde iniciar a Fase 3 de acessibilidade automatizada.
+Iniciar a Fase 3 com um gate econômico de Playwright + axe em Chromium, preservando a homologação manual assistiva como requisito separado.
