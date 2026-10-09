@@ -10,6 +10,7 @@ on:
       - codex/security-audit-final-v30
       - audit/finalize-security-v30
       - hardening/post-audit-v1
+      - codex/post-homologation-quality-v30
   pull_request:
     branches:
       - main
