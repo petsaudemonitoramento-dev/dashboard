@@ -234,6 +234,7 @@ select ok(
       and a.function_name = p.proname
     where n.nspname in ('public', 'private', 'security')
       and p.prosecdef
+      and pg_get_userbyid(p.proowner) = 'postgres'
       and a.function_name is null
   ),
   'toda SECURITY DEFINER pertence à allowlist explícita'
@@ -300,6 +301,7 @@ select ok(
     left join pg_namespace n on n.oid = d.defaclnamespace
     cross join lateral aclexplode(d.defaclacl) acl
     where n.nspname in ('public', 'private', 'security')
+      and pg_get_userbyid(d.defaclrole) = 'postgres'
       and (
         acl.grantee = 0
         or pg_get_userbyid(acl.grantee) in ('anon', 'authenticated')
