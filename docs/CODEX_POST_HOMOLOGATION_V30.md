@@ -88,7 +88,7 @@ O teste mantém USAGE de authenticated em security somente porque as policies e 
 
 Foi criado um workflow econômico e independente, limitado a Chromium headless, uma worker e quatro rotas públicas. O job sobe Supabase efêmero para renderizar /cadastro com dados exclusivamente sintéticos; apenas URL e chave publicável são exportadas. O gate verifica impactos axe serious/critical, nomes acessíveis, landmark principal, título e navegação básica por Tab.
 
-A inspeção dirigida encontrou e corrigiu ausência de labels nos campos de recuperação/redefinição e padronizou anúncios de status/erro. A homologação manual com VoiceOver/NVDA, contraste, zoom e modais continua obrigatória. Resultado do primeiro run: pendente.
+A inspeção dirigida encontrou e corrigiu ausência de labels nos campos de recuperação/redefinição e padronizou anúncios de status/erro. A homologação manual com VoiceOver/NVDA, contraste, zoom e modais continua obrigatória. O run 37924020645 carregou as quatro páginas e validou seus labels, mas falhou antes do axe porque o teste usava uma expressão regular inválida como tipo de role do Playwright. Os roles foram tornados explícitos; nova validação pendente.
 ## Itens não corrigidos e justificativa
 
 - Registros históricos já existentes podem conter snapshots clínicos. Não foram reescritos porque apagar ou transformar retroativamente uma trilha aplicada exige política de retenção e auditoria humana.

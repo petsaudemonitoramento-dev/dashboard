@@ -7,7 +7,11 @@ const pages = [
     path: "/login",
     heading: "Cuidado na Gestação na APS",
     labels: ["E-mail ou usuário", "Senha"],
-    controls: ["Continuar com Google", "Entrar", "Criar conta"],
+    controls: [
+      { role: "button", name: "Continuar com Google" },
+      { role: "button", name: "Entrar" },
+      { role: "link", name: "Criar conta" },
+    ],
   },
   {
     name: "cadastro",
@@ -21,21 +25,24 @@ const pages = [
       "Senha",
       "Confirmar senha",
     ],
-    controls: ["Abrir calendário", "Criar conta"],
+    controls: [
+      { role: "button", name: "Abrir calendário" },
+      { role: "button", name: "Criar conta" },
+    ],
   },
   {
     name: "recuperação de senha",
     path: "/recuperar-senha",
     heading: "Recuperar senha",
     labels: ["E-mail"],
-    controls: ["Enviar instruções"],
+    controls: [{ role: "button", name: "Enviar instruções" }],
   },
   {
     name: "redefinição de senha",
     path: "/redefinir-senha",
     heading: "Definir nova senha",
     labels: ["Nova senha", "Confirmar nova senha"],
-    controls: ["Atualizar senha"],
+    controls: [{ role: "button", name: "Atualizar senha" }],
   },
 ];
 
@@ -70,9 +77,12 @@ for (const publicPage of pages) {
       await expect(page.getByLabel(label, { exact: true })).toBeVisible();
     }
 
-    for (const name of publicPage.controls) {
+    for (const control of publicPage.controls) {
       await expect(
-        page.getByRole(/button|link/, { name, exact: true })
+        page.getByRole(control.role, {
+          name: control.name,
+          exact: true,
+        })
       ).toBeVisible();
     }
 
