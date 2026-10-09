@@ -163,6 +163,7 @@ with allowlist(schema_name, function_name) as (
     ('private', 'hash_gestante_auditoria_v19'),
     ('private', 'identidade_hash'),
     ('private', 'importar_pec'),
+    ('private', 'importar_pec_impl_v22'),
     ('private', 'importar_pec_v30'),
     ('private', 'listar_gestantes_autorizadas_v16'),
     ('private', 'listar_gestantes_profissional_v30'),

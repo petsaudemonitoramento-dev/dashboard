@@ -82,7 +82,7 @@ Foi adicionado o teste estrutural 022_database_surface_guardrails.sql. Ele falha
 - policy clínica permissiva sem vínculo individual por owner/auth.uid();
 - default privilege que volte a expor tabelas ou funções a PUBLIC, anon ou authenticated.
 
-O teste mantém USAGE de authenticated em security somente porque as policies e helpers RLS o exigem; CREATE continua revogado. O run 37882033548 confirmou app quality, migrations, db lint e 170 de 171 asserções. O run diagnóstico 37922318014 manteve app quality e db lint verdes, mas encontrou um parêntese duplicado no SQL do próprio teste antes de executar as quatro asserções finais; a sintaxe foi corrigida no checkpoint seguinte. A única falha restante é o inventário SECURITY DEFINER; o guardrail foi tornado diagnóstico para revelar nome e assinatura do objeto não enumerado, sem ampliar a allowlist às cegas.
+O teste mantém USAGE de authenticated em security somente porque as policies e helpers RLS o exigem; CREATE continua revogado. O run 37882033548 confirmou app quality, migrations, db lint e 170 de 171 asserções. O run diagnóstico 37922318014 manteve app quality e db lint verdes, mas encontrou um parêntese duplicado no SQL do próprio teste antes de executar as quatro asserções finais; a sintaxe foi corrigida no checkpoint seguinte. O run 37922619276 identificou exatamente private.importar_pec_impl_v22(uuid, uuid, text, text, integer, jsonb, jsonb, jsonb). A revisão confirmou que é o corpo legado renomeado ainda necessário à cadeia interna de importação, que preserva search_path fixo e possui EXECUTE revogado de PUBLIC, anon, authenticated e service_role. A função foi então incluída explicitamente na allowlist; validação final da Fase 2 pendente.
 ## Itens não corrigidos e justificativa
 
 - Registros históricos já existentes podem conter snapshots clínicos. Não foram reescritos porque apagar ou transformar retroativamente uma trilha aplicada exige política de retenção e auditoria humana.
@@ -123,4 +123,4 @@ Média provisória: **7,85/10**.
 
 ## Próximo passo
 
-Usar o diagnóstico do próximo run para identificar e revisar a SECURITY DEFINER fora da allowlist. Somente com as 171 asserções verdes iniciar a fase 3 de acessibilidade automatizada.
+Confirmar as 171 asserções da Fase 2 no GitHub Actions. Somente com o run integralmente verde iniciar a Fase 3 de acessibilidade automatizada.
