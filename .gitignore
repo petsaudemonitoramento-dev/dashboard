@@ -17,3 +17,6 @@ supabase/.cache/
 # Playwright artifacts
 playwright-report/
 test-results/
+
+# Ephemeral DR reports
+dr-report/

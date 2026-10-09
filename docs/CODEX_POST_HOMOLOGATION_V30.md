@@ -90,6 +90,11 @@ O teste mantém USAGE de authenticated em security somente porque as policies e 
 Foi criado um workflow econômico e independente, limitado a Chromium headless, uma worker e quatro rotas públicas. O job sobe Supabase efêmero para renderizar /cadastro com dados exclusivamente sintéticos; apenas URL e chave publicável são exportadas. O gate verifica impactos axe serious/critical, nomes acessíveis, landmark principal, título e navegação básica por Tab.
 
 A inspeção dirigida encontrou e corrigiu ausência de labels nos campos de recuperação/redefinição e padronizou anúncios de status/erro. A homologação manual com VoiceOver/NVDA, contraste, zoom e modais continua obrigatória. O run 37924020645 carregou as quatro páginas e validou seus labels, mas falhou antes do axe porque o teste usava uma expressão regular inválida como tipo de role do Playwright. Os roles foram tornados explícitos. O run 37924447488 aprovou os quatro testes em Chromium e o run 37924447481 manteve lint, TypeScript, build, migrations, db lint e pgTAP verdes.
+## Fase 4 — Disaster Recovery executável
+
+Foi adicionado um exercício isolado no GitHub Actions que cria dois ambientes Supabase efêmeros, produz backup lógico com dados sintéticos, destrói o primeiro, restaura no segundo, compara schema/manifesto, valida um marcador sintético e repete db lint + pgTAP. O dump bruto permanece apenas no diretório temporário do runner e é removido; o artefato contém somente métricas e hashes.
+
+O RTO técnico é medido desde o início da destruição até o término das validações pós-restore. Ele não representa o RTO do ambiente hospedado e não substitui um exercício humano de backup gerenciado/PITR. Resultado inicial do workflow: pendente.
 ## Itens não corrigidos e justificativa
 
 - Registros históricos já existentes podem conter snapshots clínicos. Não foram reescritos porque apagar ou transformar retroativamente uma trilha aplicada exige política de retenção e auditoria humana.
@@ -129,4 +134,4 @@ Média provisória: **7,95/10**.
 
 ## Próximo passo
 
-Iniciar a Fase 4: exercício descartável de backup/restore em cloud CI, com dados sintéticos, pgTAP pós-restauração e medição de RTO técnico.
+Executar o exercício de DR no GitHub Actions, corrigir falhas demonstradas e registrar o RTO técnico antes da Fase 5.

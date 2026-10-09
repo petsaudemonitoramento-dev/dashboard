@@ -90,3 +90,37 @@ Antes de considerar a operação madura, executar pelo menos um restore em ambie
 - falhas encontradas;
 - validações pós-restore;
 - RTO/RPO realmente obtidos.
+## Exercício automatizado em cloud CI
+
+O workflow profissionais-disaster-recovery.yml executa o procedimento apenas em runner descartável do GitHub Actions e nunca recebe credenciais do projeto hospedado.
+
+Fluxo automatizado:
+
+1. cria o primeiro Supabase efêmero, aplica migrations e seed sintética;
+2. adiciona um marcador sintético de recuperação;
+3. gera dump lógico de schema e de dados dos schemas da aplicação;
+4. registra manifesto de contagens por tabela;
+5. destrói integralmente o primeiro ambiente com supabase stop --no-backup;
+6. cria um segundo Supabase efêmero a partir das migrations;
+7. limpa somente os schemas da aplicação no ambiente descartável;
+8. restaura o dump lógico com triggers suspensos apenas na sessão de restore;
+9. compara schema e manifesto, e valida o marcador sintético;
+10. executa supabase db lint --local --level error e toda a suíte pgTAP;
+11. registra o RTO técnico observado no resumo do workflow e em artefato textual;
+12. remove o dump bruto antes do encerramento.
+
+O RTO medido começa imediatamente antes da destruição do primeiro ambiente e termina depois das validações de segurança pós-restore. Ele mede o procedimento técnico no runner, não a indisponibilidade de produção.
+
+Somente o resumo sem dados é publicado. Dumps, URLs de banco e credenciais efêmeras não são artefatos.
+
+### Limitações do exercício automatizado
+
+O exercício prova migrations + restore lógico de dados da aplicação. Ele não substitui:
+
+- teste humano de restauração de backup gerenciado/PITR do plano contratado;
+- validação de Auth e configurações externas do projeto hospedado;
+- backup de objetos do Storage;
+- comunicação e tomada de decisão durante incidente real;
+- medição de RPO/RTO com volume de produção.
+
+Qualquer exercício no dashboard-v2 exige janela, aprovação humana, backup confirmado e ambiente não produtivo apropriado. Este workflow jamais deve ser adaptado para alvo linked.
