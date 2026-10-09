@@ -53,11 +53,14 @@ export default function RedefinirSenhaPage() {
 
   return (
     <main className="simple">
-      <section>
-        <h1>Definir nova senha</h1>
+      <section aria-labelledby="redefinir-senha-titulo">
+        <h1 id="redefinir-senha-titulo">Definir nova senha</h1>
 
         <form onSubmit={submit}>
+          <label htmlFor="nova-senha">Nova senha</label>
           <input
+            id="nova-senha"
+            name="password"
             type="password"
             autoComplete="new-password"
             value={password}
@@ -68,7 +71,12 @@ export default function RedefinirSenhaPage() {
             required
           />
 
+          <label htmlFor="confirmar-nova-senha">
+            Confirmar nova senha
+          </label>
           <input
+            id="confirmar-nova-senha"
+            name="passwordConfirmation"
             type="password"
             autoComplete="new-password"
             value={confirmacao}
@@ -86,7 +94,14 @@ export default function RedefinirSenhaPage() {
           </button>
         </form>
 
-        {message && <p>{message}</p>}
+        {message && (
+          <p
+            aria-live={success ? "polite" : "assertive"}
+            role={success ? "status" : "alert"}
+          >
+            {message}
+          </p>
+        )}
 
         {success && <Link href="/login">Ir para o login</Link>}
       </section>

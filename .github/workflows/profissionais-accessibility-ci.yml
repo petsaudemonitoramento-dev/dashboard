@@ -1,0 +1,103 @@
+name: Profissionais Accessibility CI
+
+on:
+  push:
+    branches:
+      - codex/post-homologation-quality-v30
+      - hardening/post-audit-v1
+    paths:
+      - ".github/workflows/profissionais-accessibility-ci.yml"
+      - "src/**"
+      - "tests/accessibility/**"
+      - "playwright.a11y.config.mjs"
+      - "supabase/migrations/**"
+      - "supabase/seed.sql"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/profissionais-accessibility-ci.yml"
+      - "src/**"
+      - "tests/accessibility/**"
+      - "playwright.a11y.config.mjs"
+      - "supabase/migrations/**"
+      - "supabase/seed.sql"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: profissionais-accessibility
+  cancel-in-progress: true
+
+jobs:
+  accessibility:
+    name: Public auth accessibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install pinned Supabase CLI
+        uses: supabase/setup-cli@v3
+        with:
+          version: 2.119.0
+
+      - name: Start ephemeral Supabase
+        run: supabase start
+
+      - name: Export only ephemeral public client settings
+        shell: bash
+        run: |
+          set -euo pipefail
+          status_env="$(supabase status -o env)"
+          api_url="$(printf '%s\n' "$status_env" | sed -n 's/^API_URL=//p' | tr -d '"')"
+          publishable_key="$(printf '%s\n' "$status_env" | sed -n 's/^PUBLISHABLE_KEY=//p' | tr -d '"')"
+
+          if [ -z "$api_url" ] || [ -z "$publishable_key" ]; then
+            echo "::error::Supabase efêmero não forneceu URL/chave publicável."
+            exit 1
+          fi
+
+          echo "::add-mask::$publishable_key"
+          echo "NEXT_PUBLIC_SUPABASE_URL=$api_url" >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$publishable_key" >> "$GITHUB_ENV"
+
+      - name: Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install application dependencies
+        run: npm ci
+
+      - name: Install pinned accessibility tools
+        run: npm install --no-save --package-lock=false @playwright/test@1.60.0 @axe-core/playwright@4.13.0
+
+      - name: Install Chromium headless only
+        run: npx playwright install --with-deps --only-shell chromium
+
+      - name: Run public accessibility gate
+        run: npx playwright test --config=playwright.a11y.config.mjs
+
+      - name: Upload failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: accessibility-failure
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Destroy ephemeral Supabase
+        if: always()
+        run: supabase stop --no-backup || true

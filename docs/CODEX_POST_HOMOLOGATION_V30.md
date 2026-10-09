@@ -18,6 +18,7 @@ Nenhum teste pesado é executado no computador do usuário. Banco, lint, TypeScr
 | ID | Severidade | Fase | Descrição | Correção | Status |
 | --- | --- | --- | --- | --- | --- |
 | PHV30-001 | MEDIUM | Auditabilidade clínica | Consultas, exames, vacinas, altas e mutações diretas não possuíam uma trilha uniforme. Os históricos legados de gestante e classificação ainda aceitavam snapshots/payloads clínicos completos, ampliando a cópia de dados sensíveis. | Nova trilha privada append-only com ator derivado de auth.uid(), horário, ação, recurso, identificador mínimo e HMAC da gestante. Triggers legados passam a descartar novos snapshots/payloads clínicos completos. | CORRIGIDO — CI verde no run 37881333306. |
+| PHV30-002 | MEDIUM | Acessibilidade pública | Recuperação e redefinição de senha dependiam apenas de placeholder para identificar campos, sem label associado; mensagens também não possuíam semântica consistente de status/alerta. | Labels explícitos, relações aria-labelledby e regiões vivas; novo gate Playwright + axe no GitHub Actions. | CORREÇÃO IMPLEMENTADA — CI pendente. |
 
 ## Fase 1 — Auditabilidade clínica e integridade
 
@@ -83,6 +84,11 @@ Foi adicionado o teste estrutural 022_database_surface_guardrails.sql. Ele falha
 - default privilege que volte a expor tabelas ou funções a PUBLIC, anon ou authenticated.
 
 O teste mantém USAGE de authenticated em security somente porque as policies e helpers RLS o exigem; CREATE continua revogado. O run 37882033548 confirmou app quality, migrations, db lint e 170 de 171 asserções. O run diagnóstico 37922318014 manteve app quality e db lint verdes, mas encontrou um parêntese duplicado no SQL do próprio teste antes de executar as quatro asserções finais; a sintaxe foi corrigida no checkpoint seguinte. O run 37922619276 identificou exatamente private.importar_pec_impl_v22(uuid, uuid, text, text, integer, jsonb, jsonb, jsonb). A revisão confirmou que é o corpo legado renomeado ainda necessário à cadeia interna de importação, que preserva search_path fixo e possui EXECUTE revogado de PUBLIC, anon, authenticated e service_role. A função foi então incluída explicitamente na allowlist. A validação final da Fase 2 passou no run 37923003584: app quality, migrations, db lint e todas as 171 asserções pgTAP ficaram verdes no Supabase efêmero.
+## Fase 3 — Acessibilidade automatizada
+
+Foi criado um workflow econômico e independente, limitado a Chromium headless, uma worker e quatro rotas públicas. O job sobe Supabase efêmero para renderizar /cadastro com dados exclusivamente sintéticos; apenas URL e chave publicável são exportadas. O gate verifica impactos axe serious/critical, nomes acessíveis, landmark principal, título e navegação básica por Tab.
+
+A inspeção dirigida encontrou e corrigiu ausência de labels nos campos de recuperação/redefinição e padronizou anúncios de status/erro. A homologação manual com VoiceOver/NVDA, contraste, zoom e modais continua obrigatória. Resultado do primeiro run: pendente.
 ## Itens não corrigidos e justificativa
 
 - Registros históricos já existentes podem conter snapshots clínicos. Não foram reescritos porque apagar ou transformar retroativamente uma trilha aplicada exige política de retenção e auditoria humana.
@@ -122,4 +128,4 @@ Média provisória: **7,85/10**.
 
 ## Próximo passo
 
-Iniciar a Fase 3 com um gate econômico de Playwright + axe em Chromium, preservando a homologação manual assistiva como requisito separado.
+Executar o gate de acessibilidade no GitHub Actions, corrigir somente violações demonstradas e fechar o checkpoint antes da Fase 4.

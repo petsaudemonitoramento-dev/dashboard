@@ -37,10 +37,13 @@ export default function RecuperarSenhaPage() {
 
   return (
     <main className="simple">
-      <section>
-        <h1>Recuperar senha</h1>
+      <section aria-labelledby="recuperar-senha-titulo">
+        <h1 id="recuperar-senha-titulo">Recuperar senha</h1>
         <form onSubmit={send}>
+          <label htmlFor="recuperar-email">E-mail</label>
           <input
+            id="recuperar-email"
+            name="email"
             type="email"
             autoComplete="email"
             value={email}
@@ -53,7 +56,11 @@ export default function RecuperarSenhaPage() {
             {loading ? "Enviando..." : "Enviar instruções"}
           </button>
         </form>
-        {message && <p>{message}</p>}
+        {message && (
+          <p aria-live="polite" role="status">
+            {message}
+          </p>
+        )}
         <Link href="/login">Voltar</Link>
       </section>
     </main>

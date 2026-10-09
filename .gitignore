@@ -13,3 +13,7 @@ supabase/.branches/
 supabase/.cache/
 
 !.env.example
+
+# Playwright artifacts
+playwright-report/
+test-results/

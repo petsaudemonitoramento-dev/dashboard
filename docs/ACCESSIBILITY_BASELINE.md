@@ -23,6 +23,20 @@ Primeira revisão focada nos fluxos de maior uso:
 - erros do PEC anunciados;
 - tabela de preview PEC com caption.
 
+## Gate automatizado em cloud CI
+
+O workflow profissionais-accessibility-ci.yml executa Playwright 1.60 + axe-core 4.13 em Chromium headless, com uma única worker e Supabase efêmero. O gate cobre:
+
+- /login;
+- /cadastro, com UBS sintética da seed de CI;
+- /recuperar-senha;
+- /redefinir-senha;
+- violações axe com impacto serious ou critical;
+- presença de landmark principal e título de nível 1;
+- nomes acessíveis dos controles essenciais;
+- progressão básica do foco por teclado.
+
+As ferramentas de teste são instaladas no runner com versões exatas e sem alterar o lockfile da aplicação. Somente a URL e a chave publicável do Supabase efêmero são exportadas ao servidor Next.js; chaves privilegiadas não são fornecidas ao navegador.
 ## Homologação manual obrigatória
 
 Testar:
@@ -41,7 +55,6 @@ Testar:
 ## Pendências de maturidade
 
 - auditoria WCAG sistemática;
-- teste automatizado com axe/Playwright em CI;
 - gestão de foco completa nas modais;
 - validação de contraste com ferramenta especializada;
 - revisão de tabelas extensas e leitura por screen reader.
