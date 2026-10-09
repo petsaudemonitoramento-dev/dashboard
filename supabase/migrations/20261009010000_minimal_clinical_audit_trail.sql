@@ -66,8 +66,8 @@ declare
   v_gestante_id uuid;
   v_acao text := pg_catalog.lower(TG_OP);
   v_detalhes jsonb := '{}'::jsonb;
-  v_ator_banco text := pg_catalog.coalesce(
-    pg_catalog.nullif(pg_catalog.current_setting('role', true), 'none'),
+  v_ator_banco text := coalesce(
+    nullif(pg_catalog.current_setting('role', true), 'none'),
     session_user::text
   );
 begin
@@ -77,7 +77,7 @@ begin
     v_linha := pg_catalog.to_jsonb(NEW);
   end if;
 
-  v_recurso_id := pg_catalog.nullif(v_linha ->> 'id', '')::uuid;
+  v_recurso_id := nullif(v_linha ->> 'id', '')::uuid;
 
   case TG_TABLE_NAME
     when 'pec_gestantes' then
@@ -95,19 +95,19 @@ begin
       end if;
     when 'gestante_consultas' then
       v_recurso := 'consulta';
-      v_gestante_id := pg_catalog.nullif(v_linha ->> 'gestante_id', '')::uuid;
+      v_gestante_id := nullif(v_linha ->> 'gestante_id', '')::uuid;
     when 'gestante_exames' then
       v_recurso := 'exame';
-      v_gestante_id := pg_catalog.nullif(v_linha ->> 'gestante_id', '')::uuid;
+      v_gestante_id := nullif(v_linha ->> 'gestante_id', '')::uuid;
     when 'gestante_vacinas' then
       v_recurso := 'vacina';
-      v_gestante_id := pg_catalog.nullif(v_linha ->> 'gestante_id', '')::uuid;
+      v_gestante_id := nullif(v_linha ->> 'gestante_id', '')::uuid;
     when 'gestante_altas' then
       v_recurso := 'alta';
-      v_gestante_id := pg_catalog.nullif(v_linha ->> 'gestante_id', '')::uuid;
+      v_gestante_id := nullif(v_linha ->> 'gestante_id', '')::uuid;
     when 'classificacoes_risco_gestacional' then
       v_recurso := 'classificacao_risco';
-      v_gestante_id := pg_catalog.nullif(v_linha ->> 'gestante_id', '')::uuid;
+      v_gestante_id := nullif(v_linha ->> 'gestante_id', '')::uuid;
     when 'importacoes_pec_resumo' then
       v_recurso := 'importacao_pec';
 
@@ -169,8 +169,8 @@ set search_path = ''
 as $$
 declare
   v_acao text;
-  v_ator_banco text := pg_catalog.coalesce(
-    pg_catalog.nullif(pg_catalog.current_setting('role', true), 'none'),
+  v_ator_banco text := coalesce(
+    nullif(pg_catalog.current_setting('role', true), 'none'),
     session_user::text
   );
 begin
