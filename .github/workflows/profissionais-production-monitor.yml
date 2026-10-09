@@ -1,0 +1,38 @@
+name: Profissionais Production Monitor (lightweight)
+
+on:
+  # Execução automática de baixo custo: 4 vezes por dia, somente após existir na branch default.
+  schedule:
+    - cron: "17 2,8,14,20 * * *"
+  workflow_dispatch:
+  push:
+    branches:
+      - quality/parallel-ops-perf-supply-v30
+    paths:
+      - ".github/workflows/profissionais-production-monitor.yml"
+      - "scripts/public-monitor.mjs"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: profissionais-public-monitor
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    name: Health, headers, isolation surface
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Execute public monitor (4 requests, no credentials)
+        run: node scripts/public-monitor.mjs
