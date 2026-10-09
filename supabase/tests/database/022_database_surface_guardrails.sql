@@ -223,7 +223,6 @@ with allowlist(schema_name, function_name) as (
     ('security', 'usuario_pode_acessar_gestante_v30'),
     ('security', 'usuario_profissional_ativo_v30'),
     ('security', 'usuario_ubs_id')
-)
 ), unexpected_security_definers as (
   select
     n.nspname as schema_name,
