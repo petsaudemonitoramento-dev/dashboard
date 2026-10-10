@@ -114,10 +114,16 @@ Dependabot semanal foi configurado sem auto-merge, com limite de PRs e agrupamen
 
 O gate semanal lê package-lock sem instalar dependências nem executar scripts de terceiros. Produção permanece com 0 HIGH/CRITICAL; cinco HIGH/CRITICAL de tooling de desenvolvimento seguem monitorados, sem npm audit fix --force nem downgrade incompatível. Os runs 37926377631 e 38076748817 passaram.
 
+## Fase 8 — Dívida V2: mapeamento
+
+O inventário dirigido foi concluído antes de qualquer remoção. Funções V18/V19/V20/V22 que sustentam ownership, policies, auditoria, lixeira, credenciais e PEC foram classificadas como dependências vivas. As views analytics V18 também permanecem porque as publicações V26 dependem delas. Tabelas ACS/V29 foram preservadas por retenção e uso analytics ou por incerteza de conteúdo histórico.
+
+Dois blocos foram classificados como remoção segura para o próximo checkpoint: oito funções privadas que formam um subgrafo fechado de módulos ACS/indicadores/início desativados, sem referência no runtime, wrappers V30, triggers, policies ou views; e oito runners manuais npm que executam SQL histórico via SUPABASE_DATABASE_URL fora do mecanismo canônico de migrations. A remoção das funções será RESTRICT, em migration nova, para que qualquer dependência de catálogo não detectada faça o CI falhar.
+
 ## Itens não corrigidos e justificativa
 
 - Registros históricos já existentes podem conter snapshots clínicos. Não foram reescritos porque apagar ou transformar retroativamente uma trilha aplicada exige política de retenção e auditoria humana.
-- As fases 8 e 9 ainda não foram concluídas neste checkpoint; a Fase 9 está explicitamente fora desta rodada.
+- O mapeamento da Fase 8 foi concluído; as remoções seguras ainda precisam de migration, regressões e CI. A Fase 9 está explicitamente fora desta rodada.
 - A auditoria manual VoiceOver/NVDA continua necessária; axe/Playwright não a substitui.
 - A remoção de unsafe-inline depende de avaliação de custo e compatibilidade com SSR/static rendering.
 
@@ -153,4 +159,4 @@ Média provisória: **8,30/10**.
 
 ## Próximo passo
 
-Mapear a dívida V2 com prova de dependências de runtime, funções, policies, triggers e views antes de propor qualquer remoção.
+Implementar somente os dois blocos de remoção comprovadamente segura, com migration RESTRICT, regressão pgTAP e CI completo.
