@@ -3,6 +3,7 @@ name: Profissionais Security CI
 on:
   push:
     branches:
+      - main
       - profissionais-v1-seguranca
       - audit/pre-codex-hardening
       - audit/continue-security-v30
