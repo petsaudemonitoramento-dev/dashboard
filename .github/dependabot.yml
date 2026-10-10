@@ -3,8 +3,7 @@ version: 2
 updates:
   - package-ecosystem: npm
     directory: "/"
-    # Os PRs vão para a linha atualmente publicada; nunca há auto-merge.
-    target-branch: "hardening/post-audit-v1"
+    # Usar a branch padrão (main); nunca há auto-merge.
     schedule:
       interval: weekly
       day: monday
@@ -24,7 +23,6 @@ updates:
 
   - package-ecosystem: github-actions
     directory: "/"
-    target-branch: "hardening/post-audit-v1"
     schedule:
       interval: weekly
       day: monday
