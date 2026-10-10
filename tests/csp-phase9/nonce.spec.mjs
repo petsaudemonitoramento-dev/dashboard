@@ -60,3 +60,45 @@ test("nonce experimental nunca é fornecido em rotas fora do login", async ({ re
   expect(response.headers()["content-security-policy-report-only"]).toBeUndefined();
   expect(response.headers()["content-security-policy"]).toContain("'unsafe-inline'");
 });
+
+
+test("strict script nonce: enforcement somente no Chromium, sem alterar aplicação", async ({ page }) => {
+  let enforcedHeaderObserved = false;
+  await page.route(/\/login(?:\?.*)?$/, async (route) => {
+    const source = await route.fetch();
+    const report = source.headers()["content-security-policy-report-only"];
+    expect(report).toContain("'nonce-");
+    // A remediação de CSS é uma etapa independente: manter o tratamento
+    // atual de estilos e endurecer SOMENTE os scripts nesta experiência.
+    const enforced = report.replace(
+      /style-src 'self' 'nonce-[^']+'; style-src-attr 'none'/,
+      "style-src 'self' 'unsafe-inline'"
+    );
+    enforcedHeaderObserved = true;
+    await route.fulfill({
+      response: source,
+      headers: { ...source.headers(), "content-security-policy": enforced },
+    });
+  });
+
+  const result = await page.goto("/login", { waitUntil: "domcontentloaded" });
+  expect(result.status()).toBe(200);
+  expect(enforcedHeaderObserved).toBe(true);
+  expect(result.headers()["content-security-policy"]).toContain("strict-dynamic");
+  await expect(page.getByRole("main")).toBeVisible();
+  await page.getByRole("button", { name: "Mostrar senha" }).click();
+  await expect(page.locator("#password")).toHaveAttribute("type", "text");
+
+  // Sonda benigna que NÃO está autorizada pelo nonce deve ser bloqueada.
+  const probeExecuted = await page.evaluate(() => {
+    const script = document.createElement("script");
+    script.textContent = "window.__phase9UnauthorizedProbe = 1";
+    document.head.appendChild(script);
+    script.remove();
+    return window.__phase9UnauthorizedProbe === 1;
+  });
+  expect(probeExecuted).toBe(false);
+  process.stdout.write("PHASE9_NONCE_ENFORCEMENT=" + JSON.stringify({
+    browserOnly: true, hydrationInteractive: true, unauthorizedInlineBlocked: true,
+  }) + "\n");
+});
