@@ -24,6 +24,16 @@ A CSP atual protege a aplicação e retém `'unsafe-inline'` em `script-src` e `
 4. Sonda inline inofensiva insere apenas `window.__phase9Probe=1` na página de testes: confirma que o código continua permitido pela política ativa e gera um evento de violação na candidata. Nenhuma informação sensível é coletada.
 5. Registro somente das contagens agregadas por diretiva no log do CI. **Contagens reais e aprovação do CI devem ser verificadas após a execução**; criar o workflow não comprova que ele passou.
 
+## Evidência da primeira execução
+
+- GitHub Actions [run #38086780347](https://github.com/petsaudemonitoramento-dev/dashboard/actions/runs/38086780347): **SUCCESS**.
+- TypeScript, ESLint, Next.js build, instalação do Chromium e teste Playwright: **aprovados**.
+- Captura agregada do navegador: `script-src-elem = 3`; `style-src-attr = 4`.
+- O teste de sonda inline confirmou execução permitida pela CSP vigente e ao menos uma notificação na política candidata.
+- Contagens obtidas unicamente na rota pública de login, com dados de marcador; ainda não é amostra de todos os módulos.
+- Interpretação: `script-src-elem` requer avaliar scripts de hidratação e eventuais nonces/hashes; `style-src-attr` requer inspecionar atributos `style` e preferir classes CSS, pois nonces não autorizam automaticamente estilos inline em atributos.
+- **Decisão após esta rodada: GO para diagnóstico controlado; NO-GO para aplicar CSP restritiva em produção** até testar autenticação e fluxos clínicos com usuários sintéticos e medir desempenho/cache.
+
 ## Alternativas avaliadas
 
 | Abordagem | Benefício | Custo/risco | Decisão da PoC |
