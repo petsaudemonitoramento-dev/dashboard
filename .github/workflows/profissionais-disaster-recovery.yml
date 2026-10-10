@@ -42,7 +42,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install pinned Supabase CLI
         uses: supabase/setup-cli@v3
@@ -53,7 +53,7 @@ jobs:
         run: scripts/dr-ephemeral-exercise.sh
 
       - name: Upload RTO summary only
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: ephemeral-dr-rto-summary
           path: dr-report/summary.md
