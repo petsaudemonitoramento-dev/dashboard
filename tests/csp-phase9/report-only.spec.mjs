@@ -27,8 +27,22 @@ test("Fase 9: CSP estrita observa violações sem bloquear o login", async ({ pa
   expect(candidate).not.toContain("'unsafe-eval'");
 
   await expect(page.getByRole("main")).toBeVisible();
+  // Sonda sintética: a CSP ativa deve permitir o script inofensivo,
+  // enquanto a política de observação deve registrar a tentativa.
+  const ran = await page.evaluate(() => {
+    const script = document.createElement("script");
+    script.textContent = "window.__phase9Probe = 1;";
+    document.head.appendChild(script);
+    script.remove();
+    return window.__phase9Probe === 1;
+  });
+  expect(ran).toBe(true);
+
   await page.waitForTimeout(1200);
   const counts = await page.evaluate(() => window.__phase9Counts ?? {});
+  const reportedScript =
+    (counts["script-src"] ?? 0) + (counts["script-src-elem"] ?? 0);
+  expect(reportedScript).toBeGreaterThan(0);
   // O número depende da versão do Next.js; nunca falhar pela mera existência
   // de violações no modo observação, nem registrar valores das páginas.
   process.stdout.write("PHASE9_CSP_DIRECTIVE_COUNTS=" + JSON.stringify(counts) + "\n");
