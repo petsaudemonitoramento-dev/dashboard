@@ -83,4 +83,31 @@ for (const filePath of sourceFiles) {
   }
 }
 
+const packageJson = JSON.parse(
+  await readFile(path.join(root, "package.json"), "utf8")
+);
+const privilegedMigrationCommands = Object.keys(
+  packageJson.scripts ?? {}
+).filter((name) => /^db:migrate(?::|$)/.test(name));
+
+if (privilegedMigrationCommands.length > 0) {
+  throw new Error(
+    "Comandos npm de migração direta reapareceram: " +
+      privilegedMigrationCommands.join(", ")
+  );
+}
+
+const retiredMigrationRunners = (
+  await readdir(path.join(root, "scripts"))
+).filter((name) =>
+  /^aplicar-migracao(?:-v\d+)?\.mjs$/.test(name)
+);
+
+if (retiredMigrationRunners.length > 0) {
+  throw new Error(
+    "Runners privilegiados de migration reapareceram: " +
+      retiredMigrationRunners.join(", ")
+  );
+}
+
 console.log("Legacy V2 surface guard: OK");
