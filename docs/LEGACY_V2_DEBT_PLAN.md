@@ -54,10 +54,10 @@ A busca foi feita na árvore integrada da branch de qualidade, cobrindo runtime,
 
 | Superfície | Evidência | Decisão |
 | --- | --- | --- |
-| Funções privadas de ACS: registrar_acao_acs_v21, complementar_acao_acs_v21 e obter_painel_acs_v21 | Módulo e endpoint ACS estão desativados; não há referência no runtime, wrapper V30, trigger, policy ou view. As tabelas e analytics serão preservados. | Remover por migration nova com DROP FUNCTION RESTRICT e regressão pgTAP. |
-| Funções privadas de indicadores/início: obter_indicadores_aluno_v1, obter_indicadores_v18, obter_indicadores_v21 e obter_inicio_v21 | Não há chamada no runtime nem em wrapper V30. As únicas chamadas entre elas formam um subgrafo fechado. Cinco funções do grupo ACS/indicadores/início ainda recebiam EXECUTE de service_role no schema privado. | Remover por migration nova com RESTRICT e retirar da allowlist estrutural. |
-| Helper normalizar_data_cadastro_v21 | Única chamada restante é complementar_acao_acs_v21, removida no mesmo bloco. | Remover depois da função dependente, com RESTRICT. |
-| Runners aplicar-migracao.mjs e aplicar-migracao-v15 até v21, mais scripts npm db:migrate* | Não integram runtime, CI ou wrappers. Executam SQL histórico com sql.unsafe contra SUPABASE_DATABASE_URL e duplicam o mecanismo canônico de migrations. | Remover runners e comandos npm; manter os SQL históricos como referência, sem executor privilegiado. |
+| Funções privadas de ACS: registrar_acao_acs_v21, complementar_acao_acs_v21 e obter_painel_acs_v21 | Módulo e endpoint ACS estão desativados; não há referência no runtime, wrapper V30, trigger, policy ou view. As tabelas e analytics serão preservados. | Removidas pela migration 20261010190000_retire_unused_v2_privileged_functions.sql com DROP FUNCTION RESTRICT e regressão pgTAP. |
+| Funções privadas de indicadores/início: obter_indicadores_aluno_v1, obter_indicadores_v18, obter_indicadores_v21 e obter_inicio_v21 | Não há chamada no runtime nem em wrapper V30. As únicas chamadas entre elas formam um subgrafo fechado. Cinco funções do grupo ACS/indicadores/início ainda recebiam EXECUTE de service_role no schema privado. | Removidas pela migration 20261010190000_retire_unused_v2_privileged_functions.sql; entradas retiradas da allowlist estrutural. |
+| Helper normalizar_data_cadastro_v21 | Única chamada restante é complementar_acao_acs_v21, removida no mesmo bloco. | Removido depois da função dependente, com RESTRICT. |
+| Runners aplicar-migracao.mjs e aplicar-migracao-v15 até v21, mais scripts npm db:migrate* | Não integram runtime, CI ou wrappers. Executam SQL histórico com sql.unsafe contra SUPABASE_DATABASE_URL e duplicam o mecanismo canônico de migrations. | Runners e comandos npm removidos no commit c68ae874; SQLs históricos mantidos como referência, sem executor privilegiado. |
 
 ### Dependência ainda necessária
 
@@ -82,3 +82,6 @@ A busca foi feita na árvore integrada da branch de qualidade, cobrindo runtime,
 | Stubs de mapa, indicadores, território, visitas, configurações e ACS 404 | Mantêm comportamento explícito e são guardados pelo CI/monitor. Removê-los mudaria UX/contrato sem ganho relevante. |
 
 As policies clínicas territoriais antigas já são removidas por migrations V30. Não foi encontrada policy clínica atual em que mesma UBS seja autorização final.
+## Resultado da execução
+
+A remoção seletiva foi validada no Supabase efêmero pelo run 38078250902: db lint verde, 15 arquivos pgTAP e 193 asserções aprovadas. O mesmo SHA passou no exercício de DR 38078250918 e no gate de acessibilidade 38078250956. As superfícies classificadas como necessárias ou incertas permanecem inalteradas.
