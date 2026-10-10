@@ -22,6 +22,7 @@ jobs:
       CI: "true"
       CSP_PHASE9_REPORT_ONLY: "0"
       CSP_PHASE9_NONCE_POC: "0"
+      PHASE9_HASH_SUMMARY_FILE: "/tmp/phase9-hashes.json"
       NEXT_TELEMETRY_DISABLED: "1"
       NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321"
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_ci_placeholder"
@@ -48,5 +49,9 @@ jobs:
         run: npm install --no-save --package-lock=false @playwright/test@1.60.0
       - name: Install Chromium
         run: npx playwright install --with-deps --only-shell chromium
-      - name: Measure static response hashes in browser-only Report-Only
+      - name: Observe hashes and enforce only within Chromium
+        run: npx playwright test --config=playwright.phase9.config.mjs tests/csp-phase9/hash.spec.mjs
+      - name: Rebuild same source to assess hash drift
+        run: npm run build
+      - name: Verify hash stability across clean builds
         run: npx playwright test --config=playwright.phase9.config.mjs tests/csp-phase9/hash.spec.mjs
