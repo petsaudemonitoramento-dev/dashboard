@@ -12,8 +12,10 @@
 | Nonce por request, browser sem enforcement | [38092201388](https://github.com/petsaudemonitoramento-dev/dashboard/actions/runs/38092201388) | 11 scripts com nonce, 0 violações de script, 4 de atributo de estilo; nonce renovado entre respostas; 2 testes verdes. |
 | Hashes calculados sobre HTML público estático | [38092189166](https://github.com/petsaudemonitoramento-dev/dashboard/actions/runs/38092189166) | 2 scripts inline; hashes estáveis em 2 visitas ao mesmo build; zero violações na candidata; 215 bytes da CSP no ensaio; CI verde. |
 | Hashes, bloqueio apenas no browser + 2 builds consecutivos | [38092315413](https://github.com/petsaudemonitoramento-dev/dashboard/actions/runs/38092315413) | Login interativo com CSP hash estrita injetada no Chromium; 0 page errors. Hashes **diferiram entre 2 compilações do mesmo código**, apesar de serem estáveis entre visitas ao mesmo build. |
-| Hashes com sonda não autorizada, browser-only | [38092532689](https://github.com/petsaudemonitoramento-dev/dashboard/actions/runs/38092532689) | Aguardando verificação do resultado definitivo. |
-| Nonce com sonda não autorizada, browser-only | [38092520847](https://github.com/petsaudemonitoramento-dev/dashboard/actions/runs/38092520847) | Aguardando verificação do resultado definitivo. |
+| Hashes com sonda não autorizada, browser-only | [38092532689](https://github.com/petsaudemonitoramento-dev/dashboard/actions/runs/38092532689) | **CI verde**; CSP enforced somente no Chromium, script inline parser-inserted sem hash bloqueado, hidratação preservada, 0 erros de página; hashes divergiram após 2 builds. |
+| Nonce com sonda não autorizada, browser-only | [38092520847](https://github.com/petsaudemonitoramento-dev/dashboard/actions/runs/38092520847) | **CI verde**; 3 testes Playwright; CSP enforced somente no Chromium; script inline parser-inserted sem nonce bloqueado e hidratação preservada. |
+
+**Veredito dos testes negativos:** as duas estratégias bloquearam scripts parser-inserted injetados artificialmente no HTML de teste sem autorização, sem prejudicar o login. A simulação com script criado programaticamente pelo contexto já confiável NÃO é prova de bloqueio sob `strict-dynamic`, pois a diretiva permite delegação de confiança. A defesa contra DOM-XSS e injeções no próprio código continua necessária.
 
 Outros fatos:
 - No `next build` de referência, `/login` é estática (`○`); no ensaio de nonce ela se torna dinâmica (`ƒ`). As páginas internas do dashboard já eram dinâmicas.
