@@ -70,6 +70,8 @@ supabase/tests/database/021_clinical_audit_integrity.sql valida:
 | App quality | Sucesso — último run da Fase 3: 37924447481 |
 | Supabase schema/security | Fase 1: sucesso — run 37881333306; Fase 2: sucesso, 171 asserções — run 37923003584 |
 | Playwright + axe (4 rotas públicas) | Sucesso — run 37924447488 |
+| Disaster Recovery efêmero | Sucesso — run 38076046395; backup/restore, schema, dados, marcador, db lint e pgTAP; RTO técnico de 68 s |
+| Security CI após correção do DR | Sucesso — run 38076046401 |
 
 ## Fase 2 — Guardrail global da superfície do banco
 
@@ -94,11 +96,11 @@ A inspeção dirigida encontrou e corrigiu ausência de labels nos campos de rec
 
 Foi adicionado um exercício isolado no GitHub Actions que cria dois ambientes Supabase efêmeros, produz backup lógico com dados sintéticos, destrói o primeiro, restaura no segundo, compara schema/manifesto, valida um marcador sintético e repete db lint + pgTAP. O dump bruto permanece apenas no diretório temporário do runner e é removido; o artefato contém somente métricas e hashes.
 
-O RTO técnico é medido desde o início da destruição até o término das validações pós-restore. Ele não representa o RTO do ambiente hospedado e não substitui um exercício humano de backup gerenciado/PITR. O run 37925249488 encontrou respostas transitórias toomanyrequests no pull das imagens públicas; os retries internos do Supabase CLI recuperaram o download, e o segundo ambiente reutilizou as imagens no mesmo runner. A falha terminal ocorreu depois do restore: write_manifest emitia o manifesto em stdout, mas não o gravava no arquivo recebido, portanto a comparação tentou abrir dois arquivos inexistentes. A correção persiste os manifestos e mantém apenas um job serializado, sem cache volumoso nem novas tentativas cegas. Nova execução: pendente.
+O RTO técnico é medido desde o início da destruição até o término das validações pós-restore. Ele não representa o RTO do ambiente hospedado e não substitui um exercício humano de backup gerenciado/PITR. O run 37925249488 encontrou respostas transitórias toomanyrequests no pull das imagens públicas; os retries internos do Supabase CLI recuperaram o download, e o segundo ambiente reutilizou as imagens no mesmo runner. A falha terminal ocorreu depois do restore: write_manifest emitia o manifesto em stdout, mas não o gravava no arquivo recebido, portanto a comparação tentou abrir dois arquivos inexistentes. A correção persiste os manifestos e mantém apenas um job serializado, sem cache volumoso nem novas tentativas cegas. O run 38076046395 concluiu em 3 min 18 s e comprovou schema idêntico, manifesto de dados idêntico, marcador restaurado, db lint e toda a suíte pgTAP verdes. O RTO técnico observado entre a destruição e o término das validações foi 68 segundos; o dump sintético tinha 13.716 bytes e foi removido sem publicação. O Security CI do mesmo SHA também passou no run 38076046401.
 ## Itens não corrigidos e justificativa
 
 - Registros históricos já existentes podem conter snapshots clínicos. Não foram reescritos porque apagar ou transformar retroativamente uma trilha aplicada exige política de retenção e auditoria humana.
-- As fases 3 a 9 ainda não foram executadas neste checkpoint.
+- As fases 5 a 9 ainda não foram concluídas neste checkpoint.
 - A auditoria manual VoiceOver/NVDA continua necessária; axe/Playwright não a substitui.
 - A remoção de unsafe-inline depende de avaliação de custo e compatibilidade com SSR/static rendering.
 
@@ -112,19 +114,19 @@ Notas serão recalculadas ao final. Não representam parecer final enquanto as f
 | Privacidade | 8,3 |
 | Integridade | 8,5 |
 | Confiabilidade | 8,4 |
-| Recuperação | 6,5 |
+| Recuperação | 8,4 |
 | Observabilidade | 7,2 |
 | Performance | 8,0 |
 | Acessibilidade | 7,8 |
 | Manutenibilidade | 8,0 |
 | Supply Chain | 8,0 |
 
-Média provisória: **7,95/10**.
+Média provisória: **8,14/10**.
 
 ## O que ainda impede 10/10
 
 - homologação manual assistiva com VoiceOver/NVDA, contraste, zoom e gestão de foco em modais ainda não foi concluída;
-- restore descartável ainda não mede RTO;
+- o RTO técnico efêmero foi medido, mas ainda falta exercício humano de backup gerenciado/PITR com volume e dependências representativos;
 - observabilidade agendada ainda não existe;
 - warnings de performance ainda precisam de triagem baseada em ganho comprovável;
 - advisory de desenvolvimento de braces depende de solução upstream compatível;
@@ -134,4 +136,4 @@ Média provisória: **7,95/10**.
 
 ## Próximo passo
 
-Executar o exercício de DR no GitHub Actions, corrigir falhas demonstradas e registrar o RTO técnico antes da Fase 5.
+Revisar e integrar as Fases 5 a 7 da PR #1, preservando o histórico e executando o CI completo uma vez após a integração.
