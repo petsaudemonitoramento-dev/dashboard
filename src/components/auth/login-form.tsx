@@ -39,13 +39,21 @@ export function LoginForm() {
         );
       }
 
-      const supabase = createClient();
-      const { error } = await supabase.auth.signInWithPassword({
-        email: normalized,
-        password,
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: normalized,
+          password,
+        }),
       });
+      const body = await response.json();
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error(
+          body.error ?? "Não foi possível realizar o login."
+        );
+      }
 
       setMessageType("success");
       setMessage("Login realizado com sucesso.");
@@ -180,7 +188,11 @@ export function LoginForm() {
         </div>
 
         {message && (
-          <div className={`login-message login-message-${messageType}`}>
+          <div
+            className={`login-message login-message-${messageType}`}
+            role={messageType === "error" ? "alert" : "status"}
+            aria-live="polite"
+          >
             {message}
           </div>
         )}
@@ -209,7 +221,7 @@ export function LoginForm() {
       <footer className="login-footer">
         <ShieldCheck size={21} strokeWidth={1.7} />
         <span>
-          Acesso destinado a gestores, equipes e usuários autorizados.
+          Acesso destinado a profissionais autorizados.
         </span>
       </footer>
 

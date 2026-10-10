@@ -9,7 +9,6 @@ import {
   CalendarDays,
   CheckCircle2,
   ChevronDown,
-  ClipboardList,
   FileHeart,
   HeartPulse,
   LoaderCircle,
@@ -25,7 +24,6 @@ import {
 import {
   FormEvent,
   type ReactNode,
-  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -481,26 +479,6 @@ export function ClinicalForm({
     [record.gestacao.alturaCm, record.gestacao.pesoKg]
   );
 
-  useEffect(() => {
-    if (!record.gestacao.dum) {
-      return;
-    }
-
-    const calculated = calculatePregnancy(
-      record.gestacao.dum
-    );
-
-    setRecord((current) => ({
-      ...current,
-      gestacao: {
-        ...current.gestacao,
-        dpp: calculated.dpp,
-        igSemanas: calculated.weeks,
-        igDias: calculated.days,
-      },
-    }));
-  }, [record.gestacao.dum]);
-
   const pendingExams = useMemo(() => {
     const examMap = new Map(
       record.exames.map((item) => [
@@ -597,6 +575,20 @@ export function ClinicalForm({
       gestacao: {
         ...current.gestacao,
         [key]: value,
+      },
+    }));
+  }
+
+  function updateDum(value: string) {
+    const calculated = calculatePregnancy(value);
+    setRecord((current) => ({
+      ...current,
+      gestacao: {
+        ...current.gestacao,
+        dum: value,
+        dpp: calculated.dpp,
+        igSemanas: calculated.weeks,
+        igDias: calculated.days,
       },
     }));
   }
@@ -1337,10 +1329,7 @@ export function ClinicalForm({
                   type="date"
                   value={record.gestacao.dum}
                   onChange={(event) =>
-                    updateGestation(
-                      "dum",
-                      event.target.value
-                    )
+                    updateDum(event.target.value)
                   }
                 />
               </Field>

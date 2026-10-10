@@ -3,24 +3,24 @@ import {
   UbsManager,
   type ManagedUbs,
 } from "@/components/admin/ubs-manager";
-import { getPostgresClient } from "@/lib/db/postgres";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-type UbsRow = {
-  id: string;
-  nome: string;
-  ativa: boolean;
-};
-
-type MicroareaRow = {
-  id: string;
-  ubs_id: string;
-  codigo: string;
-  nome: string | null;
-  ativa: boolean;
+type UbsPayload = {
+  ubs: Array<{
+    id: string;
+    nome: string;
+    ativa: boolean;
+  }>;
+  microareas: Array<{
+    id: string;
+    ubs_id: string;
+    codigo: string;
+    nome: string | null;
+    ativa: boolean;
+  }>;
 };
 
 export default async function UbsPage() {
@@ -31,33 +31,21 @@ export default async function UbsPage() {
 
   if (!user) redirect("/login");
 
-  const sql = getPostgresClient();
-  const allowed = await sql`
-    select private.usuario_admin_v20(${user.id}::uuid) as autorizado
-  `;
+  const { data, error } = await supabase.rpc(
+    "profissionais_admin_listar_ubs_v30"
+  );
 
-  if (!allowed[0]?.autorizado) {
+  if (error || !data) {
     redirect("/dashboard");
   }
 
-  const [ubsRows, microareaRows] = await Promise.all([
-    sql<UbsRow[]>`
-      select id, nome, ativa
-      from public.ubs
-      order by ativa desc, nome
-    `,
-    sql<MicroareaRow[]>`
-      select id, ubs_id, codigo, nome, ativa
-      from public.microareas
-      order by ubs_id, ativa desc, codigo
-    `,
-  ]);
+  const payload = data as UbsPayload;
 
-  const units: ManagedUbs[] = ubsRows.map((unit) => ({
+  const units: ManagedUbs[] = payload.ubs.map((unit) => ({
     id: unit.id,
     nome: unit.nome,
     ativa: unit.ativa,
-    microareas: microareaRows
+    microareas: payload.microareas
       .filter((microarea) => microarea.ubs_id === unit.id)
       .map((microarea) => ({
         id: microarea.id,
@@ -73,7 +61,7 @@ export default async function UbsPage() {
         <p>PET-Saúde UFCG</p>
         <h1>UBS e microáreas</h1>
         <span>
-          Gestão das unidades, territórios e opções usadas nos cadastros.
+          Administração técnica das unidades usadas no cadastro.
         </span>
       </section>
 

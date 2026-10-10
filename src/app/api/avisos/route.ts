@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
-import { getPostgresClient } from "@/lib/db/postgres";
+import {
+  isUuid,
+  logServerFailure,
+  mutationRequestError,
+  readJsonObject,
+} from "@/lib/security/request";
 import { createClient } from "@/lib/supabase/server";
-import { isUuid } from "@/lib/validation/profile-input";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,156 +17,119 @@ const ALLOWED_AUDIENCES = new Set([
   "gestao",
 ]);
 
-async function authenticatedAdmin() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return null;
-  }
-
-  const sql = getPostgresClient();
-  const rows = await sql`
-    select private.usuario_admin_v20(${user.id}::uuid) as autorizado
-  `;
-
-  return rows[0]?.autorizado ? { user, sql } : null;
-}
-
 export async function POST(request: Request) {
-  try {
-    const context = await authenticatedAdmin();
+  const requestError = mutationRequestError(request, {
+    maxBytes: 24 * 1024,
+    contentTypes: ["application/json"],
+  });
+  if (requestError) return requestError;
 
-    if (!context) {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
       return NextResponse.json(
-        { error: "Apenas a gestão pode publicar avisos." },
-        { status: 403 }
+        { error: "Sessão expirada." },
+        { status: 401 }
       );
     }
 
-    const body = await request.json();
+    const body = await readJsonObject(request, 24 * 1024);
+    if (!body) {
+      return NextResponse.json(
+        { error: "Dados inválidos." },
+        { status: 400 }
+      );
+    }
+
     const titulo = String(body.titulo ?? "").trim();
     const mensagem = String(body.mensagem ?? "").trim();
     const tipo = String(body.tipo ?? "informativo").trim();
     const publico = String(body.publico ?? "todos").trim();
     const ubsId = String(body.ubsId ?? "").trim();
 
-    if (!titulo || titulo.length > 120) {
+    if (
+      titulo.length < 1 ||
+      titulo.length > 120 ||
+      mensagem.length < 1 ||
+      mensagem.length > 1500 ||
+      !["informativo", "alerta", "sucesso"].includes(tipo) ||
+      !ALLOWED_AUDIENCES.has(publico) ||
+      !isUuid(ubsId)
+    ) {
       return NextResponse.json(
-        { error: "Informe um título com até 120 caracteres." },
+        { error: "Dados do aviso inválidos." },
         { status: 400 }
       );
     }
 
-    if (!mensagem || mensagem.length > 1500) {
+    const { data, error } = await supabase.rpc(
+      "profissionais_admin_publicar_aviso_v30",
+      {
+        p_ubs_id: ubsId,
+        p_titulo: titulo,
+        p_mensagem: mensagem,
+        p_tipo: tipo,
+        p_publico: publico,
+      }
+    );
+
+    if (error) {
+      if (error.message.includes("ADMIN_FORBIDDEN")) {
+        return NextResponse.json(
+          { error: "Ação administrativa não autorizada." },
+          { status: 403 }
+        );
+      }
+
+      if (error.message.includes("INVALID_NOTICE")) {
+        return NextResponse.json(
+          { error: "Dados do aviso inválidos." },
+          { status: 400 }
+        );
+      }
+
+      logServerFailure("notice-create", error);
       return NextResponse.json(
-        { error: "Informe uma mensagem com até 1.500 caracteres." },
-        { status: 400 }
+        { error: "Não foi possível publicar o aviso." },
+        { status: 500 }
       );
     }
-
-    if (!["informativo", "alerta", "sucesso"].includes(tipo)) {
-      return NextResponse.json(
-        { error: "Tipo de aviso inválido." },
-        { status: 400 }
-      );
-    }
-
-    if (!ALLOWED_AUDIENCES.has(publico)) {
-      return NextResponse.json(
-        { error: "Público do aviso inválido." },
-        { status: 400 }
-      );
-    }
-
-    if (!isUuid(ubsId)) {
-      return NextResponse.json(
-        { error: "Selecione uma UBS válida." },
-        { status: 400 }
-      );
-    }
-
-    const ubsRows = await context.sql`
-      select id
-      from public.ubs
-      where id = ${ubsId}::uuid
-        and ativa = true
-      limit 1
-    `;
-
-    if (!ubsRows[0]) {
-      return NextResponse.json(
-        { error: "A UBS selecionada não está ativa." },
-        { status: 400 }
-      );
-    }
-
-    const rows = await context.sql`
-      insert into public.avisos_ubs (
-        ubs_id,
-        titulo,
-        mensagem,
-        tipo,
-        publico,
-        criado_por
-      )
-      values (
-        ${ubsId}::uuid,
-        ${titulo},
-        ${mensagem},
-        ${tipo},
-        ${publico},
-        ${context.user.id}::uuid
-      )
-      returning id
-    `;
-
-    await context.sql`
-      insert into private.auditoria_avisos_v20 (
-        aviso_id,
-        usuario_id,
-        acao,
-        metadados
-      )
-      values (
-        ${rows[0].id}::uuid,
-        ${context.user.id}::uuid,
-        'publicar_v21',
-        ${context.sql.json({ ubsId, tipo, publico })}
-      )
-    `;
-
-    return NextResponse.json({ ok: true, id: rows[0].id });
-  } catch (error) {
-    console.error("Erro ao publicar aviso:", error);
 
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Não foi possível publicar o aviso.",
-      },
+      { ok: true, id: data },
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  } catch (error) {
+    logServerFailure("notice-create", error);
+    return NextResponse.json(
+      { error: "Não foi possível publicar o aviso." },
       { status: 500 }
     );
   }
 }
 
 export async function DELETE(request: Request) {
-  try {
-    const context = await authenticatedAdmin();
+  const requestError = mutationRequestError(request);
+  if (requestError) return requestError;
 
-    if (!context) {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
       return NextResponse.json(
-        { error: "Apenas a gestão pode remover avisos." },
-        { status: 403 }
+        { error: "Sessão expirada." },
+        { status: 401 }
       );
     }
 
     const id = new URL(request.url).searchParams.get("id") ?? "";
-
     if (!isUuid(id)) {
       return NextResponse.json(
         { error: "Aviso inválido." },
@@ -170,47 +137,41 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const rows = await context.sql`
-      update public.avisos_ubs
-      set
-        removido_em = now(),
-        removido_por = ${context.user.id}::uuid
-      where id = ${id}::uuid
-        and removido_em is null
-      returning id
-    `;
+    const { data, error } = await supabase.rpc(
+      "profissionais_admin_remover_aviso_v30",
+      { p_aviso_id: id }
+    );
 
-    if (!rows[0]) {
+    if (error) {
+      if (error.message.includes("ADMIN_FORBIDDEN")) {
+        return NextResponse.json(
+          { error: "Ação administrativa não autorizada." },
+          { status: 403 }
+        );
+      }
+
+      logServerFailure("notice-delete", error);
+      return NextResponse.json(
+        { error: "Não foi possível remover o aviso." },
+        { status: 500 }
+      );
+    }
+
+    if (data !== true) {
       return NextResponse.json(
         { error: "Aviso não encontrado." },
         { status: 404 }
       );
     }
 
-    await context.sql`
-      insert into private.auditoria_avisos_v20 (
-        aviso_id,
-        usuario_id,
-        acao
-      )
-      values (
-        ${id}::uuid,
-        ${context.user.id}::uuid,
-        'remover'
-      )
-    `;
-
-    return NextResponse.json({ ok: true });
-  } catch (error) {
-    console.error("Erro ao remover aviso:", error);
-
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Não foi possível remover o aviso.",
-      },
+      { ok: true },
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  } catch (error) {
+    logServerFailure("notice-delete", error);
+    return NextResponse.json(
+      { error: "Não foi possível remover o aviso." },
       { status: 500 }
     );
   }

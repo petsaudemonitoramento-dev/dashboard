@@ -1,11 +1,26 @@
 import { NextResponse } from "next/server";
-import { getPostgresClient } from "@/lib/db/postgres";
+import {
+  isUuid,
+  logServerFailure,
+  mutationRequestError,
+  readJsonObject,
+} from "@/lib/security/request";
+import { consumeRateLimit } from "@/lib/security/rate-limit";
 import { createClient } from "@/lib/supabase/server";
+import { sanitizeRiskPayload } from "@/lib/validation/clinical-security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const MAX_RISK_BODY = 256 * 1024;
+
 export async function POST(request: Request) {
+  const requestError = mutationRequestError(request, {
+    maxBytes: MAX_RISK_BODY,
+    contentTypes: ["application/json"],
+  });
+  if (requestError) return requestError;
+
   try {
     const supabase = await createClient();
     const {
@@ -19,63 +34,83 @@ export async function POST(request: Request) {
       );
     }
 
-    const payload = await request.json();
-    const sql = getPostgresClient();
+    if (
+      !(await consumeRateLimit({
+        scope: "risk-save",
+        actorKey: user.id,
+        limit: 60,
+        windowSeconds: 300,
+      }))
+    ) {
+      return NextResponse.json(
+        { error: "Muitas classificações em pouco tempo. Tente novamente em alguns minutos." },
+        { status: 429 }
+      );
+    }
+
+    const rawPayload = await readJsonObject(request, 256 * 1024);
+    if (!rawPayload) {
+      return NextResponse.json(
+        { error: "Dados inválidos." },
+        { status: 400 }
+      );
+    }
+
+    let payload: ReturnType<typeof sanitizeRiskPayload>;
+    try {
+      payload = sanitizeRiskPayload(rawPayload);
+    } catch {
+      return NextResponse.json(
+        { error: "Revise os campos da classificação." },
+        { status: 400 }
+      );
+    }
+
     const gestanteId =
-      typeof payload?.gestanteId === "string" && payload.gestanteId
+      typeof payload.gestanteId === "string"
         ? payload.gestanteId
         : null;
 
-    if (gestanteId) {
-      const accessRows = await sql<{ autorizado: boolean }[]>`
-        select exists (
-          select 1
-          from public.pec_gestantes g
-          join public.perfis p on p.id = ${user.id}::uuid
-          where g.id = ${gestanteId}::uuid
-            and g.excluida_em is null
-            and p.ativo = true
-            and p.status = 'ativo'
-            and (
-              p.perfil = 'administrador'
-              or (
-                g.ubs_id = p.ubs_id
-                and g.profissional_responsavel_id = p.id
-              )
-            )
-        ) as autorizado
-      `;
+    if (gestanteId && !isUuid(gestanteId)) {
+      return NextResponse.json(
+        { error: "Identificador de gestante inválido." },
+        { status: 400 }
+      );
+    }
 
-      if (!accessRows[0]?.autorizado) {
+    if (gestanteId) {
+      const { data: existing, error: accessError } =
+        await supabase
+          .from("pec_gestantes")
+          .select("id")
+          .eq("id", gestanteId)
+          .maybeSingle();
+
+      if (accessError || !existing) {
         return NextResponse.json(
-          {
-            error:
-              "Esta gestante não está vinculada à sua responsabilidade profissional.",
-          },
-          { status: 403 }
+          { error: "Cadastro não encontrado." },
+          { status: 404 }
         );
       }
     }
 
-    const rows = await sql<{
-      resultado: Record<string, unknown>;
-    }[]>`
-      select private.salvar_classificacao_risco_v17(
-        ${user.id}::uuid,
-        ${sql.json(payload)}
-      ) as resultado
-    `;
+    const { data: resultado, error: saveError } =
+      await supabase.rpc(
+        "profissionais_salvar_classificacao_risco_v30",
+        { p_payload: payload }
+      );
 
-    return NextResponse.json(rows[0]?.resultado ?? {});
+    if (saveError) {
+      throw saveError;
+    }
+
+    return NextResponse.json(resultado ?? {}, {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (error) {
-    console.error("Erro ao salvar classificação:", error);
+    logServerFailure("risk-classification-save", error);
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Não foi possível salvar a classificação.",
-      },
+      { error: "Não foi possível salvar a classificação." },
       { status: 500 }
     );
   }

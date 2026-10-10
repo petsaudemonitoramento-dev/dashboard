@@ -142,7 +142,7 @@ export function ImportacaoPecForm({
           <label className="pec-file-drop">
             <Upload size={28} />
             <strong>
-              {file ? file.name : "Selecionar arquivo CSV ou XLSX"}
+              {file ? file.name : "Selecionar arquivo CSV"}
             </strong>
             <span>
               O sistema procura automaticamente a linha de títulos,
@@ -150,7 +150,7 @@ export function ImportacaoPecForm({
             </span>
             <input
               type="file"
-              accept=".csv,.xlsx,.xls,text/csv"
+              accept=".csv,text/csv"
               onChange={handleFile}
             />
           </label>
@@ -195,7 +195,11 @@ export function ImportacaoPecForm({
           </p>
         </div>
 
-        {error && <div className="pec-error">{error}</div>}
+        {error && (
+          <div className="pec-error" role="alert" aria-live="assertive">
+            {error}
+          </div>
+        )}
       </section>
 
       <section className="pec-card">
@@ -236,6 +240,9 @@ export function ImportacaoPecForm({
           <h3>Prévia sem identificadores diretos</h3>
           <div className="pec-table-wrap">
             <table className="pec-table">
+              <caption>
+                Prévia pseudonimizada dos registros encontrados no CSV
+              </caption>
               <thead>
                 <tr>
                   <th>Linha</th>

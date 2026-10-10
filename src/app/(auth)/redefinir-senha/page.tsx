@@ -1,0 +1,110 @@
+"use client";
+
+import Link from "next/link";
+import { FormEvent, useState } from "react";
+
+export default function RedefinirSenhaPage() {
+  const [password, setPassword] = useState("");
+  const [confirmacao, setConfirmacao] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage(null);
+    setSuccess(false);
+
+    if (password !== confirmacao) {
+      setMessage("As senhas não coincidem.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await fetch("/api/auth/redefinir-senha", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+
+      const body = await response.json();
+
+      if (!response.ok) {
+        setMessage(
+          body.error ?? "Não foi possível atualizar a senha."
+        );
+        return;
+      }
+
+      setSuccess(true);
+      setMessage(
+        "Senha atualizada. Entre novamente com a nova senha."
+      );
+      setPassword("");
+      setConfirmacao("");
+    } catch {
+      setMessage("Não foi possível atualizar a senha.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <main className="simple">
+      <section aria-labelledby="redefinir-senha-titulo">
+        <h1 id="redefinir-senha-titulo">Definir nova senha</h1>
+
+        <form onSubmit={submit}>
+          <label htmlFor="nova-senha">Nova senha</label>
+          <input
+            id="nova-senha"
+            name="password"
+            type="password"
+            autoComplete="new-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="Nova senha"
+            minLength={10}
+            maxLength={128}
+            required
+          />
+
+          <label htmlFor="confirmar-nova-senha">
+            Confirmar nova senha
+          </label>
+          <input
+            id="confirmar-nova-senha"
+            name="passwordConfirmation"
+            type="password"
+            autoComplete="new-password"
+            value={confirmacao}
+            onChange={(event) =>
+              setConfirmacao(event.target.value)
+            }
+            placeholder="Confirme a nova senha"
+            minLength={10}
+            maxLength={128}
+            required
+          />
+
+          <button disabled={loading} type="submit">
+            {loading ? "Atualizando..." : "Atualizar senha"}
+          </button>
+        </form>
+
+        {message && (
+          <p
+            aria-live={success ? "polite" : "assertive"}
+            role={success ? "status" : "alert"}
+          >
+            {message}
+          </p>
+        )}
+
+        {success && <Link href="/login">Ir para o login</Link>}
+      </section>
+    </main>
+  );
+}

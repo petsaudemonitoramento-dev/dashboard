@@ -7,7 +7,7 @@ import type {
   UbsOption,
   VaccineConfig,
 } from "@/components/cadastro-clinico/types";
-import { getPostgresClient } from "@/lib/db/postgres";
+import { isUuid } from "@/lib/security/request";
 import { createClient } from "@/lib/supabase/server";
 
 type PageProps = {
@@ -20,6 +20,11 @@ type ProfileRow = {
   nome_completo: string;
   perfil: string;
   ubs_id: string | null;
+  status: string;
+  ativo: boolean;
+  cadastro_completo: boolean;
+  aprovacao_status: string;
+  perfil_excluido_em: string | null;
 };
 
 type UbsRow = {
@@ -140,6 +145,10 @@ export default async function CadastroClinicoPage({
   const params = await searchParams;
   const gestanteId = firstParam(params.gestante);
 
+  if (gestanteId && !isUuid(gestanteId)) {
+    redirect("/dashboard/gestantes");
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -151,25 +160,37 @@ export default async function CadastroClinicoPage({
 
   const { data: profileData, error: profileError } = await supabase
     .from("perfis")
-    .select("nome_completo, perfil, ubs_id")
+    .select("nome_completo, perfil, ubs_id, status, ativo, cadastro_completo, aprovacao_status, perfil_excluido_em")
     .eq("id", user.id)
     .single();
 
   const profile = profileData as ProfileRow | null;
 
-  if (profileError || !profile) {
-    redirect("/login");
+  if (
+    profileError ||
+    !profile ||
+    profile.perfil !== "equipe_ubs" ||
+    profile.status !== "ativo" ||
+    !profile.ativo ||
+    profile.cadastro_completo !== true ||
+    profile.aprovacao_status !== "aprovado" ||
+    profile.perfil_excluido_em
+  ) {
+    redirect("/aguardando-aprovacao");
   }
 
-  const sql = getPostgresClient();
+  const { data: ubsData, error: ubsError } =
+    await supabase
+      .from("ubs")
+      .select("id, nome")
+      .eq("ativa", true)
+      .order("nome");
 
-  const ubsRows = await sql<UbsRow[]>`
-    select id, nome
-    from public.ubs
-    where ativa = true
-    order by nome
-  `;
+  if (ubsError) {
+    throw ubsError;
+  }
 
+  const ubsRows = (ubsData ?? []) as UbsRow[];
   const ubsOptions: UbsOption[] = ubsRows.map((row) => ({
     id: row.id,
     nome: row.nome,
@@ -182,42 +203,20 @@ export default async function CadastroClinicoPage({
   let record: ClinicalRecord;
 
   if (gestanteId) {
-    const accessRows = await sql<{ autorizado: boolean }[]>`
-      select exists (
-        select 1
-        from public.pec_gestantes g
-        join public.perfis p on p.id = ${user.id}::uuid
-        where g.id = ${gestanteId}::uuid
-          and g.excluida_em is null
-          and p.ativo = true
-          and p.status = 'ativo'
-          and (
-            p.perfil = 'administrador'
-            or (
-              g.ubs_id = p.ubs_id
-              and g.profissional_responsavel_id = p.id
-            )
-          )
-      ) as autorizado
-    `;
+    const { data: recordData, error: recordError } =
+      await supabase.rpc(
+        "profissionais_obter_gestante_clinica_v30",
+        {
+          p_gestante_id: gestanteId,
+          p_exibir_identidade: true,
+        }
+      );
 
-    if (!accessRows[0]?.autorizado) {
+    if (recordError || !recordData) {
       redirect("/dashboard/gestantes");
     }
 
-    const rows = await sql<{ dados: ClinicalRecord }[]>`
-      select private.obter_gestante_clinica(
-        ${user.id}::uuid,
-        ${gestanteId}::uuid,
-        true
-      ) as dados
-    `;
-
-    if (!rows[0]?.dados) {
-      redirect("/dashboard/gestantes");
-    }
-
-    record = rows[0].dados;
+    record = recordData as ClinicalRecord;
   } else {
     if (!profile.ubs_id || !profileUbs) {
       return (
@@ -241,44 +240,45 @@ export default async function CadastroClinicoPage({
 
   const selectedUbsId = record.ubsId || profile.ubs_id;
 
-  const microareaRows = selectedUbsId
-    ? await sql<MicroareaRow[]>`
-        select id, codigo
-        from public.microareas
-        where ubs_id = ${selectedUbsId}::uuid
-          and ativa = true
-        order by codigo
-      `
-    : [];
+  const [
+    { data: microareaData, error: microareaError },
+    { data: examData, error: examError },
+    { data: vaccineData, error: vaccineError },
+  ] = await Promise.all([
+    selectedUbsId
+      ? supabase
+          .from("microareas")
+          .select("id, codigo")
+          .eq("ubs_id", selectedUbsId)
+          .eq("ativa", true)
+          .order("codigo")
+      : Promise.resolve({ data: [], error: null }),
+    supabase
+      .from("config_exames_pre_natal")
+      .select(
+        "codigo, nome, trimestre, semana_inicio, semana_fim, condicao_aplicacao, ordem, versao_referencia"
+      )
+      .eq("ativo", true)
+      .order("trimestre")
+      .order("ordem")
+      .order("nome"),
+    supabase
+      .from("config_vacinas_gestante")
+      .select(
+        "codigo, nome, semana_inicio, semana_fim, condicao_aplicacao, ordem, versao_referencia"
+      )
+      .eq("ativo", true)
+      .order("ordem")
+      .order("nome"),
+  ]);
 
-  const examRows = await sql<ExamConfigRow[]>`
-    select
-      codigo,
-      nome,
-      trimestre,
-      semana_inicio,
-      semana_fim,
-      condicao_aplicacao,
-      ordem,
-      versao_referencia
-    from public.config_exames_pre_natal
-    where ativo = true
-    order by trimestre, ordem, nome
-  `;
+  if (microareaError || examError || vaccineError) {
+    throw microareaError ?? examError ?? vaccineError;
+  }
 
-  const vaccineRows = await sql<VaccineConfigRow[]>`
-    select
-      codigo,
-      nome,
-      semana_inicio,
-      semana_fim,
-      condicao_aplicacao,
-      ordem,
-      versao_referencia
-    from public.config_vacinas_gestante
-    where ativo = true
-    order by ordem, nome
-  `;
+  const microareaRows = (microareaData ?? []) as MicroareaRow[];
+  const examRows = (examData ?? []) as ExamConfigRow[];
+  const vaccineRows = (vaccineData ?? []) as VaccineConfigRow[];
 
   const examConfigs: ExamConfig[] = examRows.map((row) => ({
     codigo: row.codigo,

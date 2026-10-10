@@ -1,6 +1,11 @@
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { getPostgresClient } from "@/lib/db/postgres";
+import { consumeRateLimit } from "@/lib/security/rate-limit";
+import {
+  logServerFailure,
+  mutationRequestError,
+  readJsonObject,
+} from "@/lib/security/request";
 import {
   isUuid,
   normalizeBirthDate,
@@ -9,25 +14,43 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const ALLOWED_PROFILES = new Set([
-  "administrador",
-  "profissional_ubs",
-  "acs",
-  "aluno",
-]);
+const REQUESTED_PROFILE = "equipe_ubs";
+
+function clientKey(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  const ip =
+    forwarded?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip")?.trim() ||
+    "unknown";
+
+  return ip.slice(0, 128);
+}
 
 export async function POST(request: Request) {
+  const requestError = mutationRequestError(request, {
+    maxBytes: 32 * 1024,
+    contentTypes: ["application/json"],
+  });
+  if (requestError) return requestError;
+
   let createdUserId: string | null = null;
 
   try {
-    const body = await request.json();
+    const body = await readJsonObject(request, 32 * 1024);
+    if (!body) {
+      return NextResponse.json(
+        { error: "Dados inválidos." },
+        { status: 400 }
+      );
+    }
+
     const nomeCompleto = String(body.nomeCompleto ?? "")
       .replace(/\s+/g, " ")
       .trim();
     const dataNascimento = normalizeBirthDate(body.dataNascimento);
     const email = String(body.email ?? "").trim().toLowerCase();
-    const password = String(body.password ?? "");
-    const perfilSolicitado = String(body.perfilSolicitado ?? "").trim();
+    const password =
+      typeof body.password === "string" ? body.password : "";
     const ubsId = String(body.ubsId ?? "").trim();
 
     if (nomeCompleto.length < 5 || nomeCompleto.length > 160) {
@@ -47,23 +70,28 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!email.includes("@") || email.length > 254) {
+    if (
+      email.length < 3 ||
+      email.length > 254 ||
+      !email.includes("@")
+    ) {
       return NextResponse.json(
         { error: "Informe um e-mail válido." },
         { status: 400 }
       );
     }
 
-    if (password.length < 8) {
+    if (
+      password.length < 10 ||
+      password.length > 128 ||
+      !/[A-Za-z]/.test(password) ||
+      !/\d/.test(password)
+    ) {
       return NextResponse.json(
-        { error: "A senha precisa ter pelo menos 8 caracteres." },
-        { status: 400 }
-      );
-    }
-
-    if (!ALLOWED_PROFILES.has(perfilSolicitado)) {
-      return NextResponse.json(
-        { error: "Perfil solicitado inválido." },
+        {
+          error:
+            "A senha deve ter de 10 a 128 caracteres, com letras e números.",
+        },
         { status: 400 }
       );
     }
@@ -75,29 +103,42 @@ export async function POST(request: Request) {
       );
     }
 
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const secret = process.env.SUPABASE_SECRET_KEY;
+    const [emailAllowed, networkAllowed] =
+      await Promise.all([
+        consumeRateLimit({
+          scope: "public-signup-email",
+          actorKey: email,
+          limit: 3,
+          windowSeconds: 3600,
+        }),
+        consumeRateLimit({
+          scope: "public-signup-network",
+          actorKey: clientKey(request),
+          limit: 20,
+          windowSeconds: 3600,
+        }),
+      ]);
 
-    if (!url || !secret) {
-      throw new Error("As credenciais administrativas não estão configuradas.");
-    }
-
-    const sql = getPostgresClient();
-    const ubsRows = await sql`
-      select id
-      from public.ubs
-      where id = ${ubsId}::uuid
-        and ativa = true
-      limit 1
-    `;
-
-    if (!ubsRows[0]) {
+    if (!emailAllowed || !networkAllowed) {
       return NextResponse.json(
         {
           error:
-            "A UBS selecionada não foi encontrada ou está desativada.",
+            "Muitas tentativas de cadastro. Tente novamente mais tarde.",
         },
-        { status: 400 }
+        { status: 429 }
+      );
+    }
+
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const publishableKey =
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    const secret = process.env.SUPABASE_SECRET_KEY;
+
+    if (!url || !publishableKey || !secret) {
+      logServerFailure("signup-config");
+      return NextResponse.json(
+        { error: "Cadastro temporariamente indisponível." },
+        { status: 503 }
       );
     }
 
@@ -108,95 +149,125 @@ export async function POST(request: Request) {
         detectSessionInUrl: false,
       },
     });
+    const publicAuth = createAdminClient(url, publishableKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false,
+      },
+    });
+
+    const { data: ubs, error: ubsError } = await publicAuth
+      .from("ubs")
+      .select("id")
+      .eq("id", ubsId)
+      .eq("ativa", true)
+      .maybeSingle();
+
+    if (ubsError) {
+      throw ubsError;
+    }
+
+    if (!ubs) {
+      return NextResponse.json(
+        {
+          error:
+            "A UBS selecionada não foi encontrada ou está desativada.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const confirmationRedirect =
+      `${new URL(request.url).origin}/login?email_confirmed=1`;
 
     const { data, error } = await admin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true,
-      user_metadata: {
-        nome_completo: nomeCompleto,
-        perfil_solicitado: perfilSolicitado,
-        ubs_solicitada_id: ubsId,
-      },
+      email_confirm: false,
     });
 
     if (error || !data.user) {
       const normalizedMessage = error?.message?.toLowerCase() ?? "";
-      const message =
+      const duplicate =
         normalizedMessage.includes("already") ||
-        normalizedMessage.includes("registered")
-          ? "Já existe uma conta com este e-mail."
-          : error?.message ?? "Não foi possível criar a conta.";
+        normalizedMessage.includes("registered");
 
-      return NextResponse.json({ error: message }, { status: 400 });
+      if (duplicate) {
+        // Mantém resposta neutra e, se a conta ainda estiver sem
+        // confirmação, permite que o Supabase reenvie o link.
+        await publicAuth.auth.resend({
+          type: "signup",
+          email,
+          options: {
+            emailRedirectTo: confirmationRedirect,
+          },
+        });
+
+        return NextResponse.json(
+          { ok: true },
+          { headers: { "Cache-Control": "no-store" } }
+        );
+      }
+
+      return NextResponse.json(
+        { error: "Não foi possível criar a conta." },
+        { status: 400 }
+      );
     }
 
     createdUserId = data.user.id;
 
-    await sql`
-      insert into public.perfis (
-        id,
-        nome_completo,
+    const { error: confirmationError } =
+      await publicAuth.auth.resend({
+        type: "signup",
         email,
-        perfil,
-        status,
-        ativo,
-        primeiro_acesso,
-        data_nascimento,
-        cadastro_completo,
-        aprovacao_status,
-        perfil_solicitado,
-        ubs_id,
-        ubs_solicitada_id,
-        origem_cadastro,
-        solicitado_em,
-        microarea_id
-      )
-      values (
-        ${data.user.id}::uuid,
-        ${nomeCompleto},
-        ${email},
-        'aluno'::public.perfil_usuario,
-        'ativo',
-        true,
-        false,
-        ${dataNascimento}::date,
-        true,
-        'pendente',
-        ${perfilSolicitado},
-        null,
-        ${ubsId}::uuid,
-        'email',
-        now(),
-        null
-      )
-      on conflict (id)
-      do update set
-        nome_completo = excluded.nome_completo,
-        email = excluded.email,
-        perfil = 'aluno'::public.perfil_usuario,
-        status = 'ativo',
-        ativo = true,
-        primeiro_acesso = false,
-        data_nascimento = excluded.data_nascimento,
-        cadastro_completo = true,
-        aprovacao_status = 'pendente',
-        perfil_solicitado = excluded.perfil_solicitado,
-        ubs_id = null,
-        ubs_solicitada_id = excluded.ubs_solicitada_id,
-        origem_cadastro = 'email',
-        solicitado_em = now(),
-        aprovado_em = null,
-        aprovado_por = null,
-        perfil_excluido_em = null,
-        perfil_excluido_por = null,
-        microarea_id = null
-    `;
+        options: {
+          emailRedirectTo: confirmationRedirect,
+        },
+      });
 
-    return NextResponse.json({ ok: true });
+    if (confirmationError) {
+      throw confirmationError;
+    }
+
+    const { error: profileError } = await admin
+      .from("perfis")
+      .upsert(
+        {
+          id: data.user.id,
+          nome_completo: nomeCompleto,
+          email,
+          perfil: "aluno",
+          status: "ativo",
+          ativo: true,
+          primeiro_acesso: false,
+          data_nascimento: dataNascimento,
+          cadastro_completo: true,
+          aprovacao_status: "pendente",
+          perfil_solicitado: REQUESTED_PROFILE,
+          ubs_id: null,
+          ubs_solicitada_id: ubsId,
+          origem_cadastro: "email",
+          solicitado_em: new Date().toISOString(),
+          microarea_id: null,
+          aprovado_em: null,
+          aprovado_por: null,
+          perfil_excluido_em: null,
+          perfil_excluido_por: null,
+        },
+        { onConflict: "id" }
+      );
+
+    if (profileError) {
+      throw profileError;
+    }
+
+    return NextResponse.json(
+      { ok: true },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (error) {
-    console.error("Erro ao criar conta:", error);
-
     if (createdUserId) {
       try {
         const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -213,17 +284,13 @@ export async function POST(request: Request) {
           await admin.auth.admin.deleteUser(createdUserId);
         }
       } catch (cleanupError) {
-        console.error("Erro ao desfazer usuário incompleto:", cleanupError);
+        logServerFailure("signup-cleanup", cleanupError);
       }
     }
 
+    logServerFailure("signup", error);
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Não foi possível criar a conta.",
-      },
+      { error: "Não foi possível criar a conta." },
       { status: 500 }
     );
   }

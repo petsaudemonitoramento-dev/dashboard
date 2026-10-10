@@ -45,6 +45,13 @@ export default async function Layout({
     redirect("/aguardando-aprovacao");
   }
 
+  if (
+    profile.perfil !== "equipe_ubs" &&
+    profile.perfil !== "administrador"
+  ) {
+    redirect("/login");
+  }
+
   return (
     <div className="shell">
       <AppSidebar profile={String(profile.perfil)} />

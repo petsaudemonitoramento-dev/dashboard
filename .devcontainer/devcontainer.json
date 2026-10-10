@@ -1,0 +1,31 @@
+{
+  "name": "Profissionais - Segurança",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-20-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "postCreateCommand": "npm ci",
+  "forwardPorts": [3000, 54321, 54323],
+  "portsAttributes": {
+    "3000": {
+      "label": "Next.js"
+    },
+    "54321": {
+      "label": "Supabase API"
+    },
+    "54323": {
+      "label": "Supabase Studio"
+    }
+  },
+  "remoteEnv": {
+    "NEXT_TELEMETRY_DISABLED": "1"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "bradlc.vscode-tailwindcss"
+      ]
+    }
+  }
+}

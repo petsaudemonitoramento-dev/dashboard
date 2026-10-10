@@ -1,4 +1,4 @@
-﻿node_modules/
+node_modules/
 .next/
 .vercel/
 .env
@@ -7,4 +7,16 @@
 *.log
 .DS_Store
 
+# Supabase CLI local/Codespaces state
+supabase/.temp/
+supabase/.branches/
+supabase/.cache/
+
 !.env.example
+
+# Playwright artifacts
+playwright-report/
+test-results/
+
+# Ephemeral DR reports
+dr-report/

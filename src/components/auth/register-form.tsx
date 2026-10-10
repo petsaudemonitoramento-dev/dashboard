@@ -45,7 +45,6 @@ export function RegisterForm({ ubsOptions }: { ubsOptions: UbsOption[] }) {
           dataNascimento: String(form.get("dataNascimento") ?? ""),
           email: String(form.get("email") ?? ""),
           password,
-          perfilSolicitado: String(form.get("perfilSolicitado") ?? ""),
           ubsId: String(form.get("ubsId") ?? ""),
         }),
       });
@@ -58,7 +57,7 @@ export function RegisterForm({ ubsOptions }: { ubsOptions: UbsOption[] }) {
 
       setSuccess(true);
       setMessage(
-        "Conta criada. Entre com seu e-mail e aguarde a aprovação da gestão."
+        "Se o cadastro puder ser concluído, enviaremos a confirmação por e-mail. Após confirmar, aguarde a aprovação da gestão."
       );
     } catch (error) {
       setMessage(
@@ -124,16 +123,12 @@ export function RegisterForm({ ubsOptions }: { ubsOptions: UbsOption[] }) {
             </div>
 
             <div className="v20-field">
-              <label htmlFor="perfilSolicitado">Perfil solicitado</label>
-              <select id="perfilSolicitado" name="perfilSolicitado" required>
-                <option disabled value="">
-                  Selecione
-                </option>
-                <option value="administrador">Gestão (administrador)</option>
-                <option value="profissional_ubs">Profissional da UBS</option>
-                <option value="acs">ACS</option>
-                <option value="aluno">Aluno</option>
-              </select>
+              <label>Perfil</label>
+              <input
+                disabled
+                value="Profissional da UBS"
+                aria-label="Perfil Profissional da UBS"
+              />
             </div>
 
             <div className="v20-field v20-field-wide">
@@ -172,9 +167,9 @@ export function RegisterForm({ ubsOptions }: { ubsOptions: UbsOption[] }) {
                 <input
                   autoComplete="new-password"
                   id="password"
-                  minLength={8}
+                  minLength={10}
                   name="password"
-                  placeholder="Mínimo de 8 caracteres"
+                  placeholder="Mínimo de 10 caracteres"
                   required
                   type="password"
                 />
@@ -186,7 +181,7 @@ export function RegisterForm({ ubsOptions }: { ubsOptions: UbsOption[] }) {
               <input
                 autoComplete="new-password"
                 id="passwordConfirmation"
-                minLength={8}
+                minLength={10}
                 name="passwordConfirmation"
                 required
                 type="password"
@@ -195,7 +190,13 @@ export function RegisterForm({ ubsOptions }: { ubsOptions: UbsOption[] }) {
           </div>
 
           {message && (
-            <div className="v20-message v20-message-error">{message}</div>
+            <div
+              className="v20-message v20-message-error"
+              role="alert"
+              aria-live="assertive"
+            >
+              {message}
+            </div>
           )}
 
           <div className="v20-form-actions">

@@ -1,16 +1,19 @@
 import { RegisterForm } from "@/components/auth/register-form";
-import { getPostgresClient } from "@/lib/db/postgres";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function CadastroPage() {
-  const sql = getPostgresClient();
-  const ubsOptions = await sql<{ id: string; nome: string }[]>`
-    select id, nome
-    from public.ubs
-    where ativa = true
-    order by nome
-  `;
+  const supabase = await createClient();
+  const { data: ubsOptions, error } = await supabase
+    .from("ubs")
+    .select("id, nome")
+    .eq("ativa", true)
+    .order("nome");
 
-  return <RegisterForm ubsOptions={ubsOptions} />;
+  if (error) {
+    throw new Error("Não foi possível carregar as UBS ativas.");
+  }
+
+  return <RegisterForm ubsOptions={ubsOptions ?? []} />;
 }

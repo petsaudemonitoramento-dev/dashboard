@@ -1,0 +1,165 @@
+name: Profissionais Security CI
+
+on:
+  push:
+    branches:
+      - main
+      - profissionais-v1-seguranca
+      - audit/pre-codex-hardening
+      - audit/continue-security-v30
+      - codex/security-audit-v30
+      - codex/security-audit-final-v30
+      - audit/finalize-security-v30
+      - hardening/post-audit-v1
+      - codex/post-homologation-quality-v30
+      - quality/parallel-ops-perf-supply-v30
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: profissionais-security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  application:
+    name: App quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321"
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_ci_placeholder"
+      SUPABASE_DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+      SUPABASE_SECRET_KEY: "sb_secret_ci_placeholder"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+
+
+      - name: Full dependency audit report
+        continue-on-error: true
+        run: npm audit --audit-level=high
+
+      - name: Security regression guardrails
+        shell: bash
+        run: |
+          if npm ls xlsx --all >/dev/null 2>&1; then
+            echo "::error::xlsx não pode voltar ao importador PEC."
+            exit 1
+          fi
+
+          sensitive_files=(
+            "src/app/api/gestantes/clinico/route.ts"
+            "src/app/api/gestantes/lixeira/route.ts"
+            "src/app/api/classificacao-risco/route.ts"
+            "src/app/api/classificacao-risco/[id]/pdf/route.ts"
+            "src/app/api/importacoes/pec/route.ts"
+            "src/app/api/auth/cadastro/route.ts"
+            "src/app/api/perfil/completar/route.ts"
+            "src/app/(auth)/cadastro/page.tsx"
+            "src/app/(auth)/completar-cadastro/page.tsx"
+            "src/app/(auth)/aguardando-aprovacao/page.tsx"
+            "src/app/(sistema)/dashboard/page.tsx"
+            "src/app/(sistema)/dashboard/gestantes/page.tsx"
+            "src/app/(sistema)/dashboard/cadastro-clinico/page.tsx"
+            "src/app/(sistema)/dashboard/classificacao-risco/page.tsx"
+            "src/app/(sistema)/dashboard/alertas/page.tsx"
+            "src/app/(sistema)/dashboard/atendimentos/page.tsx"
+          )
+
+          if grep -n "getPostgresClient" "${sensitive_files[@]}"; then
+            echo "::error::Fluxo clínico voltou a usar conexão PostgreSQL privilegiada."
+            exit 1
+          fi
+
+          if git grep -n -E 'TEMP_PROFESSIONAL_PASSWORD|criar-profissional-ubs|"user:ubs"' -- package.json .env.example scripts; then
+            echo "::error::Bootstrap legado com senha reutilizável não pode voltar ao repositório."
+            exit 1
+          fi
+
+
+          if git grep -n "getPostgresClient" -- src             ':(exclude)src/lib/security/rate-limit.ts'             ':(exclude)src/lib/db/postgres.ts'; then
+            echo "::error::Conexão PostgreSQL privilegiada só é permitida no rate limiter interno."
+            exit 1
+          fi
+
+          if git grep -n "SUPABASE_SECRET_KEY" -- src             ':(exclude)src/app/api/auth/cadastro/route.ts'; then
+            echo "::error::SUPABASE_SECRET_KEY apareceu fora da rota server-only autorizada."
+            exit 1
+          fi
+
+          if git grep -n -E 'console\.(log|warn|error)\(' -- src             ':(exclude)src/lib/security/request.ts'; then
+            echo "::error::Logs diretos em src podem vazar PII; use o logger sanitizado."
+            exit 1
+          fi
+
+          if git grep -n -E 'NEXT_PUBLIC_.*(SECRET|SERVICE_ROLE|DATABASE_URL)' -- src .env.example; then
+            echo "::error::Credencial privilegiada não pode usar prefixo NEXT_PUBLIC_."
+            exit 1
+          fi
+
+
+          if git grep -n -E 'email_confirm:[[:space:]]*true' -- src/app/api/auth/cadastro/route.ts; then
+            echo "::error::Cadastro público não pode auto-confirmar posse do e-mail."
+            exit 1
+          fi
+
+      - name: Legacy V2 surface guard
+        run: node scripts/check-legacy-surface.mjs
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: TypeScript
+        run: npx tsc --noEmit
+
+      - name: Next.js build
+        run: npm run build
+
+  database:
+    name: Supabase schema and security tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pinned Supabase CLI
+        uses: supabase/setup-cli@v3
+        with:
+          version: 2.119.0
+
+      - name: Start ephemeral Supabase
+        run: supabase start
+
+      - name: Database lint
+        run: supabase db lint --local --level error
+
+      - name: pgTAP database tests
+        run: supabase test db
+
+      - name: Show local migration state
+        run: supabase migration list --local
+
+      - name: Destroy ephemeral Supabase
+        if: always()
+        run: supabase stop --no-backup || true

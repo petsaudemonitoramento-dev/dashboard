@@ -1,0 +1,252 @@
+begin;
+
+create extension if not exists pgtap with schema extensions;
+
+select plan(6);
+
+-- Evidência adversarial sintética para o finding SEC-V30-001.
+-- A e B pertencem à mesma UBS; o lote pertence exclusivamente a A.
+insert into auth.users (
+  id, aud, role, email, created_at, updated_at
+)
+values
+  (
+    '11000000-0000-4000-8000-000000000001'::uuid,
+    'authenticated',
+    'authenticated',
+    'revoked-import-a@ci.invalid',
+    now(),
+    now()
+  ),
+  (
+    '11000000-0000-4000-8000-000000000002'::uuid,
+    'authenticated',
+    'authenticated',
+    'revoked-import-b@ci.invalid',
+    now(),
+    now()
+  ),
+  (
+    '11000000-0000-4000-8000-000000000099'::uuid,
+    'authenticated',
+    'authenticated',
+    'auditor-revogacao@ci.invalid',
+    now(),
+    now()
+  )
+on conflict (id) do nothing;
+
+insert into public.perfis (
+  id,
+  nome_completo,
+  email,
+  perfil,
+  status,
+  ubs_id,
+  primeiro_acesso,
+  ativo,
+  cadastro_completo,
+  aprovacao_status,
+  perfil_solicitado,
+  origem_cadastro,
+  cargo_funcao
+)
+values
+  (
+    '11000000-0000-4000-8000-000000000001'::uuid,
+    'Profissional A Revogação CI',
+    'revoked-import-a@ci.invalid',
+    'equipe_ubs',
+    'ativo',
+    '00000000-0000-4000-8000-000000000101'::uuid,
+    false,
+    true,
+    true,
+    'aprovado',
+    'equipe_ubs',
+    'ci',
+    'medico'
+  ),
+  (
+    '11000000-0000-4000-8000-000000000002'::uuid,
+    'Profissional B Revogação CI',
+    'revoked-import-b@ci.invalid',
+    'equipe_ubs',
+    'ativo',
+    '00000000-0000-4000-8000-000000000101'::uuid,
+    false,
+    true,
+    true,
+    'aprovado',
+    'equipe_ubs',
+    'ci',
+    'enfermeiro'
+  )
+on conflict (id) do update set
+  perfil = excluded.perfil,
+  status = excluded.status,
+  ubs_id = excluded.ubs_id,
+  ativo = excluded.ativo,
+  cadastro_completo = excluded.cadastro_completo,
+  aprovacao_status = excluded.aprovacao_status,
+  perfil_excluido_em = null;
+
+insert into private.credenciais_profissionais (
+  usuario_id,
+  cargo_funcao,
+  conselho,
+  uf,
+  numero_registro,
+  categoria,
+  situacao,
+  decidido_em,
+  decidido_por,
+  fonte_verificacao
+)
+values
+  (
+    '11000000-0000-4000-8000-000000000001'::uuid,
+    'medico',
+    'CRM',
+    'PB',
+    '110001',
+    'MEDICO',
+    'validado',
+    now(),
+    '11000000-0000-4000-8000-000000000099'::uuid,
+    'portal_cfm'
+  ),
+  (
+    '11000000-0000-4000-8000-000000000002'::uuid,
+    'enfermeiro',
+    'COREN',
+    'PB',
+    '220002',
+    'ENFERMEIRO',
+    'validado',
+    now(),
+    '11000000-0000-4000-8000-000000000099'::uuid,
+    'consulta_cofen'
+  );
+
+insert into public.importacoes_pec_resumo (
+  id,
+  ubs_id,
+  usuario_id,
+  arquivo_nome,
+  arquivo_sha256,
+  linha_cabecalho,
+  status
+)
+values (
+  '31000000-0000-4000-8000-000000000001'::uuid,
+  '00000000-0000-4000-8000-000000000101'::uuid,
+  '11000000-0000-4000-8000-000000000001'::uuid,
+  'fixture-revogacao.csv',
+  repeat('a', 64),
+  1,
+  'concluida'
+);
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  '11000000-0000-4000-8000-000000000001',
+  true
+);
+
+select is(
+  (
+    select count(*)::bigint
+    from public.importacoes_pec_resumo
+    where id = '31000000-0000-4000-8000-000000000001'::uuid
+  ),
+  1::bigint,
+  'controle: profissional A ativo enxerga o próprio lote PEC'
+);
+
+reset role;
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  '11000000-0000-4000-8000-000000000002',
+  true
+);
+
+select is(
+  (
+    select count(*)::bigint
+    from public.importacoes_pec_resumo
+    where id = '31000000-0000-4000-8000-000000000001'::uuid
+  ),
+  0::bigint,
+  'controle A x B: profissional B da mesma UBS não lê o lote de A'
+);
+
+delete from public.importacoes_pec_resumo
+where id = '31000000-0000-4000-8000-000000000001'::uuid;
+
+reset role;
+
+select ok(
+  exists (
+    select 1
+    from public.importacoes_pec_resumo
+    where id = '31000000-0000-4000-8000-000000000001'::uuid
+  ),
+  'controle A x B: profissional B da mesma UBS não apaga o lote de A'
+);
+
+update public.perfis
+set ativo = false
+where id = '11000000-0000-4000-8000-000000000001'::uuid;
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  '11000000-0000-4000-8000-000000000001',
+  true
+);
+
+select is(
+  (
+    select count(*)::bigint
+    from public.importacoes_pec_resumo
+    where id = '31000000-0000-4000-8000-000000000001'::uuid
+  ),
+  0::bigint,
+  'regressão SEC-V30-001: profissional A revogado não lê o próprio lote PEC'
+);
+
+delete from public.importacoes_pec_resumo
+where id = '31000000-0000-4000-8000-000000000001'::uuid;
+
+update public.importacoes_pec_resumo
+set arquivo_nome = 'nao-deve-atualizar.csv'
+where id = '31000000-0000-4000-8000-000000000001'::uuid;
+
+reset role;
+
+select ok(
+  exists (
+    select 1
+    from public.importacoes_pec_resumo
+    where id = '31000000-0000-4000-8000-000000000001'::uuid
+  ),
+  'regressão SEC-V30-001: profissional A revogado não apaga o próprio lote PEC'
+);
+
+select is(
+  (
+    select arquivo_nome
+    from public.importacoes_pec_resumo
+    where id = '31000000-0000-4000-8000-000000000001'::uuid
+  ),
+  'fixture-revogacao.csv',
+  'regressão SEC-V30-001: profissional A revogado não atualiza o próprio lote PEC'
+);
+
+select * from finish();
+
+rollback;

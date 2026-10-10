@@ -2,7 +2,8 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont } from "pdf-lib";
-import { getPostgresClient } from "@/lib/db/postgres";
+import { isUuid, logServerFailure } from "@/lib/security/request";
+import { consumeRateLimit } from "@/lib/security/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -59,18 +60,45 @@ function wrap(text: string, font: PDFFont, size: number, maxWidth: number): stri
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
+    if (!isUuid(id)) {
+      return NextResponse.json(
+        { error: "Classificação não encontrada." },
+        { status: 404 }
+      );
+    }
+
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Sessão expirada." }, { status: 401 });
 
-    const sql = getPostgresClient();
-    const rows = await sql<{ relatorio: ReportData }[]>`
-      select private.obter_relatorio_classificacao_v17(
-        ${user.id}::uuid,
-        ${id}::uuid
-      ) as relatorio
-    `;
-    const report = rows[0]?.relatorio;
+    if (
+      !(await consumeRateLimit({
+        scope: "risk-pdf",
+        actorKey: user.id,
+        limit: 60,
+        windowSeconds: 300,
+      }))
+    ) {
+      return NextResponse.json(
+        { error: "Muitas solicitações de PDF. Tente novamente em alguns minutos." },
+        { status: 429 }
+      );
+    }
+
+    const { data: reportData, error: reportError } =
+      await supabase.rpc(
+        "profissionais_obter_relatorio_classificacao_v30",
+        { p_classificacao_id: id }
+      );
+
+    if (reportError) {
+      return NextResponse.json(
+        { error: "Classificação não encontrada." },
+        { status: 404 }
+      );
+    }
+
+    const report = reportData as ReportData | null;
     if (!report) return NextResponse.json({ error: "Classificação não encontrada." }, { status: 404 });
 
     const mode = new URL(request.url).searchParams.get("modo") === "pb" ? "pb" : "color";
@@ -86,9 +114,6 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     let y: number = A4.height - MARGIN;
     const addPage = () => { page = doc.addPage([A4.width, A4.height]); y = A4.height - MARGIN; };
 
-    const drawText = (value: string, x: number, size = 9, font = regular, color = text) => {
-      page.drawText(value, { x, y, size, font, color });
-    };
     const ensure = (height: number) => { if (y - height < 74) addPage(); };
     const lineBlock = (value: string, x: number, maxWidth: number, size = 8.5, font = regular, color = text, lineHeight = 11) => {
       const lines = wrap(value, font, size, maxWidth);
@@ -120,7 +145,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       ["Data e horário", new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(report.realizadaEm))],
     ];
     page.drawRectangle({ x: MARGIN, y: y - 102, width: A4.width - 2*MARGIN, height: 108, color: soft, borderColor: rgb(.78,.76,.82), borderWidth: .6 });
-    let iy = y - 13;
+    const iy = y - 13;
     infoRows.forEach(([label, value], index) => {
       const col = index % 2; const row = Math.floor(index / 2);
       const x = MARGIN + 10 + col * 255; const yy = iy - row * 24;
@@ -163,15 +188,24 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     page.drawText(`Registro auditável: ${report.id}`, { x:MARGIN, y:y-10, size:6.5, font:regular, color:muted });
 
     const bytes = await doc.save();
+    const safeFileCode =
+      pdfSafe(report.codigo)
+        .replace(/[^A-Za-z0-9._-]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 80) || "registro";
+
     return new NextResponse(Buffer.from(bytes), {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="classificacao-risco-${report.codigo}.pdf"`,
+        "Content-Disposition": `attachment; filename="classificacao-risco-${safeFileCode}.pdf"`,
         "Cache-Control": "no-store",
       },
     });
   } catch (error) {
-    console.error("Erro ao gerar PDF:", error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Não foi possível gerar o PDF." }, { status: 500 });
+    logServerFailure("risk-pdf", error);
+    return NextResponse.json(
+      { error: "Não foi possível gerar o PDF." },
+      { status: 500 }
+    );
   }
 }

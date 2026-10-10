@@ -1,11 +1,26 @@
 import { NextResponse } from "next/server";
-import { getPostgresClient } from "@/lib/db/postgres";
+import {
+  isUuid,
+  logServerFailure,
+  mutationRequestError,
+  readJsonObject,
+} from "@/lib/security/request";
+import { consumeRateLimit } from "@/lib/security/rate-limit";
 import { createClient } from "@/lib/supabase/server";
+import { sanitizeClinicalPayload } from "@/lib/validation/clinical-security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const MAX_CLINICAL_BODY = 1024 * 1024;
+
 export async function POST(request: Request) {
+  const requestError = mutationRequestError(request, {
+    maxBytes: MAX_CLINICAL_BODY,
+    contentTypes: ["application/json"],
+  });
+  if (requestError) return requestError;
+
   try {
     const supabase = await createClient();
     const {
@@ -19,79 +34,86 @@ export async function POST(request: Request) {
       );
     }
 
-    const payload = await request.json();
+    if (
+      !(await consumeRateLimit({
+        scope: "clinical-save",
+        actorKey: user.id,
+        limit: 120,
+        windowSeconds: 300,
+      }))
+    ) {
+      return NextResponse.json(
+        { error: "Muitas alterações em pouco tempo. Tente novamente em alguns minutos." },
+        { status: 429 }
+      );
+    }
 
-    if (!payload || typeof payload !== "object") {
+    const rawPayload = await readJsonObject(request, MAX_CLINICAL_BODY);
+    if (!rawPayload) {
       return NextResponse.json(
         { error: "Dados inválidos." },
         { status: 400 }
       );
     }
 
-    const sql = getPostgresClient();
+    let payload: ReturnType<typeof sanitizeClinicalPayload>;
+    try {
+      payload = sanitizeClinicalPayload(rawPayload);
+    } catch {
+      return NextResponse.json(
+        { error: "Revise os campos do cadastro clínico." },
+        { status: 400 }
+      );
+    }
+
     const existingId =
-      typeof payload.id === "string" && payload.id
-        ? payload.id
-        : null;
+      typeof payload.id === "string" ? payload.id : null;
+
+    if (existingId && !isUuid(existingId)) {
+      return NextResponse.json(
+        { error: "Identificador de gestante inválido." },
+        { status: 400 }
+      );
+    }
 
     if (existingId) {
-      const accessRows = await sql<{ autorizado: boolean }[]>`
-        select exists (
-          select 1
-          from public.pec_gestantes g
-          join public.perfis p on p.id = ${user.id}::uuid
-          where g.id = ${existingId}::uuid
-            and g.excluida_em is null
-            and p.ativo = true
-            and p.status = 'ativo'
-            and (
-              p.perfil = 'administrador'
-              or (
-                g.ubs_id = p.ubs_id
-                and g.profissional_responsavel_id = p.id
-              )
-            )
-        ) as autorizado
-      `;
+      const { data: existing, error: accessError } =
+        await supabase
+          .from("pec_gestantes")
+          .select("id")
+          .eq("id", existingId)
+          .maybeSingle();
 
-      if (!accessRows[0]?.autorizado) {
+      if (accessError || !existing) {
         return NextResponse.json(
-          {
-            error:
-              "Esta gestante não está vinculada à sua responsabilidade profissional.",
-          },
-          { status: 403 }
+          { error: "Cadastro não encontrado." },
+          { status: 404 }
         );
       }
     }
 
-    const rows = await sql<{
-      resultado: {
-        id: string;
-        codigo: string;
-        acao: string;
-      };
-    }[]>`
-      select private.salvar_gestante_clinica(
-        ${user.id}::uuid,
-        ${sql.json(payload)}
-      ) as resultado
-    `;
+    const { data: resultado, error: saveError } =
+      await supabase.rpc(
+        "profissionais_salvar_gestante_clinica_v30",
+        { p_payload: payload }
+      );
 
-    return NextResponse.json(rows[0]?.resultado ?? {});
+    if (saveError) {
+      throw saveError;
+    }
+
+    return NextResponse.json(resultado ?? {}, {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (error) {
-    console.error("Erro ao salvar cadastro clínico:", error);
-
     const message =
-      error instanceof Error
-        ? error.message
-        : "Não foi possível salvar o cadastro clínico.";
+      error instanceof Error ? error.message : "";
 
     const duplicateMatch = message.match(
       /GESTANTE_DUPLICADA:([0-9a-f-]{36})/i
     );
 
-    if (duplicateMatch) {
+    if (duplicateMatch && isUuid(duplicateMatch[1])) {
       return NextResponse.json(
         {
           error:
@@ -102,8 +124,9 @@ export async function POST(request: Request) {
       );
     }
 
+    logServerFailure("clinical-save", error);
     return NextResponse.json(
-      { error: message },
+      { error: "Não foi possível salvar o cadastro clínico." },
       { status: 500 }
     );
   }
