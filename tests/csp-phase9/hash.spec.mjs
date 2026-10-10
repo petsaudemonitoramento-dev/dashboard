@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 
 const scriptHashes = (html) => [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)]
@@ -8,6 +9,9 @@ const scriptHashes = (html) => [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/sc
 
 test("hashes CSP por resposta: compatibilidade de login estático e variação", async ({ page }) => {
   const snapshots = [];
+  let enforceInBrowserOnly = false;
+  const browserErrors = [];
+  page.on("pageerror", () => browserErrors.push(1));
 
   await page.addInitScript(() => {
     window.__phase9HashViolations = {};
@@ -39,6 +43,7 @@ test("hashes CSP por resposta: compatibilidade de login estático e variação",
       headers: {
         ...original.headers(),
         "content-security-policy-report-only": candidate,
+        ...(enforceInBrowserOnly ? { "content-security-policy": candidate } : {}),
       },
     });
   });
@@ -71,6 +76,38 @@ test("hashes CSP por resposta: compatibilidade de login estático e variação",
     cspViolationCountsSecond: violation2,
   }) + "\n");
 
-  // Compatibilidade pontual da página não prova estabilidade ENTRE builds.
-  // O reporte e estabilidade são dados para a decisão, não gate de produção.
+  // Terceira navegação: enforcement estrito SOMENTE no browser de teste.
+  // Os cabeçalhos originais do serviço e as configurações Vercel não mudam.
+  enforceInBrowserOnly = true;
+  const enforced = await page.goto("/login", { waitUntil: "domcontentloaded" });
+  expect(enforced.status()).toBe(200);
+  const enforcedHeader = enforced.headers()["content-security-policy"];
+  expect(enforcedHeader).toContain("sha256-");
+  expect(enforcedHeader).not.toContain("script-src 'self' 'unsafe-inline'");
+  await page.getByRole("button", { name: "Mostrar senha" }).click();
+  await expect(page.locator("#password")).toHaveAttribute("type", "text");
+  expect(browserErrors).toHaveLength(0);
+  process.stdout.write("PHASE9_HASH_ENFORCEMENT=" + JSON.stringify({
+    browserOnly: true, loginInteractive: true, pageErrors: browserErrors.length,
+  }) + "\n");
+
+  // Comparar os mesmos scripts públicos entre DOIS builds limpos no mesmo runner.
+  // Armazenar somente digests/contagens, nunca HTML ou conteúdo.
+  const summaryFile = process.env.PHASE9_HASH_SUMMARY_FILE;
+  if (summaryFile) {
+    const current = snapshots[0].hashes;
+    if (!existsSync(summaryFile)) {
+      writeFileSync(summaryFile, JSON.stringify(current), "utf8");
+      process.stdout.write("PHASE9_HASH_BUILD_BASELINE=recorded\n");
+    } else {
+      const previous = JSON.parse(readFileSync(summaryFile, "utf8"));
+      const stableAcrossBuilds = JSON.stringify(previous) === JSON.stringify(current);
+      process.stdout.write("PHASE9_HASH_BUILD_COMPARISON=" + JSON.stringify({
+        stableAcrossBuilds,
+        previousScriptCount: previous.length,
+        currentScriptCount: current.length,
+      }) + "\n");
+    }
+  }
+
 });
