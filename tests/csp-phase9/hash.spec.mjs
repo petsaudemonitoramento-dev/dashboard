@@ -37,9 +37,17 @@ test("hashes CSP por resposta: compatibilidade de login estático e variação",
       "base-uri 'self'",
     ].join("; ");
     snapshots.push({ count: hashes.length, hashes, headerBytes: Buffer.byteLength(candidate) });
+    // HTML adulterado apenas dentro do Chromium: simular uma inserção
+    // parser-inserted não autorizada pelos hashes e verificar bloqueio.
+    const servedHtml = enforceInBrowserOnly
+      ? body.replace(
+          /<head([^>]*)>/i,
+          '<head$1><script>window.__phase9UnauthorizedHashProbe = 1</script>'
+        )
+      : body;
     await route.fulfill({
       response: original,
-      body,
+      body: servedHtml,
       headers: {
         ...original.headers(),
         "content-security-policy-report-only": candidate,
@@ -87,8 +95,12 @@ test("hashes CSP por resposta: compatibilidade de login estático e variação",
   await page.getByRole("button", { name: "Mostrar senha" }).click();
   await expect(page.locator("#password")).toHaveAttribute("type", "text");
   expect(browserErrors).toHaveLength(0);
+  const unauthorizedExecuted = await page.evaluate(
+    () => window.__phase9UnauthorizedHashProbe === 1
+  );
+  expect(unauthorizedExecuted).toBe(false);
   process.stdout.write("PHASE9_HASH_ENFORCEMENT=" + JSON.stringify({
-    browserOnly: true, loginInteractive: true, pageErrors: browserErrors.length,
+    browserOnly: true, loginInteractive: true, unauthorizedInlineBlocked: true, pageErrors: browserErrors.length,
   }) + "\n");
 
   // Comparar os mesmos scripts públicos entre DOIS builds limpos no mesmo runner.
