@@ -75,8 +75,17 @@ test("strict script nonce: enforcement somente no Chromium, sem alterar aplicaç
       "style-src 'self' 'unsafe-inline'"
     );
     enforcedHeaderObserved = true;
+    const html = await source.text();
+    // Script inline parser-inserted, sem nonce, somente na resposta
+    // adulterada do browser de teste; jamais no código da aplicação.
+    const probeHtml = html.replace(
+      /<head([^>]*)>/i,
+      '<head$1><script>window.__phase9UnauthorizedProbe = 1</script>'
+    );
+    expect(probeHtml).not.toBe(html);
     await route.fulfill({
       response: source,
+      body: probeHtml,
       headers: { ...source.headers(), "content-security-policy": enforced },
     });
   });
@@ -89,14 +98,12 @@ test("strict script nonce: enforcement somente no Chromium, sem alterar aplicaç
   await page.getByRole("button", { name: "Mostrar senha" }).click();
   await expect(page.locator("#password")).toHaveAttribute("type", "text");
 
-  // Sonda benigna que NÃO está autorizada pelo nonce deve ser bloqueada.
-  const probeExecuted = await page.evaluate(() => {
-    const script = document.createElement("script");
-    script.textContent = "window.__phase9UnauthorizedProbe = 1";
-    document.head.appendChild(script);
-    script.remove();
-    return window.__phase9UnauthorizedProbe === 1;
-  });
+  // Sonda benigna parser-inserted SEM nonce no HTML de teste deve ser bloqueada.
+  // Scripts criados por código confiável poderiam herdar trust por strict-dynamic,
+  // por isso NÃO são uma sonda negativa válida neste experimento.
+  const probeExecuted = await page.evaluate(
+    () => window.__phase9UnauthorizedProbe === 1
+  );
   expect(probeExecuted).toBe(false);
   process.stdout.write("PHASE9_NONCE_ENFORCEMENT=" + JSON.stringify({
     browserOnly: true, hydrationInteractive: true, unauthorizedInlineBlocked: true,
