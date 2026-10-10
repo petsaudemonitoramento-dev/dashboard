@@ -27,7 +27,7 @@ test("nonce por request: SSR/hidratação no login sem quebrar CSP ativa", async
   const scriptCount = await page.locator("script[nonce]").count();
   expect(scriptCount).toBeGreaterThan(0);
   const matchingNonceCount = await page.locator("script[nonce]").evaluateAll((scripts, expected) =>
-    scripts.filter((script) => script.getAttribute("nonce") === expected).length, nonce);
+    scripts.filter((script) => script.nonce === expected).length, nonce);
   expect(matchingNonceCount).toBe(scriptCount);
 
   // Hidratação real sem usar uma conta ou chamar dados clínicos.
