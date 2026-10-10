@@ -29,7 +29,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: profissionais-accessibility
+  group: profissionais-accessibility-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
