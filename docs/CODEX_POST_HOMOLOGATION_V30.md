@@ -72,6 +72,7 @@ supabase/tests/database/021_clinical_audit_integrity.sql valida:
 | Playwright + axe (4 rotas públicas) | Sucesso — run 37924447488 |
 | Disaster Recovery efêmero | Sucesso — run 38076046395; backup/restore, schema, dados, marcador, db lint e pgTAP; RTO técnico de 68 s |
 | Security CI após correção do DR | Sucesso — run 38076046401 |
+| Integração das Fases 5–7 | Merge 20d8a499; Security CI 38076727237 (176 asserções), DR 38076727196, acessibilidade 38076727255, monitor 38076746601 e supply chain 38076748817 — todos verdes |
 
 ## Fase 2 — Guardrail global da superfície do banco
 
@@ -97,10 +98,26 @@ A inspeção dirigida encontrou e corrigiu ausência de labels nos campos de rec
 Foi adicionado um exercício isolado no GitHub Actions que cria dois ambientes Supabase efêmeros, produz backup lógico com dados sintéticos, destrói o primeiro, restaura no segundo, compara schema/manifesto, valida um marcador sintético e repete db lint + pgTAP. O dump bruto permanece apenas no diretório temporário do runner e é removido; o artefato contém somente métricas e hashes.
 
 O RTO técnico é medido desde o início da destruição até o término das validações pós-restore. Ele não representa o RTO do ambiente hospedado e não substitui um exercício humano de backup gerenciado/PITR. O run 37925249488 encontrou respostas transitórias toomanyrequests no pull das imagens públicas; os retries internos do Supabase CLI recuperaram o download, e o segundo ambiente reutilizou as imagens no mesmo runner. A falha terminal ocorreu depois do restore: write_manifest emitia o manifesto em stdout, mas não o gravava no arquivo recebido, portanto a comparação tentou abrir dois arquivos inexistentes. A correção persiste os manifestos e mantém apenas um job serializado, sem cache volumoso nem novas tentativas cegas. O run 38076046395 concluiu em 3 min 18 s e comprovou schema idêntico, manifesto de dados idêntico, marcador restaurado, db lint e toda a suíte pgTAP verdes. O RTO técnico observado entre a destruição e o término das validações foi 68 segundos; o dump sintético tinha 13.716 bytes e foi removido sem publicação. O Security CI do mesmo SHA também passou no run 38076046401.
+## Fase 5 — Observabilidade econômica
+
+A PR #1 foi revisada e integrada sem reimplementação. O monitor executa exatamente quatro requisições públicas, sem cookies, credenciais ou dados clínicos: health, login/headers, ACS legado 404 e API clínica 401. Valida request ID, CSP, HSTS, nosniff e proteção de frame. O run original 37926521017 e a repetição na branch integrada 38076746601 passaram.
+
+O cron de quatro execuções diárias é de baixo custo, mas não está ativo enquanto o workflow existir somente fora da branch padrão main. O smoke pesado/manual continua separado.
+
+## Fase 6 — Performance cirúrgica
+
+A migration 20261009120000_perfis_rls_initplan.sql altera apenas a expressão da policy perfis_proprio_select de id = auth.uid() para id = (select auth.uid()). RLS, papel authenticated, comando SELECT e semântica de acesso ao próprio perfil foram preservados e cobertos por cinco novas asserções em 024_perfis_rls_initplan.sql. Nenhum índice adicional foi criado. Os runs 37926521004 e 38076727237 passaram; a suíte integrada totaliza 176 asserções pgTAP.
+
+## Fase 7 — Supply Chain
+
+Dependabot semanal foi configurado sem auto-merge, com limite de PRs e agrupamento econômico. O alvo é a linha homologada hardening/post-audit-v1. Como a configuração também depende de promoção à branch padrão para operação contínua, ela ainda não deve ser tratada como automação ativa. Toda atualização continua exigindo revisão e CI.
+
+O gate semanal lê package-lock sem instalar dependências nem executar scripts de terceiros. Produção permanece com 0 HIGH/CRITICAL; cinco HIGH/CRITICAL de tooling de desenvolvimento seguem monitorados, sem npm audit fix --force nem downgrade incompatível. Os runs 37926377631 e 38076748817 passaram.
+
 ## Itens não corrigidos e justificativa
 
 - Registros históricos já existentes podem conter snapshots clínicos. Não foram reescritos porque apagar ou transformar retroativamente uma trilha aplicada exige política de retenção e auditoria humana.
-- As fases 5 a 9 ainda não foram concluídas neste checkpoint.
+- As fases 8 e 9 ainda não foram concluídas neste checkpoint; a Fase 9 está explicitamente fora desta rodada.
 - A auditoria manual VoiceOver/NVDA continua necessária; axe/Playwright não a substitui.
 - A remoção de unsafe-inline depende de avaliação de custo e compatibilidade com SSR/static rendering.
 
@@ -115,19 +132,19 @@ Notas serão recalculadas ao final. Não representam parecer final enquanto as f
 | Integridade | 8,5 |
 | Confiabilidade | 8,4 |
 | Recuperação | 8,4 |
-| Observabilidade | 7,2 |
-| Performance | 8,0 |
+| Observabilidade | 8,0 |
+| Performance | 8,4 |
 | Acessibilidade | 7,8 |
 | Manutenibilidade | 8,0 |
-| Supply Chain | 8,0 |
+| Supply Chain | 8,4 |
 
-Média provisória: **8,14/10**.
+Média provisória: **8,30/10**.
 
 ## O que ainda impede 10/10
 
 - homologação manual assistiva com VoiceOver/NVDA, contraste, zoom e gestão de foco em modais ainda não foi concluída;
 - o RTO técnico efêmero foi medido, mas ainda falta exercício humano de backup gerenciado/PITR com volume e dependências representativos;
-- observabilidade agendada ainda não existe;
+- monitor e auditoria de dependências estão validados, mas seus agendamentos só ficam ativos após promoção controlada dos workflows à branch padrão;
 - warnings de performance ainda precisam de triagem baseada em ganho comprovável;
 - advisory de desenvolvimento de braces depende de solução upstream compatível;
 - dívida V2 ainda requer prova estática antes de qualquer remoção;
@@ -136,4 +153,4 @@ Média provisória: **8,14/10**.
 
 ## Próximo passo
 
-Revisar e integrar as Fases 5 a 7 da PR #1, preservando o histórico e executando o CI completo uma vez após a integração.
+Mapear a dívida V2 com prova de dependências de runtime, funções, policies, triggers e views antes de propor qualquer remoção.
