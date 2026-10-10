@@ -3,6 +3,7 @@ name: Profissionais Accessibility CI
 on:
   push:
     branches:
+      - main
       - codex/post-homologation-quality-v30
       - hardening/post-audit-v1
     paths:
