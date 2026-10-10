@@ -94,7 +94,7 @@ A inspeção dirigida encontrou e corrigiu ausência de labels nos campos de rec
 
 Foi adicionado um exercício isolado no GitHub Actions que cria dois ambientes Supabase efêmeros, produz backup lógico com dados sintéticos, destrói o primeiro, restaura no segundo, compara schema/manifesto, valida um marcador sintético e repete db lint + pgTAP. O dump bruto permanece apenas no diretório temporário do runner e é removido; o artefato contém somente métricas e hashes.
 
-O RTO técnico é medido desde o início da destruição até o término das validações pós-restore. Ele não representa o RTO do ambiente hospedado e não substitui um exercício humano de backup gerenciado/PITR. Resultado inicial do workflow: pendente.
+O RTO técnico é medido desde o início da destruição até o término das validações pós-restore. Ele não representa o RTO do ambiente hospedado e não substitui um exercício humano de backup gerenciado/PITR. O run 37925249488 encontrou respostas transitórias toomanyrequests no pull das imagens públicas; os retries internos do Supabase CLI recuperaram o download, e o segundo ambiente reutilizou as imagens no mesmo runner. A falha terminal ocorreu depois do restore: write_manifest emitia o manifesto em stdout, mas não o gravava no arquivo recebido, portanto a comparação tentou abrir dois arquivos inexistentes. A correção persiste os manifestos e mantém apenas um job serializado, sem cache volumoso nem novas tentativas cegas. Nova execução: pendente.
 ## Itens não corrigidos e justificativa
 
 - Registros históricos já existentes podem conter snapshots clínicos. Não foram reescritos porque apagar ou transformar retroativamente uma trilha aplicada exige política de retenção e auditoria humana.

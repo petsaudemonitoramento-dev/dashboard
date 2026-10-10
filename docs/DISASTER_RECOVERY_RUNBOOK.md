@@ -113,6 +113,8 @@ O RTO medido começa imediatamente antes da destruição do primeiro ambiente e 
 
 Somente o resumo sem dados é publicado. Dumps, URLs de banco e credenciais efêmeras não são artefatos.
 
+O job é serializado e mantém os dois ambientes no mesmo runner para reutilizar localmente as imagens já baixadas. O primeiro run, 37925249488, demonstrou que o Supabase CLI recuperou respostas transitórias de rate limit do registry com retries internos; não se adicionou cache volumoso de imagens nem loop externo de novas tentativas. A falha terminal desse run foi local ao script: o manifesto foi enviado a stdout em vez de ser persistido. O script agora grava os dois manifestos antes de compará-los e imprime somente o resumo sintético ao final.
+
 ### Limitações do exercício automatizado
 
 O exercício prova migrations + restore lógico de dados da aplicação. Ele não substitui:

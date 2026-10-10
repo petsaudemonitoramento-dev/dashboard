@@ -48,37 +48,39 @@ write_manifest() {
   local table_name
   local row_count
 
-  while IFS= read -r table_name; do
-    row_count="$(
+  {
+    while IFS= read -r table_name; do
+      row_count="$(
+        docker exec "$container" \
+          psql -X -U postgres -d postgres -At \
+          -c "select count(*) from $table_name"
+      )"
+      printf '%s=%s\n' "$table_name" "$row_count"
+    done < <(
       docker exec "$container" \
-        psql -X -U postgres -d postgres -At \
-        -c "select count(*) from $table_name"
-    )"
-    printf '%s=%s\n' "$table_name" "$row_count"
-  done < <(
+        psql -X -U postgres -d postgres -At -c "
+          select format('%I.%I', n.nspname, c.relname)
+          from pg_class c
+          join pg_namespace n on n.oid = c.relnamespace
+          where n.nspname in (
+            'public',
+            'private',
+            'security',
+            'analytics',
+            'analytics_publicado'
+          )
+            and c.relkind in ('r', 'p')
+          order by n.nspname, c.relname
+        "
+    )
+
     docker exec "$container" \
       psql -X -U postgres -d postgres -At -c "
-        select format('%I.%I', n.nspname, c.relname)
-        from pg_class c
-        join pg_namespace n on n.oid = c.relnamespace
-        where n.nspname in (
-          'public',
-          'private',
-          'security',
-          'analytics',
-          'analytics_publicado'
-        )
-          and c.relkind in ('r', 'p')
-        order by n.nspname, c.relname
+        select id::text || '|' || nome || '|' || codigo_interno
+        from public.ubs
+        where id = '$marker_id'::uuid
       "
-  )
-
-  docker exec "$container" \
-    psql -X -U postgres -d postgres -At -c "
-      select id::text || '|' || nome || '|' || codigo_interno
-      from public.ubs
-      where id = '$marker_id'::uuid
-    "
+  } > "$output"
 }
 
 total_started_at="$(date +%s)"
@@ -225,6 +227,8 @@ manifest_hash="$(sha256sum "$work_dir/manifest-after.txt" | awk '{print $1}')"
   printf '%s\n' "- Validações: schema idêntico, dados idênticos, marcador restaurado, db lint verde e pgTAP verde"
   printf '%s\n' "- Dump bruto: removido no encerramento e não publicado como artefato"
 } > "$report_dir/summary.md"
+
+cat "$report_dir/summary.md"
 
 if [ -n "$GITHUB_STEP_SUMMARY" ]; then
   cat "$report_dir/summary.md" >> "$GITHUB_STEP_SUMMARY"
