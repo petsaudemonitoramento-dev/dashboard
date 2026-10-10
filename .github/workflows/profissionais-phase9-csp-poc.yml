@@ -1,0 +1,57 @@
+name: Profissionais Phase 9 CSP PoC
+
+on:
+  push:
+    branches:
+      - experiment/fase9-csp-report-only-v30
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: profissionais-phase9-csp
+  cancel-in-progress: true
+
+jobs:
+  report-only:
+    name: Strict CSP Report-Only - isolated
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+      CSP_PHASE9_REPORT_ONLY: "1"
+      NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321"
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_ci_placeholder"
+
+    steps:
+      - name: Checkout PoC branch
+        uses: actions/checkout@v6
+
+      - name: Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Production-mode build with isolated Report-Only header
+        run: npm run build
+
+      - name: Install pinned browser test runner
+        run: npm install --no-save --package-lock=false @playwright/test@1.60.0
+
+      - name: Install Chromium headless shell
+        run: npx playwright install --with-deps --only-shell chromium
+
+      - name: Verify active CSP, candidate Report-Only and public login
+        run: npx playwright test --config=playwright.phase9.config.mjs
