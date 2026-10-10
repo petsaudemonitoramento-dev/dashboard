@@ -11,6 +11,7 @@ on:
       - audit/finalize-security-v30
       - hardening/post-audit-v1
       - codex/post-homologation-quality-v30
+      - quality/parallel-ops-perf-supply-v30
   pull_request:
     branches:
       - main
