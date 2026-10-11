@@ -94,7 +94,7 @@ Referências oficiais consultadas:
 | A — Arquitetura | Alta | Branches, SHAs, versões, commits, workflow e deployment reconstruídos neste checkpoint | PASS | Não | Prosseguir para auditoria adversarial da implementação |
 | B — CSP | Crítica | Run `38102293195`: 20 testes do gate, 7 Playwright; script e handler inline bloqueados, nonce único de 128 bits, query/redirect cobertos | PASS | Não no escopo CI; Gate H ainda bloqueia release | Repetir os mesmos testes no staging isolado quando provisionado |
 | C — Cache e hashes | Alta | Run `38102720660`: dois builds independentes mantiveram auth dinâmica, IDs distintos e `no-store`; hashes manuais eliminados | BLOCKED | Sim: CDN/cache Vercel não observado no app por falta de staging acessível | Validar headers e cache efetivos no staging isolado |
-| D — Estilos | Alta | `'unsafe-inline'` permanece; inventário de componentes pendente | NOT RUN | Sim | Gerar inventário e testes visuais funcionais |
+| D — Estilos | Alta | Run `38149208336`: 21 estilos estáticos migrados; allowlist exata de 3 estilos dinâmicos e 1 iframe | BLOCKED | Sim: `style-src`/`style-src-attr` ainda exigem `unsafe-inline` e não houve validação visual em staging | Preservar exceções explícitas; validar páginas internas e staging antes de endurecer estilos |
 | E — Autorização | Crítica | 193 pgTAP anteriores; E2E autenticado sob CSP não executado nesta auditoria | NOT RUN | Sim | Reexecutar RLS e adicionar E2E sintético viável |
 | F — Fluxos clínicos | Crítica | Não exercitados pelo Playwright atual | NOT RUN | Sim | Cobrir fluxos executáveis em CI sintético e registrar limitações |
 | G — Regressão/acessibilidade | Alta | Baseline anterior existe; nova validação pendente | NOT RUN | Sim | Reexecutar qualidade, Playwright e axe |
@@ -129,7 +129,7 @@ Referências oficiais consultadas:
 - CSP em navegador: 7/7 Playwright aprovados; script sem nonce e `onerror` inline bloqueados, query string não criou HTML executável, redirect manteve nonce/no-store, hidratação e formulário sintético permaneceram funcionais.
 - Banco: 15 arquivos, 193 asserções pgTAP, `Result: PASS`; DB lint aprovado no Supabase efêmero.
 - Qualidade: TypeScript, ESLint e build aprovados; runtime `npm audit --omit=dev --audit-level=high` encontrou zero vulnerabilidades.
-- Inventário estático: 77 arquivos; zero sinks proibidos (`dangerouslySetInnerHTML`, `innerHTML=`, `document.write`, `eval`, `new Function`, `<script>` literal); 23 propriedades React `style` e 1 iframe ainda exigem avaliação no Gate D.
+- Inventário estático: 77 arquivos; zero sinks proibidos (`dangerouslySetInnerHTML`, `innerHTML=`, `document.write`, `eval`, `new Function`, `<script>` literal); 23 propriedades React `style` então detectadas e 1 iframe exigiam avaliação no Gate D; o scanner também tinha um ponto cego para `style={...}`, corrigido no Checkpoint D.
 - Run `38102100187` falhou no primeiro scanner por defeito de caminho do próprio teste, depois corrigido; não foi falha do produto. O log também registrou rate limit transitório do Docker Hub, do qual `supabase start` recuperou.
 
 ### Checkpoint B — CSP e ativação segura de staging
@@ -150,6 +150,16 @@ Referências oficiais consultadas:
 - Limite de regressão CI derivado do baseline: p95 máximo 29,29 ms (maior entre 3× baseline e baseline + 20 ms); candidata passou. Esse limite detecta regressão grosseira no componente, não é orçamento de Production.
 - Limitação: não houve acesso ao aplicativo atrás do SSO Vercel; cold start, CDN, custo e capacidade continuam indisponíveis. Gates C e I permanecem BLOCKED, sem PASS parcial.
 - Próxima dependência: reduzir estilos inline estáticos e separar os três estilos realmente dinâmicos de gráficos.
+### Checkpoint D — estilos inline e superfície renderizada
+
+- Objetivo: distinguir estilos estáticos removíveis de valores realmente calculados e impedir que a superfície cresça silenciosamente.
+- Commit funcional: `1f83948059ac36e24c413e0a8a63f84806dfd32c`.
+- Correção: 21 estilos inline estáticos das páginas Início, Alertas, Atendimentos, Perfil e Administração foram movidos para CSS, preservando os mesmos valores; não houve refatoração visual ampla.
+- Finding de ferramenta: o scanner anterior reconhecia apenas `style={{...}}` e omitia `style={...}`. O padrão agora cobre qualquer prop React `style` e exige allowlist exata por arquivo e quantidade.
+- Exceções aprovadas somente para inventário: 3 estilos calculados no dashboard de indicadores (largura de barras/segmentos e variáveis do donut) e 1 iframe Metabase, todos no mesmo componente. Qualquer nova ocorrência ou mudança de quantidade reprova o gate barato.
+- GitHub Actions: [run 38149208336](https://github.com/petsaudemonitoramento-dev/dashboard/actions/runs/38149208336), sucesso. Scanner: 78 arquivos, zero sinks proibidos, 3 props `style`, 1 iframe, zero inventário não aprovado. TypeScript, ESLint, dois builds, benchmark, DB lint, 193 pgTAP e 7 Playwright aprovados; runtime audit com zero vulnerabilidades.
+- Limitação: a policy ainda declara `style-src 'unsafe-inline'` e `style-src-attr 'unsafe-inline'`; remover essas exceções quebraria os três gráficos dinâmicos. Sem staging e revisão visual das telas internas, Gate D é **BLOCKED**, não PASS.
+- Próxima dependência: E2E autenticado sintético sob CSP, acessibilidade das telas internas e validação visual/humana em staging isolado.
 ## Decisão atual
 
 **NO-GO.** Esta é uma decisão de release readiness, não uma rejeição da viabilidade da PoC. A política de scripts em CI mostrou mérito, mas a evidência indispensável de staging isolado está ausente e a própria implementação impede sua ativação em Vercel. A decisão somente poderá mudar depois que todos os gates obrigatórios estiverem PASS; qualquer FAIL ou BLOCKED preservará o NO-GO.
