@@ -72,6 +72,11 @@ jobs:
           status_env="$(supabase status -o env)"
           api_url="$(printf '%s\n' "$status_env" | sed -n 's/^API_URL=//p' | tr -d '"')"
           pub_key="$(printf '%s\n' "$status_env" | sed -n 's/^PUBLISHABLE_KEY=//p' | tr -d '"')"
+          secret_key="$(printf '%s\n' "$status_env" | sed -n 's/^SECRET_KEY=//p' | tr -d '"')"
+          if [ -z "$secret_key" ]; then
+            secret_key="$(printf '%s\n' "$status_env" | sed -n 's/^SERVICE_ROLE_KEY=//p' | tr -d '"')"
+          fi
+          database_url="$(printf '%s\n' "$status_env" | sed -n 's/^DB_URL=//p' | tr -d '"')"
           test "$api_url" = "http://127.0.0.1:54321" || {
             echo "::error::Supabase not ephemeral localhost; refusing to test"
             exit 1
@@ -80,9 +85,25 @@ jobs:
             echo "::error::Missing publishable test key"
             exit 1
           }
+          test -n "$secret_key" || {
+            echo "::error::Missing ephemeral server-only test key"
+            exit 1
+          }
+          case "$database_url" in
+            postgresql://postgres:*@127.0.0.1:54322/postgres) ;;
+            *)
+              echo "::error::Database is not ephemeral localhost; refusing fixtures"
+              exit 1
+              ;;
+          esac
           echo "::add-mask::$pub_key"
+          echo "::add-mask::$secret_key"
+          echo "::add-mask::$database_url"
           echo "NEXT_PUBLIC_SUPABASE_URL=$api_url" >> "$GITHUB_ENV"
           echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$pub_key" >> "$GITHUB_ENV"
+          echo "SUPABASE_SECRET_KEY=$secret_key" >> "$GITHUB_ENV"
+          echo "PHASE9_TEST_SUPABASE_SECRET_KEY=$secret_key" >> "$GITHUB_ENV"
+          echo "PHASE9_TEST_DATABASE_URL=$database_url" >> "$GITHUB_ENV"
 
       - name: Build hybrid security policy on synthetic backend
         run: npm run build
@@ -107,8 +128,11 @@ jobs:
       - name: Database security and RLS assertions
         run: supabase test db
 
-      - name: Install pinned Playwright
-        run: npm install --no-save --package-lock=false @playwright/test@1.60.0
+      - name: Prepare synthetic authenticated fixtures
+        run: node scripts/phase9-synthetic-e2e-fixtures.mjs
+
+      - name: Install pinned Playwright and axe
+        run: npm install --no-save --package-lock=false @playwright/test@1.60.0 @axe-core/playwright@4.13.0
 
       - name: Install headless Chromium only
         run: npx playwright install --with-deps --only-shell chromium
