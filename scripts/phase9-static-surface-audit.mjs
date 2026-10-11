@@ -1,7 +1,8 @@
 import { appendFile, readdir, readFile } from "node:fs/promises";
 import { extname, join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = new URL("../src/", import.meta.url);
+const root = fileURLToPath(new URL("../src/", import.meta.url));
 const extensions = new Set([".js", ".jsx", ".ts", ".tsx"]);
 const forbidden = [
   ["dangerouslySetInnerHTML", /dangerouslySetInnerHTML/g],
