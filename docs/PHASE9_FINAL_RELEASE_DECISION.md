@@ -46,7 +46,7 @@ A branch de auditoria contém os nove commits experimentais e os seis commits da
 - A política estrita de scripts é aplicada apenas a respostas HTML `GET` das rotas dinâmicas `/cadastro`, `/completar-cadastro`, `/aguardando-aprovacao` e `/dashboard/**`.
 - O nonce é gerado por resposta com 16 bytes aleatórios e propagado pelo Proxy ao SSR via `x-nonce`; a resposta recebe CSP e `Cache-Control: private, no-store`.
 - `script-src` usa `'self'`, nonce e `'strict-dynamic'`, sem `'unsafe-inline'` nas rotas candidatas.
-- `/login`, `/recuperar-senha` e `/redefinir-senha` permanecem estáticas e continuam na política anterior com `'unsafe-inline'` em scripts.
+- `/login`, `/recuperar-senha` e `/redefinir-senha` foram convertidas para renderização dinâmica por `connection()` e agora recebem nonce por resposta; hashes manuais deixaram de ser necessários nesse escopo.
 - `style-src` ainda contém `'unsafe-inline'` em todo o escopo. A Fase 9 atual é, portanto, hardening de scripts em um subconjunto de rotas, não uma CSP totalmente estrita.
 - RSC, prefetch e respostas não HTML não recebem nonce.
 - O gate atual exige `CI=true`, rejeita `VERCEL=1`, rejeita qualquer `VERCEL_ENV` definido e exige Supabase em `http://127.0.0.1:54321`. Isso é fail-closed para CI, porém torna impossível habilitar a candidata num staging Vercel real.
@@ -78,7 +78,7 @@ Referências oficiais consultadas:
 | F9-001 | P0 | O gate original CI-only impossibilitava a candidata em Vercel. | **Corrigido em código:** Preview só habilita com coincidência exata de environment, target, project ID, branch, host e Supabase sintético; Production e o projeto remoto conhecido são negados. Homologação real continua obrigatória. |
 | F9-002 | P0 | Não há evidência de Vercel + Supabase de teste isolados, deploy identificado e headers reais da candidata. | Gate H fica BLOCKED até existir ambiente inequivocamente isolado e acessível. |
 | F9-003 | P1 | Deployment observado pertence a `painelprenatal`, enquanto o contexto também menciona `maeaps`; vínculo correto não foi comprovado. | Exigir confirmação do projeto, ambiente e SHA antes de qualquer homologação. |
-| F9-004 | P1 | Rotas públicas estáticas mantêm `script-src 'unsafe-inline'`; estilos mantêm `'unsafe-inline'`. | Avaliar separadamente static+hash e dynamic+nonce; não declarar CSP integralmente estrita. |
+| F9-004 | P1 | A implementação original mantinha `script-src 'unsafe-inline'` nas rotas públicas; estilos ainda mantêm `'unsafe-inline'`. | **Scripts corrigidos:** as três rotas públicas agora são dynamic+nonce. Estilos continuam como risco residual e impedem declarar CSP integralmente estrita. |
 | F9-005 | P1 | Os 6 Playwright não exercitam sessão autenticada nem fluxos clínicos sob a CSP candidata. | Criar fixtures exclusivamente sintéticas no Supabase efêmero e ampliar E2E sem service role no browser. |
 | F9-006 | P1 | A medição anterior compara endpoints diferentes e não mede Vercel, cache ou cold start. | Implementar A/B do mesmo endpoint/build sob condições equivalentes; staging permanece necessário. |
 | F9-007 | P1 | Rollback de policy/deployment/cache/sessão não foi ensaiado. | Criar exercício reversível em CI e runbook por SHA; não testar em Production. |
@@ -93,13 +93,13 @@ Referências oficiais consultadas:
 |---|---|---|---|---|---|
 | A — Arquitetura | Alta | Branches, SHAs, versões, commits, workflow e deployment reconstruídos neste checkpoint | PASS | Não | Prosseguir para auditoria adversarial da implementação |
 | B — CSP | Crítica | Run `38102293195`: 20 testes do gate, 7 Playwright; script e handler inline bloqueados, nonce único de 128 bits, query/redirect cobertos | PASS | Não no escopo CI; Gate H ainda bloqueia release | Repetir os mesmos testes no staging isolado quando provisionado |
-| C — Cache e hashes | Alta | Divergência de hashes entre builds já documentada; estratégia final ainda não validada | NOT RUN | Sim | Testar build/cache/rollback e comparar alternativas |
+| C — Cache e hashes | Alta | Run `38102720660`: dois builds independentes mantiveram auth dinâmica, IDs distintos e `no-store`; hashes manuais eliminados | BLOCKED | Sim: CDN/cache Vercel não observado no app por falta de staging acessível | Validar headers e cache efetivos no staging isolado |
 | D — Estilos | Alta | `'unsafe-inline'` permanece; inventário de componentes pendente | NOT RUN | Sim | Gerar inventário e testes visuais funcionais |
 | E — Autorização | Crítica | 193 pgTAP anteriores; E2E autenticado sob CSP não executado nesta auditoria | NOT RUN | Sim | Reexecutar RLS e adicionar E2E sintético viável |
 | F — Fluxos clínicos | Crítica | Não exercitados pelo Playwright atual | NOT RUN | Sim | Cobrir fluxos executáveis em CI sintético e registrar limitações |
 | G — Regressão/acessibilidade | Alta | Baseline anterior existe; nova validação pendente | NOT RUN | Sim | Reexecutar qualidade, Playwright e axe |
 | H — Staging isolado | Crítica | Preview protegido de `painelprenatal`; CSP desativada por código; backend isolado não provado | BLOCKED | Sim | Provisionamento/configuração humana de staging separado, sem dados/secrets reais |
-| I — Desempenho | Alta | Amostra anterior não é A/B causal | NOT RUN | Sim | Benchmark equivalente em CI e, depois, staging |
+| I — Desempenho | Alta | Run `38102720660`: A/B do mesmo build e `/login`, 60 amostras/variante; p95 TTFB 9,29 ms baseline e 10,75 ms candidata | BLOCKED | Sim: cold start, CDN, custo e capacidade Vercel indisponíveis | Repetir no staging isolado sob condições equivalentes |
 | J — Rollback | Crítica | Nenhum ensaio reproduzível identificado | NOT RUN | Sim | Implementar ensaio e runbook em CI/staging |
 
 ## Histórico de checkpoints
@@ -139,6 +139,17 @@ Referências oficiais consultadas:
 - Resultado: Gate B PASS no escopo CI/efêmero. Isso não substitui o Gate H; nenhum environment Vercel ou Supabase remoto foi criado/alterado.
 - Riscos restantes: estilos inline, páginas públicas estáticas com script unsafe-inline, ausência de staging isolado e ausência de E2E clínico autenticado sob a candidata.
 - Próxima dependência: Gate C/D e construção de E2E sintético autenticado sem service role no browser.
+### Checkpoint C — páginas públicas, cache e desempenho comparável
+
+- Commit funcional: `edb300ab376d3538fa66d3da9179d6811164f802`.
+- GitHub Actions: [run 38102720660](https://github.com/petsaudemonitoramento-dev/dashboard/actions/runs/38102720660), sucesso em 4m04s.
+- Decisão arquitetural: dynamic+nonce para `/login`, `/recuperar-senha` e `/redefinir-senha`. A alternativa de hashes manuais foi rejeitada porque os artefatos anteriores já demonstraram deriva entre builds e não havia geração atômica vinculada ao deploy.
+- Reprodutibilidade: dois builds limpos no mesmo run classificaram as três rotas como dinâmicas, sem HTML estático; IDs `eeRcSajjfGJTc2JeI4BzE` e `BkebHDnG1lZQ0C5bvIfRE` confirmaram artefatos distintos sem alterar o modo de renderização.
+- Navegador: 7/7 testes passaram; login, recuperação e redefinição hidrataram sob nonce, sem submissão nem dados reais.
+- A/B local do mesmo endpoint e build: 10 warm-ups e 60 amostras por variante, concorrência 1. Baseline `/login`: p50/p95 TTFB 6,81/9,29 ms; candidata: 6,97/10,75 ms. Total p95: 10,14/12,21 ms. Headers medianos: 1280/1384 bytes. Todas as 60 respostas candidatas tiveram nonce e `no-store`.
+- Limite de regressão CI derivado do baseline: p95 máximo 29,29 ms (maior entre 3× baseline e baseline + 20 ms); candidata passou. Esse limite detecta regressão grosseira no componente, não é orçamento de Production.
+- Limitação: não houve acesso ao aplicativo atrás do SSO Vercel; cold start, CDN, custo e capacidade continuam indisponíveis. Gates C e I permanecem BLOCKED, sem PASS parcial.
+- Próxima dependência: reduzir estilos inline estáticos e separar os três estilos realmente dinâmicos de gráficos.
 ## Decisão atual
 
 **NO-GO.** Esta é uma decisão de release readiness, não uma rejeição da viabilidade da PoC. A política de scripts em CI mostrou mérito, mas a evidência indispensável de staging isolado está ausente e a própria implementação impede sua ativação em Vercel. A decisão somente poderá mudar depois que todos os gates obrigatórios estiverem PASS; qualquer FAIL ou BLOCKED preservará o NO-GO.
