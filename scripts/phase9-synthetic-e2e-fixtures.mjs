@@ -227,7 +227,7 @@ try {
           ${definition.role},
           ${definition.role === "medico" ? "CRM" : "COREN"},
           'PB',
-          ${`P9${index + 1}0001`},
+          ${String(910001 + index)},
           ${definition.role === "medico" ? "MEDICO" : "ENFERMEIRO"},
           'validado',
           now(),
