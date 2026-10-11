@@ -204,7 +204,7 @@ test("estados pendente, administrador e sem perfil recebem somente seus destinos
   const scenarios = [
     [EMAIL_PENDING, /\/aguardando-aprovacao$/, "Acesso ainda não liberado"],
     [EMAIL_ADMIN, /\/dashboard\/autorizacoes$/, "Autorizações"],
-    [EMAIL_NO_PROFILE, /\/completar-cadastro$/, "Completar cadastro"],
+    [EMAIL_NO_PROFILE, /\/completar-cadastro$/, "Complete seu cadastro"],
   ];
   for (const [email, destination, heading] of scenarios) {
     const context = await browser.newContext();
