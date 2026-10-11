@@ -16,8 +16,16 @@ export function getPostgresClient() {
   }
 
   if (!globalThis.__dashboardPostgres) {
+    const parsedUrl = new URL(databaseUrl);
+    const ephemeralCiDatabase =
+      process.env.CI === "true" &&
+      parsedUrl.hostname === "127.0.0.1" &&
+      parsedUrl.port === "54322";
+
     globalThis.__dashboardPostgres = postgres(databaseUrl, {
-      ssl: "require",
+      // The Supabase CLI Postgres container has no TLS listener. Keep the
+      // exception fail-closed to the exact disposable CI endpoint.
+      ssl: ephemeralCiDatabase ? false : "require",
       max: 2,
       idle_timeout: 20,
       connect_timeout: 20,
