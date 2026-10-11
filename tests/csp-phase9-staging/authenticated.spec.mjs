@@ -59,8 +59,6 @@ async function withEphemeralDatabase(callback) {
   }
 }
 
-test.describe.configure({ mode: "serial" });
-
 test("cadastro ignora tentativa de solicitar perfil privilegiado", async ({ page, request }) => {
   const email = "phase9-mass-assignment@ci.invalid";
   const payload = {
