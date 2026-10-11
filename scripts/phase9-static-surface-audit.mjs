@@ -44,7 +44,7 @@ for (const file of files) {
     if (count > 0) {
       findings.push({
         kind,
-        path: relative(root.pathname, file).replaceAll("\\", "/"),
+        path: relative(root, file).replaceAll("\\", "/"),
         count,
         forbidden: forbidden.some(([name]) => name === kind),
       });

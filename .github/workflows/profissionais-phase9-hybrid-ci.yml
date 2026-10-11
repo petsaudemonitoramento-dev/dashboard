@@ -33,6 +33,30 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Node 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install locked app dependencies
+        run: npm ci
+
+      - name: Audit runtime dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Inventory static CSP attack surface
+        run: node scripts/phase9-static-surface-audit.mjs
+
+      - name: Test fail-closed staging activation gate
+        run: node --experimental-strip-types --test tests/phase9-gate.test.mjs
+
+      - name: TypeScript
+        run: npx tsc --noEmit
+
+      - name: ESLint
+        run: npm run lint
+
       - name: Install pinned Supabase CLI
         uses: supabase/setup-cli@v3
         with:
@@ -59,30 +83,6 @@ jobs:
           echo "::add-mask::$pub_key"
           echo "NEXT_PUBLIC_SUPABASE_URL=$api_url" >> "$GITHUB_ENV"
           echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$pub_key" >> "$GITHUB_ENV"
-
-      - name: Node 22
-        uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-          cache: npm
-
-      - name: Install locked app dependencies
-        run: npm ci
-
-      - name: Audit runtime dependencies
-        run: npm audit --omit=dev --audit-level=high
-
-
-      - name: Inventory static CSP attack surface
-        run: node scripts/phase9-static-surface-audit.mjs
-
-      - name: Test fail-closed staging activation gate
-        run: node --experimental-strip-types --test tests/phase9-gate.test.mjs
-      - name: TypeScript
-        run: npx tsc --noEmit
-
-      - name: ESLint
-        run: npm run lint
 
       - name: Build hybrid security policy on synthetic backend
         run: npm run build
