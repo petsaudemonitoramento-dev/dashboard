@@ -121,6 +121,9 @@ jobs:
       - name: Compare identical endpoint with CSP disabled and enabled
         run: node scripts/phase9-same-endpoint-benchmark.mjs
 
+      - name: Exercise disposable CSP rollback
+        run: node scripts/phase9-rollback-drill.mjs
+
       - name: Supabase database lint
         run: supabase db lint --local --level error
 
@@ -144,6 +147,11 @@ jobs:
 
       - name: Browser regression, enforced CSP and synthetic latency sample
         run: npx playwright test --config=playwright.phase9.staging.config.mjs
+
+      - name: Public auth accessibility under enforced CSP
+        env:
+          PLAYWRIGHT_USE_PRODUCTION_BUILD: "1"
+        run: npx playwright test --config=playwright.a11y.config.mjs
 
       - name: Destroy local Supabase (no backups or sensitive artifacts)
         if: always()

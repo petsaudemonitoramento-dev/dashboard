@@ -1,5 +1,8 @@
 import { defineConfig } from "@playwright/test";
 
+const productionBuild =
+  process.env.PLAYWRIGHT_USE_PRODUCTION_BUILD === "1";
+
 export default defineConfig({
   testDir: "./tests/accessibility",
   fullyParallel: false,
@@ -20,7 +23,9 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    command: "npm run dev -- --hostname 127.0.0.1",
+    command: productionBuild
+      ? "npm run start -- --hostname 127.0.0.1"
+      : "npm run dev -- --hostname 127.0.0.1",
     url: "http://127.0.0.1:3000/login",
     reuseExistingServer: false,
     timeout: 120_000,
