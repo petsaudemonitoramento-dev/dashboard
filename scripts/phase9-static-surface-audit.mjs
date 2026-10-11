@@ -13,12 +13,22 @@ const forbidden = [
   ["literal script element", /<script(?:\s|>)/gi],
 ];
 const inventory = [
-  ["React style prop", /\bstyle\s*=\s*\{\{/g],
+  ["React style prop", /\bstyle\s*=\s*\{/g],
   ["style element", /<style(?:\s|>)/gi],
   ["iframe element", /<iframe(?:\s|>)/gi],
   ["next Script import", /(?:from|require\()\s*["']next\/script["']/g],
   ["SVG element", /<svg(?:\s|>)/gi],
 ];
+const approvedInventory = new Map([
+  [
+    "React style prop",
+    new Map([["components/indicadores/indicators-dashboard.tsx", 3]]),
+  ],
+  [
+    "iframe element",
+    new Map([["components/indicadores/indicators-dashboard.tsx", 1]]),
+  ],
+]);
 
 async function filesUnder(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -60,7 +70,29 @@ const totals = Object.fromEntries(
       .reduce((sum, finding) => sum + finding.count, 0),
   ])
 );
-const result = { scannedFiles: files.length, totals, findings };
+const inventoryKinds = new Set(inventory.map(([kind]) => kind));
+const unapprovedInventory = findings.filter((finding) => {
+  if (!inventoryKinds.has(finding.kind)) return false;
+  return approvedInventory.get(finding.kind)?.get(finding.path) !== finding.count;
+});
+const missingApprovedInventory = [];
+for (const [kind, paths] of approvedInventory) {
+  for (const [path, count] of paths) {
+    const actual = findings.find(
+      (finding) => finding.kind === kind && finding.path === path
+    )?.count;
+    if (actual !== count) {
+      missingApprovedInventory.push({ kind, path, expected: count, actual: actual ?? 0 });
+    }
+  }
+}
+const result = {
+  scannedFiles: files.length,
+  totals,
+  findings,
+  unapprovedInventory,
+  missingApprovedInventory,
+};
 process.stdout.write(`PHASE9_STATIC_SURFACE=${JSON.stringify(result)}\n`);
 
 if (process.env.GITHUB_STEP_SUMMARY) {
@@ -74,9 +106,17 @@ if (process.env.GITHUB_STEP_SUMMARY) {
 }
 
 const blockers = findings.filter((finding) => finding.forbidden);
-if (blockers.length > 0) {
+if (
+  blockers.length > 0 ||
+  unapprovedInventory.length > 0 ||
+  missingApprovedInventory.length > 0
+) {
   process.stderr.write(
-    `Forbidden dynamic HTML/script sinks found: ${JSON.stringify(blockers)}\n`
+    `Unapproved CSP surface found: ${JSON.stringify({
+      blockers,
+      unapprovedInventory,
+      missingApprovedInventory,
+    })}\n`
   );
   process.exitCode = 1;
 }

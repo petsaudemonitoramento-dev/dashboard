@@ -538,3 +538,8 @@
     width: 100%;
   }
 }
+
+.v20-empty-admin-cell {
+  padding: 32px;
+  text-align: center;
+}

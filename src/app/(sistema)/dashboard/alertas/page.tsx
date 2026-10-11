@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import styles from "../professionals-summary.module.css";
 
 type AlertRow = {
   gestante_id: string;
@@ -71,22 +72,9 @@ export default async function AlertasPage() {
         </span>
       </section>
 
-      <div
-        style={{
-          display: "grid",
-          gap: 14,
-          marginTop: 24,
-        }}
-      >
+      <div className={styles.listGrid}>
         {alerts.length === 0 ? (
-          <div
-            style={{
-              padding: 24,
-              border: "1px solid #dedbea",
-              borderRadius: 18,
-              background: "white",
-            }}
-          >
+          <div className={styles.summaryEmpty}>
             Nenhum alerta prioritário no momento.
           </div>
         ) : (
@@ -111,19 +99,11 @@ export default async function AlertasPage() {
             return (
               <article
                 key={row.gestante_id}
-                style={{
-                  padding: 20,
-                  border: "1px solid #dedbea",
-                  borderRadius: 18,
-                  background: "white",
-                }}
+                className={styles.summaryCard}
               >
                 <strong>{row.nome_visual}</strong>
                 <div
-                  style={{
-                    color: "#686276",
-                    margin: "6px 0 12px",
-                  }}
+                  className={styles.mutedDetail}
                 >
                   {row.codigo} · {signals.join(" · ")}
                 </div>

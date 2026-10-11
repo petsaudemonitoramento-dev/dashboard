@@ -345,7 +345,7 @@ export function AdminProfiles({
 
               {visibleProfiles.length === 0 && (
                 <tr>
-                  <td colSpan={6} style={{ padding: 32, textAlign: "center" }}>
+                  <td className="v20-empty-admin-cell" colSpan={6}>
                     <CheckCircle2 size={22} />
                     <br />
                     Nenhum perfil nesta situação.

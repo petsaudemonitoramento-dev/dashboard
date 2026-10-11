@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import styles from "./professionals-summary.module.css";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -96,59 +97,26 @@ export default async function DashboardPage() {
         </span>
       </section>
 
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns:
-            "repeat(auto-fit, minmax(190px, 1fr))",
-          gap: 16,
-          marginTop: 24,
-        }}
-      >
+      <section className={styles.metricsGrid}>
         {cards.map(([label, value, href]) => (
           <Link
             href={href}
             key={label}
-            style={{
-              padding: 22,
-              border: "1px solid #dedbea",
-              borderRadius: 18,
-              background: "white",
-              textDecoration: "none",
-              color: "inherit",
-            }}
+            className={styles.metricCard}
           >
             <span
-              style={{
-                display: "block",
-                color: "#686276",
-                marginBottom: 8,
-              }}
+              className={styles.metricLabel}
             >
               {label}
             </span>
-            <strong style={{ fontSize: 30 }}>{value}</strong>
+            <strong className={styles.metricValue}>{value}</strong>
           </Link>
         ))}
       </section>
 
-      <section
-        style={{
-          marginTop: 20,
-          padding: 22,
-          border: "1px solid #dedbea",
-          borderRadius: 18,
-          background: "white",
-        }}
-      >
-        <h2 style={{ marginTop: 0 }}>Acesso rápido</h2>
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 12,
-          }}
-        >
+      <section className={styles.quickCard}>
+        <h2 className={styles.quickTitle}>Acesso rápido</h2>
+        <div className={styles.quickLinks}>
           <Link href="/dashboard/gestantes">
             Abrir minhas gestantes
           </Link>

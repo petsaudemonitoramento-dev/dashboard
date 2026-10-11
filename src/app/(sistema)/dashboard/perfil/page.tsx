@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import styles from "../professionals-summary.module.css";
 
 export default async function PerfilPage() {
   const supabase = await createClient();
@@ -46,40 +47,14 @@ export default async function PerfilPage() {
         </span>
       </section>
 
-      <section
-        style={{
-          marginTop: 24,
-          padding: 24,
-          border: "1px solid #dedbea",
-          borderRadius: 18,
-          background: "white",
-          maxWidth: 760,
-        }}
-      >
-        <dl
-          style={{
-            display: "grid",
-            gap: 18,
-            margin: 0,
-          }}
-        >
+      <section className={styles.profileCard}>
+        <dl className={styles.profileList}>
           {rows.map(([label, value]) => (
             <div key={label}>
-              <dt
-                style={{
-                  color: "#686276",
-                  fontSize: 13,
-                  marginBottom: 4,
-                }}
-              >
+              <dt className={styles.profileTerm}>
                 {label}
               </dt>
-              <dd
-                style={{
-                  margin: 0,
-                  fontWeight: 700,
-                }}
-              >
+              <dd className={styles.profileValue}>
                 {value}
               </dd>
             </div>

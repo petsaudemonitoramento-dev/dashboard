@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import styles from "../professionals-summary.module.css";
 
 type AttendanceRow = {
   gestante_id: string;
@@ -61,44 +62,24 @@ export default async function AtendimentosPage() {
         </span>
       </section>
 
-      <div
-        style={{
-          display: "grid",
-          gap: 14,
-          marginTop: 24,
-        }}
-      >
+      <div className={styles.listGrid}>
         {rows.length === 0 ? (
-          <div
-            style={{
-              padding: 24,
-              border: "1px solid #dedbea",
-              borderRadius: 18,
-              background: "white",
-            }}
-          >
+          <div className={styles.summaryEmpty}>
             Nenhuma gestante vinculada.
           </div>
         ) : (
           rows.map((row) => (
             <article
               key={row.gestante_id}
-              style={{
-                padding: 20,
-                border: "1px solid #dedbea",
-                borderRadius: 18,
-                background: "white",
-                display: "grid",
-                gap: 8,
-              }}
+              className={styles.summaryCardGrid}
             >
               <strong>{row.nome_visual}</strong>
-              <span style={{ color: "#686276" }}>
+              <span className={styles.mutedText}>
                 {row.codigo} ·{" "}
                 {row.atendimentos_pre_natal ?? 0} consulta(s) de
                 pré-natal
               </span>
-              <span style={{ color: "#686276" }}>
+              <span className={styles.mutedText}>
                 Última consulta:{" "}
                 {formatDate(row.ultima_consulta_pre_natal)}
               </span>
