@@ -1,12 +1,19 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { phase9CiNoncePolicy } from "@/lib/security/phase9-csp";
 
 export async function proxy(request: NextRequest) {
   const requestId = crypto.randomUUID();
+  const phase9Policy = phase9CiNoncePolicy(request);
+  const phase9Nonce = phase9Policy?.match(/\x27nonce-([^\x27]+)\x27/)?.[1];
 
   const createResponse = () => {
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-request-id", requestId);
+    if (phase9Policy && phase9Nonce) {
+      requestHeaders.set("Content-Security-Policy", phase9Policy);
+      requestHeaders.set("x-nonce", phase9Nonce);
+    }
 
     const nextResponse = NextResponse.next({
       request: {
@@ -15,6 +22,10 @@ export async function proxy(request: NextRequest) {
     });
 
     nextResponse.headers.set("x-request-id", requestId);
+    if (phase9Policy) {
+      nextResponse.headers.set("Content-Security-Policy", phase9Policy);
+      nextResponse.headers.set("Cache-Control", "private, no-store");
+    }
     return nextResponse;
   };
 
