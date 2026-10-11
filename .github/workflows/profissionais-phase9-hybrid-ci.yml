@@ -87,6 +87,20 @@ jobs:
       - name: Build hybrid security policy on synthetic backend
         run: npm run build
 
+      - name: Verify auth routes are dynamic in first build
+        run: node scripts/phase9-auth-rendering-check.mjs first .phase9-auth-first.json
+
+      - name: Rebuild independently for rendering reproducibility
+        run: |
+          rm -rf .next
+          npm run build
+
+      - name: Verify auth routes are dynamic in second build
+        run: node scripts/phase9-auth-rendering-check.mjs second .phase9-auth-second.json .phase9-auth-first.json
+
+      - name: Compare identical endpoint with CSP disabled and enabled
+        run: node scripts/phase9-same-endpoint-benchmark.mjs
+
       - name: Supabase database lint
         run: supabase db lint --local --level error
 

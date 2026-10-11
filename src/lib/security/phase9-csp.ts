@@ -46,6 +46,9 @@ const htmlRoutes = new Set([
   "/cadastro",
   "/completar-cadastro",
   "/aguardando-aprovacao",
+  "/login",
+  "/recuperar-senha",
+  "/redefinir-senha",
 ]);
 
 function enforcementMode(request: NextRequest): EnforcementMode | null {
