@@ -232,7 +232,7 @@ try {
           'validado',
           now(),
           ${definitions.find((item) => item.key === "admin").id}::uuid,
-          'phase9_ci'
+          ${definition.role === "medico" ? "portal_cfm" : "consulta_cofen"}
         )
       `;
     }
