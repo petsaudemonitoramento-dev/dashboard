@@ -61,23 +61,42 @@ async function withEphemeralDatabase(callback) {
 
 test.describe.configure({ mode: "serial" });
 
-test("cadastro ignora tentativa de solicitar perfil privilegiado", async ({ request }) => {
+test("cadastro ignora tentativa de solicitar perfil privilegiado", async ({ page, request }) => {
   const email = "phase9-mass-assignment@ci.invalid";
-  const response = await request.post("/api/auth/cadastro", {
-    headers: mutationHeaders,
-    data: {
-      nomeCompleto: "Pessoa Sintética Phase 9",
-      dataNascimento: "01/01/1990",
-      email,
-      password: PASSWORD,
-      ubsId: "00000000-0000-4000-8000-000000000101",
-      perfil: "administrador",
-      perfil_solicitado: "administrador",
-      role: "service_role",
-      ativo: true,
+  const payload = {
+    nomeCompleto: "Pessoa Sintética Phase 9",
+    dataNascimento: "01/01/1990",
+    email,
+    password: PASSWORD,
+    ubsId: "00000000-0000-4000-8000-000000000101",
+    perfil: "administrador",
+    perfil_solicitado: "administrador",
+    role: "service_role",
+    ativo: true,
+  };
+
+  const crossSite = await request.post("/api/auth/cadastro", {
+    headers: {
+      origin: "https://cross-site.invalid",
+      "sec-fetch-site": "cross-site",
     },
+    data: payload,
   });
-  expect(response.status()).toBe(200);
+  expect(crossSite.status()).toBe(403);
+
+  await page.goto("/cadastro", { waitUntil: "domcontentloaded" });
+  const response = await page.evaluate(async (body) => {
+    const result = await fetch("/api/auth/cadastro", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return {
+      status: result.status,
+      body: await result.json(),
+    };
+  }, payload);
+  expect(response.status, JSON.stringify(response.body)).toBe(200);
   const row = await withEphemeralDatabase(async (sql) => {
     const [profile] = await sql`
       select perfil::text, perfil_solicitado, aprovacao_status, ubs_id, ubs_solicitada_id
