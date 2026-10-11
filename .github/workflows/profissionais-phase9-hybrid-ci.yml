@@ -72,6 +72,12 @@ jobs:
       - name: Audit runtime dependencies
         run: npm audit --omit=dev --audit-level=high
 
+
+      - name: Inventory static CSP attack surface
+        run: node scripts/phase9-static-surface-audit.mjs
+
+      - name: Test fail-closed staging activation gate
+        run: node --experimental-strip-types --test tests/phase9-gate.test.mjs
       - name: TypeScript
         run: npx tsc --noEmit
 

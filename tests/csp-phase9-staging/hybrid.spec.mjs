@@ -25,7 +25,9 @@ test("cadastro dinamico recebe CSP aplicada e nonce unico", async ({ request }) 
   expect(first).toContain("object-src 'none'");
   expect(first).toContain("frame-ancestors 'none'");
   expect(first).not.toContain("script-src 'self' 'unsafe-inline'");
+  expect(first).toContain("script-src-attr 'none'");
   expect(first).toContain("style-src 'self' 'unsafe-inline'");
+  expect(first).toContain("style-src-attr 'unsafe-inline'");
   expect(nonceFrom(first)).toBeTruthy();
   expect(nonceFrom(second)).toBeTruthy();
   expect(nonceFrom(first)).not.toBe(nonceFrom(second));
@@ -62,7 +64,7 @@ test("cadastro hidrata e CSP efetivamente bloqueia script inserido", async ({ pa
     const originalHtml = await original.text();
     const alteredHtml = originalHtml.replace(
       /<head([^>]*)>/i,
-      '<head$1><script>window.__phase9Unauthorized=1</script>'
+      '<head$1><script>window.__phase9Unauthorized=1</script><img id="phase9-event-probe" src="/missing-phase9.png" onerror="window.__phase9EventHandler=1">'
     );
     expect(alteredHtml).not.toBe(originalHtml);
     await route.fulfill({ response: original, body: alteredHtml });
@@ -75,6 +77,10 @@ test("cadastro hidrata e CSP efetivamente bloqueia script inserido", async ({ pa
   await expect(page.locator("#nomeCompleto")).toHaveValue("Outra Pessoa Sintética");
   const ran = await page.evaluate(() => window.__phase9Unauthorized === 1);
   expect(ran).toBe(false);
+  await expect(page.locator("#phase9-event-probe")).toBeAttached();
+  await page.waitForTimeout(100);
+  const eventRan = await page.evaluate(() => window.__phase9EventHandler === 1);
+  expect(eventRan).toBe(false);
   process.stdout.write("PHASE9_STAGING=" + JSON.stringify({
     scriptedInlineBlocked: true,
     hydrationWorks: true,
@@ -83,6 +89,25 @@ test("cadastro hidrata e CSP efetivamente bloqueia script inserido", async ({ pa
   }) + "\n");
 });
 
+
+test("query string e redirecionamento nao reabrem execucao inline", async ({ page, request }) => {
+  const marker = encodeURIComponent('<script id="phase9-query-probe">window.__phase9Query=1</script>');
+  const response = await page.goto(`/cadastro?next=${marker}`, {
+    waitUntil: "domcontentloaded",
+  });
+  expect(response?.status()).toBe(200);
+  expect(nonceFrom(response?.headers()["content-security-policy"])).toBeTruthy();
+  expect(await page.locator("#phase9-query-probe").count()).toBe(0);
+  expect(await page.evaluate(() => window.__phase9Query === 1)).toBe(false);
+
+  const redirect = await request.get("/dashboard", {
+    headers: { accept: "text/html" },
+    maxRedirects: 0,
+  });
+  expect([302, 303, 307, 308]).toContain(redirect.status());
+  expect(nonceFrom(redirect.headers()["content-security-policy"])).toBeTruthy();
+  expect(redirect.headers()["cache-control"]).toMatch(/no-store/);
+});
 test("sem acesso autenticado o dashboard redireciona ao login", async ({ page }) => {
   await page.goto("/dashboard");
   await expect(page).toHaveURL(/\/login(?:\?.*)?$/);
