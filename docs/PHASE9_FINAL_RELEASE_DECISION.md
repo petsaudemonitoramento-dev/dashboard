@@ -75,7 +75,7 @@ Referências oficiais consultadas:
 
 | ID | Prioridade | Risco e evidência | Tratamento |
 |---|---|---|---|
-| F9-001 | P0 | Gate CI-only impossibilita CSP candidata em qualquer deployment Vercel; o Preview verde não testa a implementação. | Projetar gate fail-closed para staging separado e provar casos negativos em CI. Homologação real continua obrigatória. |
+| F9-001 | P0 | O gate original CI-only impossibilitava a candidata em Vercel. | **Corrigido em código:** Preview só habilita com coincidência exata de environment, target, project ID, branch, host e Supabase sintético; Production e o projeto remoto conhecido são negados. Homologação real continua obrigatória. |
 | F9-002 | P0 | Não há evidência de Vercel + Supabase de teste isolados, deploy identificado e headers reais da candidata. | Gate H fica BLOCKED até existir ambiente inequivocamente isolado e acessível. |
 | F9-003 | P1 | Deployment observado pertence a `painelprenatal`, enquanto o contexto também menciona `maeaps`; vínculo correto não foi comprovado. | Exigir confirmação do projeto, ambiente e SHA antes de qualquer homologação. |
 | F9-004 | P1 | Rotas públicas estáticas mantêm `script-src 'unsafe-inline'`; estilos mantêm `'unsafe-inline'`. | Avaliar separadamente static+hash e dynamic+nonce; não declarar CSP integralmente estrita. |
@@ -92,7 +92,7 @@ Referências oficiais consultadas:
 | Gate | Criticidade | Evidência | Resultado | Bloqueador | Ação |
 |---|---|---|---|---|---|
 | A — Arquitetura | Alta | Branches, SHAs, versões, commits, workflow e deployment reconstruídos neste checkpoint | PASS | Não | Prosseguir para auditoria adversarial da implementação |
-| B — CSP | Crítica | Execução anterior é antecedente; nova execução da branch de auditoria ainda pendente | NOT RUN | Sim | Reexecutar e ampliar cenários negativos |
+| B — CSP | Crítica | Run `38102293195`: 20 testes do gate, 7 Playwright; script e handler inline bloqueados, nonce único de 128 bits, query/redirect cobertos | PASS | Não no escopo CI; Gate H ainda bloqueia release | Repetir os mesmos testes no staging isolado quando provisionado |
 | C — Cache e hashes | Alta | Divergência de hashes entre builds já documentada; estratégia final ainda não validada | NOT RUN | Sim | Testar build/cache/rollback e comparar alternativas |
 | D — Estilos | Alta | `'unsafe-inline'` permanece; inventário de componentes pendente | NOT RUN | Sim | Gerar inventário e testes visuais funcionais |
 | E — Autorização | Crítica | 193 pgTAP anteriores; E2E autenticado sob CSP não executado nesta auditoria | NOT RUN | Sim | Reexecutar RLS e adicionar E2E sintético viável |
@@ -112,6 +112,33 @@ Referências oficiais consultadas:
 - Resultado: arquitetura reconstruída; dois bloqueadores P0 demonstrados; decisão provisória NO-GO.
 - Próxima dependência: executar o CI no novo SHA e implementar testes fail-closed do gate de staging antes de qualquer tentativa de homologação.
 
+## Correções implementadas na auditoria
+
+- O gate deixou de ser exclusivamente CI-only. Em Vercel ele somente abre quando `VERCEL_ENV=preview` e há igualdade exata entre valores configurados e observados para target environment, project ID, branch, hostname e origem Supabase sintética.
+- O projeto remoto oficial conhecido `bhkyfcnuxcvjgvusgpgm` é explicitamente recusado pelo gate de staging mesmo se houver configuração equivocada coincidente.
+- O gate permanece compatível com o Supabase efêmero de CI e nunca abre em Production.
+- `script-src-attr 'none'` passou a declarar e impor o bloqueio de event handlers; `style-src-attr 'unsafe-inline'` documenta a exceção de estilos ainda necessária.
+- A origem websocket local/HTTPS agora é derivada corretamente como `ws:`/`wss:`.
+- Verificações estáticas e unitárias baratas rodam antes de qualquer download/inicialização do Supabase, reduzindo custo e impacto de limites do Docker Hub.
+
+### Evidência do Checkpoint B
+
+- Commit funcional: `1fae714b0cafb53398ad98db667fdd752c5e934b` (inclui correções iniciadas em `f6f25d4` e `e93da19`).
+- GitHub Actions: [run 38102293195](https://github.com/petsaudemonitoramento-dev/dashboard/actions/runs/38102293195), sucesso em 3m34s.
+- Gate fail-closed: 20/20 testes Node aprovados, incluindo negativas para Production, target, project ID, branch, host, wildcard, flag, backend divergente e Supabase remoto conhecido.
+- CSP em navegador: 7/7 Playwright aprovados; script sem nonce e `onerror` inline bloqueados, query string não criou HTML executável, redirect manteve nonce/no-store, hidratação e formulário sintético permaneceram funcionais.
+- Banco: 15 arquivos, 193 asserções pgTAP, `Result: PASS`; DB lint aprovado no Supabase efêmero.
+- Qualidade: TypeScript, ESLint e build aprovados; runtime `npm audit --omit=dev --audit-level=high` encontrou zero vulnerabilidades.
+- Inventário estático: 77 arquivos; zero sinks proibidos (`dangerouslySetInnerHTML`, `innerHTML=`, `document.write`, `eval`, `new Function`, `<script>` literal); 23 propriedades React `style` e 1 iframe ainda exigem avaliação no Gate D.
+- Run `38102100187` falhou no primeiro scanner por defeito de caminho do próprio teste, depois corrigido; não foi falha do produto. O log também registrou rate limit transitório do Docker Hub, do qual `supabase start` recuperou.
+
+### Checkpoint B — CSP e ativação segura de staging
+
+- Objetivo: remover a impossibilidade técnica de homologação sem permitir ativação acidental em Production.
+- Alterações: gate Vercel fail-closed, diretiva explícita de event handlers, testes unitários adversariais, novos probes em navegador e inventário estático.
+- Resultado: Gate B PASS no escopo CI/efêmero. Isso não substitui o Gate H; nenhum environment Vercel ou Supabase remoto foi criado/alterado.
+- Riscos restantes: estilos inline, páginas públicas estáticas com script unsafe-inline, ausência de staging isolado e ausência de E2E clínico autenticado sob a candidata.
+- Próxima dependência: Gate C/D e construção de E2E sintético autenticado sem service role no browser.
 ## Decisão atual
 
 **NO-GO.** Esta é uma decisão de release readiness, não uma rejeição da viabilidade da PoC. A política de scripts em CI mostrou mérito, mas a evidência indispensável de staging isolado está ausente e a própria implementação impede sua ativação em Vercel. A decisão somente poderá mudar depois que todos os gates obrigatórios estiverem PASS; qualquer FAIL ou BLOCKED preservará o NO-GO.
