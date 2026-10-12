@@ -272,7 +272,7 @@
 .identity span {
   display: block;
   margin-top: 3px;
-  color: #837c91;
+  color: #716a7e;
   font-size: 10px;
   font-weight: 650;
   letter-spacing: 0.045em;
@@ -355,7 +355,7 @@
 }
 
 .quickInfo small {
-  color: #7a7389;
+  color: #716a7e;
   font-size: 9px;
 }
 
@@ -401,7 +401,7 @@
 }
 
 .detailRow dt {
-  color: #817a8e;
+  color: #716a7e;
 }
 
 .detailRow dd {
