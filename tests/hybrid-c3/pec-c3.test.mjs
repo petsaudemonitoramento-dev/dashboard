@@ -138,3 +138,9 @@ test("importador analisa 20 gestantes ficticias e cabecalho PEC na linha 26", as
   assert.ok(parsed.rows.every((row) => row.canonical.nome.startsWith("Paciente Sintetica C3")));
   assert.ok(parsed.rows.every((row) => !row.raw.CPF && !row.raw.CNS));
 });
+
+test("bloqueia cabecalhos fisicamente repetidos mesmo apos sufixo de desambiguacao", () => {
+  const {diagnosis} = audit([...header, "Nome do Cidadão"], [[...row, "Paciente Sintética Duplicada"]]);
+  assert.equal(diagnosis.impedeImportacao, true);
+  assert.ok(diagnosis.duplicadas.length > 0);
+});
