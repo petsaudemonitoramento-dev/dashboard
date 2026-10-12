@@ -75,7 +75,7 @@ export function analyzePecSchema(parsed: ParsedPecFile): PecSchemaAudit {
   const index = new Map<string, string>();
   const normalizedIndex = new Map<string, string>();
   for (const header of parsed.headers) {
-    const normalized = normalizeHeader(header.replace(/\\s+\\(\\d+\\)$/, ""));
+    const normalized = normalizeHeader(header.replace(/\s+\(\d+\)$/, ""));
     const first = normalizedIndex.get(normalized);
     if (first) {
       duplicates.push({ coluna: header, tipo: "duplicada" });
