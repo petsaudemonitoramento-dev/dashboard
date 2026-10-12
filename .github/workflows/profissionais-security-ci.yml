@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/c3-pec-hybrid-synthetic-v30
       - profissionais-v1-seguranca
       - audit/pre-codex-hardening
       - audit/continue-security-v30
