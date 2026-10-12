@@ -125,6 +125,12 @@ jobs:
       - name: Legacy V2 surface guard
         run: node scripts/check-legacy-surface.mjs
 
+      - name: Lightweight origin protection regressions
+        run: node --experimental-strip-types --test tests/security/origin-check.test.mjs
+
+      - name: Guard browser code against dangerous DOM and eval sinks
+        run: node scripts/check-browser-code-sinks.mjs
+
       - name: ESLint
         run: npm run lint
 
