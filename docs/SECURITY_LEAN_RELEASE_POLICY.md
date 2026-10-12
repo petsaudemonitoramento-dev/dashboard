@@ -1,6 +1,6 @@
 # MAE APS – Profissionais | Segurança proporcional e de baixo custo
 
-**Escopo:** evolução incremental a partir da \`main\`, sem criar outro projeto Vercel ou Supabase e sem promover a CSP experimental da Fase 9.
+**Escopo:** evolução incremental a partir da `main`, sem criar outro projeto Vercel ou Supabase e sem promover a CSP experimental da Fase 9.
 
 ## Decisão de arquitetura
 
@@ -8,25 +8,25 @@ A Fase 9 concluiu sua auditoria com **NO-GO para promover o pacote completo da C
 
 Esta integração reaproveita **somente correções independentes**, com baixo risco de regressão:
 
-- Correção de validação de origem de POSTs sob proxy/reverse proxy, com comparação por \`Host\` e protocolo, **sem confiar em \`X-Forwarded-Host\`**. A verificação de \`Sec-Fetch-Site\` e as demais proteções foram mantidas.
-- \`script-src-attr 'none'\`: bloqueia handlers HTML inline em navegadores que suportam CSP3, sem forçar páginas públicas para renderização dinâmica. **Não remove** \`script-src 'unsafe-inline'\`, mantido pela arquitetura atual.
+- Correção de validação de origem de POSTs sob proxy/reverse proxy, com comparação por `Host` e protocolo, **sem confiar em `X-Forwarded-Host`**. A verificação de `Sec-Fetch-Site` e as demais proteções foram mantidas.
+- `script-src-attr 'none'`: bloqueia handlers HTML inline em navegadores que suportam CSP3, sem forçar páginas públicas para renderização dinâmica. **Não remove** `script-src 'unsafe-inline'`, mantido pela arquitetura atual.
 - Ajustes previamente testados de contraste textual na interface clínica.
 - Testes direcionados de origem e scanner simples para impedir a reintrodução de padrões JS de alto risco.
 
-**Não transportar:** código \`phase9-csp.ts\`, dinâmica nonce, branches experimentais, regras de TLS sem vínculo com testes efêmeros, scripts extensivos de benchmark e staging, nem o bloqueio de CSS \`unsafe-inline\`.
+**Não transportar:** código `phase9-csp.ts`, dinâmica nonce, branches experimentais, regras de TLS sem vínculo com testes efêmeros, scripts extensivos de benchmark e staging, nem o bloqueio de CSS `unsafe-inline`.
 
 ## Proteções essenciais mantidas
 
 - Supabase Auth, RBAC e RLS, incluindo isolamento por profissional, UBS e permissão.
-- Segredos apenas no servidor; não divulgar \`service_role\`, URL do banco nem chaves de administração a componentes do navegador.
-- \`npm audit --omit=dev --audit-level=high\`, TypeScript, ESLint, build, pgTAP e DB lint já existentes no Security CI.
+- Segredos apenas no servidor; não divulgar `service_role`, URL do banco nem chaves de administração a componentes do navegador.
+- `npm audit --omit=dev --audit-level=high`, TypeScript, ESLint, build, pgTAP e DB lint já existentes no Security CI.
 - Proteções de CSRF, tamanho de carga, rate limit, controle de acesso a PDFs, importação PEC e trilhas de auditoria.
 - HTTPS, HSTS em Production, no-sniff, frame protection e CSP vigente.
 - CI de acessibilidade e rotinas de monitoramento/recuperação já configurados no repositório.
 
 ## Release de custo baixo
 
-1. Abrir PR **draft** para \`main\`. Não implantar automaticamente antes da conclusão dos checks.
+1. Abrir PR **draft** para `main`. Não implantar automaticamente antes da conclusão dos checks.
 2. Exigir Security CI verde (incluindo banco descartável, testes de origem e scanner JS) e Accessibility CI, quando disponível.
 3. Revisar o diff; não aceitar falhas novas de RLS, autenticação, CSRF ou isolamento.
 4. Fazer verificação manual curta, **com contas e registros sintéticos existentes** e **sem alterar dados reais**, das telas de login, dashboard, gestantes, PDFs e importação PEC. Se essa verificação exigir escrita e não houver ambiente seguro para fazê-la, limitar-se a consultas não destrutivas e registrar o fluxo como não validado.
