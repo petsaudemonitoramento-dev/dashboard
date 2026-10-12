@@ -39,6 +39,7 @@ const scriptSources = [
 const csp = [
   "default-src 'self'",
   `script-src ${scriptSources}`,
+  "script-src-attr 'none'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
