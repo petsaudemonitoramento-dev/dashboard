@@ -1,4 +1,4 @@
-import { ALIASES, normalizeHeader, type ParsedPecFile } from "./columns";
+import { ALIASES, normalizeHeader, type ParsedPecFile } from "./columns.ts";
 
 export type PecColumnIssue = {
   coluna: string;
