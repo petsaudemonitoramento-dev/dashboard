@@ -144,3 +144,14 @@ test("bloqueia cabecalhos fisicamente repetidos mesmo apos sufixo de desambiguac
   assert.equal(diagnosis.impedeImportacao, true);
   assert.ok(diagnosis.duplicadas.length > 0);
 });
+
+test("colunas novas de email, filiacao e prontuario nao entram em extras", () => {
+  const extra = ["E-mail do paciente", "Nome da mae", "Identidade", "Numero do prontuario"];
+  const {parsed, diagnosis} = audit(
+    [...header, ...extra],
+    [[...row, "nao-real@example.invalid", "Filiacao Ficticia", "0000", "12345"]]
+  );
+  assert.equal(diagnosis.novas.length, 4);
+  for (const name of extra) assert.equal(parsed.rows[0].extras[name], undefined);
+  assert.equal(diagnosis.exigeRevisao, true);
+});
