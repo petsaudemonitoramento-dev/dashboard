@@ -101,7 +101,7 @@ const DIRECT_IDENTIFIER_KEYS = new Set([
 ]);
 
 const PII_HEADER_PATTERN =
-  /(nome|cpf|cns|cartao.*sus|telefone|celular|nascimento|logradouro|rua|numero|complemento|bairro|cep|endereco)/;
+  /(nome|cpf|cns|cartao.*sus|telefone|celular|email|e mail|correio eletronico|nascimento|logradouro|rua|numero|complemento|bairro|cep|endereco|filiacao|nome.*mae|nome.*pai|identidade|registro geral|documento|responsavel|pis|pasep|nis|matricula|prontuario)/;
 
 export function normalizeHeader(value: unknown): string {
   return String(value ?? "")
