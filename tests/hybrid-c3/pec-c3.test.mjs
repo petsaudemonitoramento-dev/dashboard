@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { parsePecFile } from "../../src/lib/pec/columns.ts";
 import { analyzePecSchema } from "../../src/lib/pec/schema-audit.ts";
 import { evaluateC3Coverage } from "../../src/lib/c3/coverage.ts";
@@ -121,4 +122,19 @@ test("dados agregados do PEC geram pendencia de validacao, nao comprovacao de me
   assert.equal(result.semInformacao, 0);
   assert.equal(result.pontuacaoOficialCalculada, false);
   assert.ok(result.itens[0].orientacao.includes("Conferir"));
+});
+
+test("importador analisa 20 gestantes ficticias e cabecalho PEC na linha 26", async () => {
+  const fixture = await readFile(
+    new URL("../fixtures/pec-c3-20-gestantes-sinteticas.csv", import.meta.url)
+  );
+  const parsed = parsePecFile(fixture, "pec-c3-20-gestantes-sinteticas.csv");
+  const report = analyzePecSchema(parsed);
+  assert.equal(parsed.headerRow, 26);
+  assert.equal(parsed.rows.length, 20);
+  assert.equal(report.impedeImportacao, false);
+  assert.equal(report.novas.length, 0);
+  assert.equal(report.valoresSuspeitos.length, 0);
+  assert.ok(parsed.rows.every((row) => row.canonical.nome.startsWith("Paciente Sintetica C3")));
+  assert.ok(parsed.rows.every((row) => !row.raw.CPF && !row.raw.CNS));
 });
