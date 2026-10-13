@@ -30,6 +30,21 @@ const DATE_KEYS = new Set([
   "data_ultimo_peso_altura", "data_ultima_pressao",
 ]);
 
+// Cabeçalhos padronizados da exportação PEC real, úteis mas não equivalentes
+// automaticamente a eventos ou evidências clínicas C3.
+const KNOWN_PEC_EXTRAS = new Set([
+  "Meses desde o último atendimento médico",
+  "Meses desde o último atendimento de enfermagem",
+  "Meses desde o último atendimento odontológico",
+  "Meses desde a última visita domiciliar",
+].map(normalizeHeader));
+
+function isPecMissing(value: string): boolean {
+  return ["", "-", "null", "n/a", "nao informado", "não informado",
+    "nao se aplica", "não se aplica", "nao_se_aplica"]
+    .includes(value.trim().toLowerCase());
+}
+
 function validDate(value: string): boolean {
   const trimmed = value.trim();
   const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
@@ -92,6 +107,9 @@ export function analyzePecSchema(parsed: ParsedPecFile): PecSchemaAudit {
       const match = aliases.find((item) => item.label === normalized);
       if (match && parsed.mapping[match.canonical] !== header) {
         duplicates.push({ coluna: header, tipo: "duplicada" });
+      } else if (KNOWN_PEC_EXTRAS.has(normalized)) {
+        // Preserve as PEC extras; do not falsely map these month counts to C3.
+        continue;
       } else {
         const candidate = suggest(header);
         newColumns.push({
@@ -105,7 +123,13 @@ export function analyzePecSchema(parsed: ParsedPecFile): PecSchemaAudit {
   const missing = ["nome", "data_nascimento", "microarea"].filter((k) => !parsed.mapping[k]);
   const suspiciousCount = new Map<string, number>();
   for (const row of parsed.rows) {
+    for (const required of ["nome", "data_nascimento", "microarea"]) {
+      if (isPecMissing(row.canonical[required] ?? "")) {
+        suspiciousCount.set(required, (suspiciousCount.get(required) ?? 0) + 1);
+      }
+    }
     for (const [field, value] of Object.entries(row.canonical)) {
+      if (isPecMissing(value)) continue; // "-" and N/A are unreported, not impossible values
       const invalid = SAFE_KEYS.has(field)
         ? !/^\d+$/.test(value.trim()) || Number(value) > 999
         : DATE_KEYS.has(field)
