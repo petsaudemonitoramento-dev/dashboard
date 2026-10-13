@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(15);
+select plan(17);
 
 -- O CI usa banco efemero. Estes UUIDs e contatos nao representam pessoas reais.
 insert into auth.users (id, aud, role, email, created_at, updated_at)
@@ -172,8 +172,6 @@ select lives_ok(
           "cpf":"00000000000",
           "cns":"000000000000000",
           "microarea":"07",
-          "dum":"10/03/2026",
-          "dpp_dum":"15/12/2026",
           "atendimentos_pre_natal":"6",
           "visitas_pre_natal":"3",
           "visitas_puerperio":"0",
@@ -211,6 +209,20 @@ select is(
    where profissional_responsavel_id='32000000-0000-4000-8000-000000000001'::uuid),
   1::bigint,
   'atualizacoes nao criam paciente duplicada'
+);
+
+select is(
+  (select dum from public.pec_gestantes
+   where profissional_responsavel_id='32000000-0000-4000-8000-000000000001'::uuid),
+  date '2026-03-10',
+  'exportacao parcial sem DUM nao apaga DUM PEC antiga'
+);
+
+select ok(
+  (select not ('dum'=any(bloqueios_manuais))
+   from public.pec_gestantes
+   where profissional_responsavel_id='32000000-0000-4000-8000-000000000001'::uuid),
+  'DUM original permanece automaticamente gerenciavel pelo PEC'
 );
 
 select * from finish();
