@@ -48,7 +48,7 @@ insert into private.credenciais_profissionais (
   '31000000-0000-4000-8000-000000000001'::uuid,
   'enfermeiro', 'COREN', 'PB', '310001', 'ENFERMEIRO',
   'validado', now(), '31000000-0000-4000-8000-000000000099'::uuid,
-  'portal_sintetico_ci'
+  'consulta_cofen'
 )
 on conflict (usuario_id) do update set
   cargo_funcao=excluded.cargo_funcao,
