@@ -31,6 +31,31 @@ on conflict (id) do update set
   aprovacao_status = 'aprovado',
   perfil_excluido_em = null;
 
+-- Importação de PEC exige credencial clínica validada, além do perfil aprovado.
+-- A fixture reproduz essa condição; não altera permissões de produção.
+insert into auth.users (id, aud, role, email, created_at, updated_at)
+values (
+  '31000000-0000-4000-8000-000000000099'::uuid,
+  'authenticated', 'authenticated', 'admin-sintetico@ci.invalid',
+  now(), now()
+)
+on conflict (id) do nothing;
+
+insert into private.credenciais_profissionais (
+  usuario_id, cargo_funcao, conselho, uf, numero_registro, categoria,
+  situacao, decidido_em, decidido_por, fonte_verificacao
+) values (
+  '31000000-0000-4000-8000-000000000001'::uuid,
+  'enfermeiro', 'COREN', 'PB', '310001', 'ENFERMEIRO',
+  'validado', now(), '31000000-0000-4000-8000-000000000099'::uuid,
+  'portal_sintetico_ci'
+)
+on conflict (usuario_id) do update set
+  cargo_funcao=excluded.cargo_funcao,
+  conselho=excluded.conselho, categoria=excluded.categoria,
+  situacao=excluded.situacao, decidido_em=excluded.decidido_em,
+  decidido_por=excluded.decidido_por;
+
 set local role authenticated;
 select set_config(
   'request.jwt.claim.sub',
