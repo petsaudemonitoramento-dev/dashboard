@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { parsePecFile } from "@/lib/pec/columns";
+import { analyzePecSchema } from "@/lib/pec/schema-audit";
 import {
   logServerFailure,
   mutationRequestError,
@@ -141,6 +142,8 @@ export async function POST(request: Request) {
 
     const parsed = parsePecFile(buffer, originalName);
 
+    const schemaAudit = analyzePecSchema(parsed);
+
     if (parsed.rows.length > MAX_ROWS) {
       return NextResponse.json(
         {
@@ -170,10 +173,25 @@ export async function POST(request: Request) {
           headerRow: parsed.headerRow,
           totalRows: parsed.rows.length,
           mapping: parsed.mapping,
+          schemaAudit,
           warnings: parsed.warnings.slice(0, 100),
           preview,
         },
         { headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    if (schemaAudit.impedeImportacao) {
+      return NextResponse.json(
+        { error: "A estrutura contém colunas conflitantes, campos obrigatórios ausentes ou valores inválidos. Revise o arquivo antes de importar." },
+        { status: 422, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    if (schemaAudit.exigeRevisao && formData.get("estrutura_revisada") !== "sim") {
+      return NextResponse.json(
+        { error: "Existem colunas novas. Confira o diagnóstico e confirme a revisão antes de importar." },
+        { status: 409, headers: { "Cache-Control": "no-store" } }
       );
     }
 

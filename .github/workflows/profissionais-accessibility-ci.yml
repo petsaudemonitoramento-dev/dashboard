@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/c3-pec-hybrid-synthetic-v30
       - codex/post-homologation-quality-v30
       - hardening/post-audit-v1
     paths:

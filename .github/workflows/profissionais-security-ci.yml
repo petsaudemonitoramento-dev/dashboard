@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/c3-pec-hybrid-synthetic-v30
       - profissionais-v1-seguranca
       - audit/pre-codex-hardening
       - audit/continue-security-v30
@@ -130,6 +131,9 @@ jobs:
 
       - name: Guard browser code against dangerous DOM and eval sinks
         run: node scripts/check-browser-code-sinks.mjs
+
+      - name: Synthetic PEC and C3 regression tests
+        run: node --experimental-strip-types --test tests/hybrid-c3/*.test.mjs
 
       - name: ESLint
         run: npm run lint

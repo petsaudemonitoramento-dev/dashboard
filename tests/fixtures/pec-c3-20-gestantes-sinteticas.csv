@@ -1,0 +1,46 @@
+Relatorio PEC de TESTE - cabeçalho informativo 1
+Relatorio PEC de TESTE - cabeçalho informativo 2
+Relatorio PEC de TESTE - cabeçalho informativo 3
+Relatorio PEC de TESTE - cabeçalho informativo 4
+Relatorio PEC de TESTE - cabeçalho informativo 5
+Relatorio PEC de TESTE - cabeçalho informativo 6
+Relatorio PEC de TESTE - cabeçalho informativo 7
+Relatorio PEC de TESTE - cabeçalho informativo 8
+Relatorio PEC de TESTE - cabeçalho informativo 9
+Relatorio PEC de TESTE - cabeçalho informativo 10
+Relatorio PEC de TESTE - cabeçalho informativo 11
+Relatorio PEC de TESTE - cabeçalho informativo 12
+Relatorio PEC de TESTE - cabeçalho informativo 13
+Relatorio PEC de TESTE - cabeçalho informativo 14
+Relatorio PEC de TESTE - cabeçalho informativo 15
+Relatorio PEC de TESTE - cabeçalho informativo 16
+Relatorio PEC de TESTE - cabeçalho informativo 17
+Relatorio PEC de TESTE - cabeçalho informativo 18
+Relatorio PEC de TESTE - cabeçalho informativo 19
+Relatorio PEC de TESTE - cabeçalho informativo 20
+Relatorio PEC de TESTE - cabeçalho informativo 21
+Relatorio PEC de TESTE - cabeçalho informativo 22
+Relatorio PEC de TESTE - cabeçalho informativo 23
+Relatorio PEC de TESTE - cabeçalho informativo 24
+Relatorio PEC de TESTE - cabeçalho informativo 25
+Nome;Data de nascimento;Microárea;DUM;DPP DUM;Quantidade de atendimentos no pre natal;Quantidade de atendimentos ate 12 semanas no pre natal;Quantidade de medicoes de pressao arterial;Quantidade de medicoes simultaneas de peso e altura;Quantidade de visitas domiciliares no pre natal;Quantidade de atendimentos no puerperio;Quantidade de visitas domiciliares no puerperio;Quantidade de atendimentos odontologicos no pre natal;Exame de HIV no primeiro trimestre;Exame de sifilis no primeiro trimestre;Exame de hepatite B no primeiro trimestre;Exame de hepatite C no primeiro trimestre;Exame de HIV no terceiro trimestre;Exame de sifilis no terceiro trimestre
+Paciente Sintetica C3 01;01/01/1990;07;03/01/2026;10/10/2026;0;1;0;2;0;1;1;1;realizado;realizado;realizado;realizado;realizado;realizado
+Paciente Sintetica C3 02;02/02/1991;08;05/01/2026;12/10/2026;1;0;1;5;1;0;0;0;;;;;;
+Paciente Sintetica C3 03;03/03/1992;09;07/01/2026;14/10/2026;2;0;2;7;2;0;0;0;realizado;;;;;
+Paciente Sintetica C3 04;04/04/1993;10;09/01/2026;16/10/2026;3;1;5;8;3;0;0;1;;realizado;;;;
+Paciente Sintetica C3 05;05/05/1994;07;11/01/2026;18/10/2026;4;0;7;10;0;0;0;0;realizado;;realizado;;;
+Paciente Sintetica C3 06;06/06/1995;08;13/01/2026;20/10/2026;5;0;8;0;1;1;0;0;;;;realizado;;
+Paciente Sintetica C3 07;07/07/1996;09;15/01/2026;22/10/2026;6;1;10;1;2;0;1;1;realizado;realizado;;;realizado;
+Paciente Sintetica C3 08;08/08/1997;10;17/01/2026;24/10/2026;0;0;0;2;3;0;0;0;;;;;;realizado
+Paciente Sintetica C3 09;09/09/1998;07;19/01/2026;26/10/2026;1;0;1;5;0;0;0;0;realizado;;realizado;;;
+Paciente Sintetica C3 10;10/10/1999;08;21/01/2026;28/10/2026;2;1;2;7;1;0;0;1;;realizado;;;;
+Paciente Sintetica C3 11;11/11/1990;09;23/01/2026;30/10/2026;3;0;5;8;2;1;0;0;realizado;;;realizado;;
+Paciente Sintetica C3 12;12/12/1991;10;25/01/2026;01/11/2026;4;0;7;10;3;0;0;0;;;;;;
+Paciente Sintetica C3 13;13/01/1992;07;27/01/2026;03/11/2026;5;1;8;0;0;0;1;1;realizado;realizado;realizado;;realizado;
+Paciente Sintetica C3 14;14/02/1993;08;29/01/2026;05/11/2026;6;0;10;1;1;0;0;0;;;;;;
+Paciente Sintetica C3 15;15/03/1994;09;31/01/2026;07/11/2026;0;0;0;2;2;0;0;0;realizado;;;;;realizado
+Paciente Sintetica C3 16;16/04/1995;10;02/02/2026;09/11/2026;1;1;1;5;3;1;0;1;;realizado;;realizado;;
+Paciente Sintetica C3 17;17/05/1996;07;04/02/2026;11/11/2026;2;0;2;7;0;0;0;0;realizado;;realizado;;;
+Paciente Sintetica C3 18;18/06/1997;08;06/02/2026;13/11/2026;3;0;5;8;1;0;0;0;;;;;;
+Paciente Sintetica C3 19;19/07/1998;09;08/02/2026;15/11/2026;4;1;7;10;2;0;1;1;realizado;realizado;;;realizado;
+Paciente Sintetica C3 20;20/08/1999;10;10/02/2026;17/11/2026;5;0;8;0;3;0;0;0;;;;;;
