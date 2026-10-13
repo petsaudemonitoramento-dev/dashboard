@@ -140,6 +140,7 @@ export async function POST(request: Request) {
       );
     }
 
+    const hash = createHash("sha256").update(buffer).digest("hex");
     const parsed = parsePecFile(buffer, originalName);
 
     const schemaAudit = analyzePecSchema(parsed);
@@ -174,6 +175,7 @@ export async function POST(request: Request) {
           totalRows: parsed.rows.length,
           mapping: parsed.mapping,
           schemaAudit,
+          arquivoSha256: hash,
           warnings: parsed.warnings.slice(0, 100),
           preview,
         },
@@ -195,9 +197,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const hash = createHash("sha256")
-      .update(buffer)
-      .digest("hex");
+    if (formData.get("arquivoAnalisadoSha256") !== hash) {
+      return NextResponse.json(
+        { error: "O arquivo mudou desde a análise. Analise novamente para evitar importar outra planilha por engano." },
+        { status: 409, headers: { "Cache-Control": "no-store" } }
+      );
+    }
 
     const { data: resultado, error: importError } =
       await supabase.rpc("profissionais_importar_pec_v30", {
