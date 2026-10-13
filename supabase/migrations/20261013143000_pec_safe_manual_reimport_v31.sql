@@ -116,6 +116,8 @@ declare
   v_resultado jsonb;
   v_importacao_id uuid;
   v_cached public.importacoes_pec_resumo%rowtype;
+  v_existentes_antes integer := 0;
+  v_protegidos_antes integer := 0;
 begin
   if not exists (
     select 1
@@ -177,6 +179,21 @@ begin
     );
   end if;
 
+  -- Comparação sem revelar identidade: wrapper já vetou pacientes de outro profissional.
+  select
+    count(distinct g.id)::integer,
+    count(distinct g.id) filter (
+      where cardinality(coalesce(g.bloqueios_manuais, '{}'::text[])) > 0
+    )::integer
+  into v_existentes_antes, v_protegidos_antes
+  from jsonb_array_elements(coalesce(p_linhas, '[]'::jsonb)) item
+  join private.identidades_gestantes i
+    on i.identidade_hash = private.identidade_hash(
+      coalesce(item->'canonical', '{}'::jsonb), p_ubs_id
+    )
+  join public.pec_gestantes g on g.id = i.gestante_id
+  where g.profissional_responsavel_id = p_usuario_id;
+
   -- Cada chamada inicia com sua origem correta, independente de contexto anterior.
   perform set_config('app.origem_atualizacao', 'pec', true);
 
@@ -206,9 +223,13 @@ begin
     raise exception 'Falha no isolamento de ownership da importação';
   end if;
 
-  return v_resultado;
+  return v_resultado || jsonb_build_object(
+    'pacientesExistentesAntes', coalesce(v_existentes_antes, 0),
+    'fichasComCorrecoesManuaisAntes', coalesce(v_protegidos_antes, 0),
+    'notaComparacao', 'Contagens de fichas identificadas antes da importação; falhas por linha podem alterar os totais efetivos.'
+  );
 end
-$$;
+$;
 
 revoke all on function private.importar_pec_v30(
  uuid, uuid, text, text, integer, jsonb, jsonb, jsonb
