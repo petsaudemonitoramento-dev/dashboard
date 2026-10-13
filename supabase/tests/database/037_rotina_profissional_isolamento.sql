@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(14);
 
 -- Todos os dados, UUIDs e emails abaixo são fictícios e descartados ao final.
 insert into auth.users(id,aud,role,email,created_at,updated_at)
@@ -68,15 +68,19 @@ select is(
  'A só visualiza sua própria agenda'
 );
 
+select lives_ok(
+ $sql$
+ update public.rotina_profissional_tarefas_v1
+ set status='concluida', concluida_em=now()
+ where id='43000000-0000-4000-8000-000000000001'
+ $sql$,
+ 'A pode concluir a própria tarefa'
+);
 select is(
- (with updated as (
-    update public.rotina_profissional_tarefas_v1
-    set status='concluida',concluida_em=now()
-    where id='43000000-0000-4000-8000-000000000001'
-    returning id
-  ) select count(*)::bigint from updated),
- 1::bigint,
- 'A pode concluir sua própria tarefa'
+ (select status from public.rotina_profissional_tarefas_v1
+   where id='43000000-0000-4000-8000-000000000001'),
+ 'concluida'::text,
+ 'Estado concluída persistiu'
 );
 
 select set_config('request.jwt.claim.sub','41000000-0000-4000-8000-000000000002',true);
@@ -87,15 +91,13 @@ select is(
  'B não vê tarefas de A mesmo sendo da mesma UBS'
 );
 
-select is(
- (with updated as (
-    update public.rotina_profissional_tarefas_v1
-    set data_prevista=date '2026-11-10'
-    where id='43000000-0000-4000-8000-000000000001'
-    returning id
-  ) select count(*)::bigint from updated),
- 0::bigint,
- 'B não consegue reagendar tarefa de A'
+select lives_ok(
+ $sql$
+ update public.rotina_profissional_tarefas_v1
+ set data_prevista=date '2026-11-10'
+ where id='43000000-0000-4000-8000-000000000001'
+ $sql$,
+ 'Tentativa de edição por B não causa acesso autorizado'
 );
 
 select lives_ok(
@@ -125,14 +127,26 @@ select is(
  'A continua sem ver agenda da colega'
 );
 
+select lives_ok(
+ $sql$
+ delete from public.rotina_profissional_tarefas_v1
+ where id='43000000-0000-4000-8000-000000000002'
+ $sql$,
+ 'Tentativa de exclusão por A é filtrada pela RLS'
+);
+select set_config('request.jwt.claim.sub','41000000-0000-4000-8000-000000000002',true);
 select is(
- (with removed as (
-    delete from public.rotina_profissional_tarefas_v1
-    where id='43000000-0000-4000-8000-000000000002'
-    returning id
-  ) select count(*)::bigint from removed),
- 0::bigint,
- 'A não consegue excluir tarefa de B'
+ (select count(*)::bigint from public.rotina_profissional_tarefas_v1
+   where id='43000000-0000-4000-8000-000000000002'),
+ 1::bigint,
+ 'Exclusão por A não apagou a tarefa de B'
+);
+select set_config('request.jwt.claim.sub','41000000-0000-4000-8000-000000000001',true);
+select is(
+ (select data_prevista from public.rotina_profissional_tarefas_v1
+   where id='43000000-0000-4000-8000-000000000001'),
+ date '2026-10-20',
+ 'Reagendamento por B não alterou data de A'
 );
 
 reset role;
