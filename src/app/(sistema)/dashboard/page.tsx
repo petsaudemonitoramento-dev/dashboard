@@ -50,7 +50,7 @@ export default async function DashboardPage(){
   if(listError)throw listError;
   if(taskError)throw taskError;
 
-  const patients:WorkPatient=((listData??[]) as HomeRow[])
+  const patients:WorkPatient[]=((listData??[]) as HomeRow[])
     .filter(p=>!p.alta_ativa)
     .map(p=>({
       id:p.gestante_id,codigo:p.codigo,
