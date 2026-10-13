@@ -25,6 +25,7 @@ type SchemaAudit = {
 };
 
 type PreviewResponse = {
+  arquivoSha256: string;
   schemaAudit?: SchemaAudit;
   sheetName: string;
   headerRow: number;
@@ -42,6 +43,7 @@ type PreviewResponse = {
 };
 
 type ImportResponse = {
+  jaImportado?: boolean;
   importacao_id: string;
   total: number;
   processadas: number;
@@ -85,6 +87,9 @@ export function ImportacaoPecForm({
     formData.set("file", file);
     formData.set("mode", mode);
     formData.set("ubs_id", ubsId);
+    if (mode === "import" && preview?.arquivoSha256) {
+      formData.set("arquivoAnalisadoSha256", preview.arquivoSha256);
+    }
     if (mode === "import" && structureReviewed) formData.set("estrutura_revisada", "sim");
 
     try {
@@ -123,7 +128,13 @@ export function ImportacaoPecForm({
   }
 
   const resultVisual = result
-    ? result.erros === 0
+    ? result.jaImportado
+      ? {
+          className: "pec-result-card--success",
+          title: "Este arquivo já foi importado",
+          Icon: CheckCircle2,
+        }
+      : result.erros === 0
       ? {
           className: "pec-result-card--success",
           title: "Importação concluída",
@@ -363,8 +374,9 @@ export function ImportacaoPecForm({
           <div>
             <h2>{resultVisual.title}</h2>
             <p>
-              {result.processadas} de {result.total} registros foram
-              processados. Erros: {result.erros}.
+              {result.jaImportado
+                ? "Este arquivo já havia sido processado pela sua conta. Nenhuma gestante foi duplicada ou reimportada."
+                : `${result.processadas} de ${result.total} registros foram processados. Erros: ${result.erros}.`}
             </p>
 
             {result.processadas > 0 ? (
