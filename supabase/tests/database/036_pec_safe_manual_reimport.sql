@@ -26,7 +26,7 @@ insert into private.credenciais_profissionais (
 ) values (
  '32000000-0000-4000-8000-000000000001'::uuid,
  'enfermeiro','COREN','PB','320001','ENFERMEIRO','validado',
- now(),'32000000-0000-4000-8000-000000000099'::uuid,'ci-sintetico'
+ now(),'32000000-0000-4000-8000-000000000099'::uuid,'consulta_cofen'
 );
 
 set local role authenticated;
