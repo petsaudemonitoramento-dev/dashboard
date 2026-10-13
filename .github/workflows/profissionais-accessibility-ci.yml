@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - feature/c3-pec-hybrid-synthetic-v30
+      - feature/pec-safe-reimport-v31
       - codex/post-homologation-quality-v30
       - hardening/post-audit-v1
     paths:
