@@ -229,7 +229,7 @@ begin
     'notaComparacao', 'Contagens de fichas identificadas antes da importação; falhas por linha podem alterar os totais efetivos.'
   );
 end
-$;
+$$;
 
 revoke all on function private.importar_pec_v30(
  uuid, uuid, text, text, integer, jsonb, jsonb, jsonb
