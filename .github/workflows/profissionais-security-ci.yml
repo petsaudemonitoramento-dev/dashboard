@@ -133,7 +133,7 @@ jobs:
         run: node scripts/check-browser-code-sinks.mjs
 
       - name: Synthetic PEC and C3 regression tests
-        run: node --experimental-strip-types --test tests/hybrid-c3/pec-c3.test.mjs
+        run: node --experimental-strip-types --test tests/hybrid-c3/*.test.mjs
 
       - name: ESLint
         run: npm run lint
