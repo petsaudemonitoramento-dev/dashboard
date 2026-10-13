@@ -13,6 +13,56 @@ declare
   v_changed text[];
 begin
   if current_setting('app.origem_atualizacao', true) is distinct from 'manual' then
+    if tg_op = 'UPDATE' then
+      -- Uma coluna ausente no arquivo novo representa "não informado",
+      -- nunca ordem para apagar valor PEC anteriormente documentado.
+      if new.microarea_id is null then new.microarea_id := old.microarea_id; end if;
+      if new.idade_anos is null then new.idade_anos := old.idade_anos; end if;
+      if new.ano_nascimento is null then new.ano_nascimento := old.ano_nascimento; end if;
+      if new.sexo is null then new.sexo := old.sexo; end if;
+      if new.identidade_genero is null then new.identidade_genero := old.identidade_genero; end if;
+      if new.raca_cor is null then new.raca_cor := old.raca_cor; end if;
+      if new.bolsa_familia is null then new.bolsa_familia := old.bolsa_familia; end if;
+      if new.vigencia_bolsa_familia is null then new.vigencia_bolsa_familia := old.vigencia_bolsa_familia; end if;
+      if new.risco_gestacional is null then new.risco_gestacional := old.risco_gestacional; end if;
+      if new.dum is null then new.dum := old.dum; end if;
+      if new.ig_dum_semanas is null then new.ig_dum_semanas := old.ig_dum_semanas; end if;
+      if new.ig_dum_dias is null then new.ig_dum_dias := old.ig_dum_dias; end if;
+      if new.dpp_dum is null then new.dpp_dum := old.dpp_dum; end if;
+      if new.ig_ecografia_semanas is null then new.ig_ecografia_semanas := old.ig_ecografia_semanas; end if;
+      if new.ig_ecografia_dias is null then new.ig_ecografia_dias := old.ig_ecografia_dias; end if;
+      if new.dpp_ecografia is null then new.dpp_ecografia := old.dpp_ecografia; end if;
+      if new.peso_kg is null then new.peso_kg := old.peso_kg; end if;
+      if new.altura_cm is null then new.altura_cm := old.altura_cm; end if;
+      if new.pressao_arterial is null then new.pressao_arterial := old.pressao_arterial; end if;
+      if new.data_ultima_pressao is null then new.data_ultima_pressao := old.data_ultima_pressao; end if;
+      if new.data_ultimo_peso_altura is null then new.data_ultimo_peso_altura := old.data_ultimo_peso_altura; end if;
+      if new.atendimentos_pre_natal is null then new.atendimentos_pre_natal := old.atendimentos_pre_natal; end if;
+      if new.atendimentos_ate_12_semanas is null then new.atendimentos_ate_12_semanas := old.atendimentos_ate_12_semanas; end if;
+      if new.ultima_consulta_pre_natal is null then new.ultima_consulta_pre_natal := old.ultima_consulta_pre_natal; end if;
+      if new.atendimentos_odontologicos is null then new.atendimentos_odontologicos := old.atendimentos_odontologicos; end if;
+      if new.dtpa is null then new.dtpa := old.dtpa; end if;
+      if new.medicoes_altura_uterina is null then new.medicoes_altura_uterina := old.medicoes_altura_uterina; end if;
+      if new.medicoes_pressao is null then new.medicoes_pressao := old.medicoes_pressao; end if;
+      if new.medicoes_peso_altura is null then new.medicoes_peso_altura := old.medicoes_peso_altura; end if;
+      if new.exame_hiv_primeiro is null then new.exame_hiv_primeiro := old.exame_hiv_primeiro; end if;
+      if new.exame_sifilis_primeiro is null then new.exame_sifilis_primeiro := old.exame_sifilis_primeiro; end if;
+      if new.exame_hepatite_b_primeiro is null then new.exame_hepatite_b_primeiro := old.exame_hepatite_b_primeiro; end if;
+      if new.exame_hepatite_c_primeiro is null then new.exame_hepatite_c_primeiro := old.exame_hepatite_c_primeiro; end if;
+      if new.exame_hiv_terceiro is null then new.exame_hiv_terceiro := old.exame_hiv_terceiro; end if;
+      if new.exame_sifilis_terceiro is null then new.exame_sifilis_terceiro := old.exame_sifilis_terceiro; end if;
+      if new.visitas_pre_natal is null then new.visitas_pre_natal := old.visitas_pre_natal; end if;
+      if new.visitas_puerperio is null then new.visitas_puerperio := old.visitas_puerperio; end if;
+      if new.atendimentos_puerperio is null then new.atendimentos_puerperio := old.atendimentos_puerperio; end if;
+      if new.ultima_consulta_puerperio is null then new.ultima_consulta_puerperio := old.ultima_consulta_puerperio; end if;
+      if new.dias_ultimo_atendimento_medico is null then new.dias_ultimo_atendimento_medico := old.dias_ultimo_atendimento_medico; end if;
+      if new.dias_ultimo_atendimento_enfermagem is null then new.dias_ultimo_atendimento_enfermagem := old.dias_ultimo_atendimento_enfermagem; end if;
+      if new.dias_ultimo_atendimento_odontologico is null then new.dias_ultimo_atendimento_odontologico := old.dias_ultimo_atendimento_odontologico; end if;
+      if new.dias_ultima_visita is null then new.dias_ultima_visita := old.dias_ultima_visita; end if;
+      new.dados_extras :=
+        coalesce(old.dados_extras, '{}'::jsonb) ||
+        coalesce(new.dados_extras, '{}'::jsonb);
+    end if;
     return new;
   end if;
 
