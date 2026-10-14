@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  BellRing,
   FileSpreadsheet,
   Home,
   Stethoscope,
@@ -36,11 +35,6 @@ const professionalItems: NavigationItem[] = [
     href: "/dashboard/importacoes",
     label: "Importar PEC",
     icon: FileSpreadsheet,
-  },
-  {
-    href: "/dashboard/alertas",
-    label: "Alertas",
-    icon: BellRing,
   },
   {
     href: "/dashboard/atendimentos",
