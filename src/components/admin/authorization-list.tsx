@@ -67,16 +67,17 @@ export function AuthorizationList({
   const [message, setMessage] = useState<string | null>(null);
 
   function initialDraft(row: AuthorizationRow): Draft {
+    // Nunca associar uma solicitação a outra UBS por padrão.
+    // A unidade sugerida deve estar entre as unidades ativas listadas.
     const ubsId =
-      row.ubsSolicitadaId ??
-      ubsOptions[0]?.id ??
-      "";
+      ubsOptions.find((ubs) => ubs.id === row.ubsSolicitadaId)?.id ?? "";
 
     const firstMicroarea =
       microareas.find((item) => item.ubsId === ubsId)?.id ?? "";
 
     return {
-      perfil: row.perfilSolicitado || "profissional_ubs",
+      // O fluxo administrativo aceita exclusivamente o papel clínico equipe_ubs.
+      perfil: "equipe_ubs",
       ubsId,
       microareaId: firstMicroarea,
     };
@@ -143,6 +144,16 @@ export function AuthorizationList({
         `Rejeitar ${targetRows.length} solicitação(ões) selecionada(s)?`
       )
     ) {
+      return;
+    }
+
+    if (
+      action === "approve" &&
+      targetRows.some((row) =>
+        !ubsOptions.some((ubs) => ubs.id === draftFor(row).ubsId)
+      )
+    ) {
+      setMessage("Selecione uma UBS ativa para cada profissional antes de aprovar.");
       return;
     }
 
@@ -293,19 +304,7 @@ export function AuthorizationList({
               <div className={styles.fields}>
                 <label>
                   Perfil
-                  <select
-                    onChange={(event) =>
-                      updateDraft(row, { perfil: event.target.value })
-                    }
-                    value={draft.perfil}
-                  >
-                    <option value="administrador">Gestão</option>
-                    <option value="profissional_ubs">
-                      Profissional da UBS
-                    </option>
-                    <option value="acs">ACS</option>
-                    <option value="aluno">Aluno</option>
-                  </select>
+                  <span>Profissional da UBS</span>
                 </label>
 
                 <label>
@@ -316,6 +315,7 @@ export function AuthorizationList({
                     }
                     value={draft.ubsId}
                   >
+                    <option disabled value="">Selecione uma UBS ativa</option>
                     {ubsOptions.map((ubs) => (
                       <option key={ubs.id} value={ubs.id}>
                         {ubs.nome}
