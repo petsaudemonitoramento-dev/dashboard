@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - main
+      - feature/c3-pec-hybrid-synthetic-v30
+      - feature/rotina-inteligente-profissionais-v1
+      - release/mae-aps-rotina-inteligente-20261013
+      - feature/pec-safe-reimport-v31
       - codex/post-homologation-quality-v30
       - hardening/post-audit-v1
     paths:

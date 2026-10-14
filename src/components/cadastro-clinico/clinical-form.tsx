@@ -35,6 +35,10 @@ import type {
   VaccineItem,
 } from "./types";
 import styles from "./clinical-form.module.css";
+import c3styles from "./c3-coverage.module.css";
+import { evaluateC3Coverage } from "@/lib/c3/coverage";
+import { PatientTimeline } from "./patient-timeline";
+import quickStyles from "./quick-actions.module.css";
 
 type TabId =
   | "identificacao"
@@ -424,15 +428,18 @@ function NumberInput({
 
 export function ClinicalForm({
   data,
+  initialTab = "identificacao",
 }: {
   data: ClinicalPageData;
+  initialTab?: TabId;
 }) {
   const router = useRouter();
   const [record, setRecord] = useState<ClinicalRecord>(
     () => normalizeRecord(data)
   );
+  const c3Coverage = useMemo(() => evaluateC3Coverage(record), [record]);
   const [activeTab, setActiveTab] =
-    useState<TabId>("identificacao");
+    useState<TabId>(initialTab);
   const [examTrimester, setExamTrimester] =
     useState<1 | 2 | 3>(1);
   const [consultationDraft, setConsultationDraft] =
@@ -821,6 +828,66 @@ export function ClinicalForm({
           </span>
         )}
       </section>
+
+      {record.id && (
+        <section className={quickStyles.toolbar} aria-label="Registro rápido">
+          <div>
+            <strong>Registrar sem procurar campos</strong>
+            <p>Escolha a atividade. Os demais dados da ficha permanecem preenchidos.</p>
+          </div>
+          <div className={quickStyles.links}>
+            <button type="button" onClick={() => setActiveTab("consultas")}>
+              <CalendarDays size={16}/> Nova consulta
+            </button>
+            <button type="button" onClick={() => setActiveTab("exames")}>
+              <FileHeart size={16}/> Conferir exame
+            </button>
+            <button type="button" onClick={() => setActiveTab("vacinas")}>
+              <Syringe size={16}/> Registrar vacina
+            </button>
+            <Link href={"/dashboard/resumo-gestante?gestante=" + encodeURIComponent(record.id)}>
+              <FileHeart size={16}/> Resumo do atendimento
+            </Link>
+          </div>
+        </section>
+      )}
+
+      {record.id && <PatientTimeline record={record}/>}
+
+      <details className={c3styles.box}>
+        <summary className={c3styles.summary}>
+          <span>
+            <strong>Indicador C3 · 11 boas práticas</strong>
+            <small>
+              {c3Coverage.informados} com algum registro · {c3Coverage.semInformacao} sem informação
+            </small>
+          </span>
+          <span className={c3styles.action}>Ver o que falta ou precisa ser conferido</span>
+        </summary>
+        <p className={c3styles.note}>
+          Conferência de cobertura documental, não pontuação oficial do SIAPS.
+          Os dados podem vir do PEC ou ter sido registrados manualmente.
+          Um número agregado não comprova sozinho datas, CBO e demais condições.
+        </p>
+        <div className={c3styles.grid}>
+          {c3Coverage.itens.map((item) => (
+            <div className={c3styles.item} key={item.codigo}>
+              <div>
+                <span className={c3styles.code}>{item.codigo}</span>
+                <strong>{item.titulo}</strong>
+              </div>
+              <small>{item.requisito}</small>
+              <span className={item.haRegistroRelacionado ? c3styles.review : c3styles.missing}>
+                {item.haRegistroRelacionado ? "Registro relacionado: conferir" : "Sem registro suficiente"}
+              </span>
+              <p>{item.orientacao}</p>
+              <button type="button" onClick={() => setActiveTab(item.area)}>
+                {item.haRegistroRelacionado ? "Conferir na ficha" : "Completar na ficha"}
+              </button>
+            </div>
+          ))}
+        </div>
+      </details>
 
       <section className={styles.summaryGrid}>
         <article>

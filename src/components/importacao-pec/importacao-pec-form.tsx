@@ -12,7 +12,27 @@ import {
   Upload,
 } from "lucide-react";
 
+type SchemaAudit = {
+  totalColunas: number;
+  reconhecidas: number;
+  novas: Array<{ coluna: string; tipo: string; sugestao?: string }>;
+  duplicadas: Array<{ coluna: string; tipo: string }>;
+  obrigatoriasAusentes: string[];
+  valoresSuspeitos: Array<{ campo: string; ocorrencias: number }>;
+  exigeRevisao: boolean;
+  impedeImportacao: boolean;
+  versao: string;
+};
+
 type PreviewResponse = {
+  comparacaoEstrutura?: null | {
+    arquivoIdenticoAoUltimo: boolean;
+    linhasUltimaImportacao: number;
+    camposNovos: string[];
+    camposAusentes: string[];
+  };
+  arquivoSha256: string;
+  schemaAudit?: SchemaAudit;
   sheetName: string;
   headerRow: number;
   totalRows: number;
@@ -29,6 +49,10 @@ type PreviewResponse = {
 };
 
 type ImportResponse = {
+  pacientesExistentesAntes?: number;
+  fichasComCorrecoesManuaisAntes?: number;
+  notaComparacao?: string;
+  jaImportado?: boolean;
   importacao_id: string;
   total: number;
   processadas: number;
@@ -44,6 +68,7 @@ export function ImportacaoPecForm({
   ubsName: string;
 }) {
   const [file, setFile] = useState<File | null>(null);
+  const [structureReviewed, setStructureReviewed] = useState(false);
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
   const [result, setResult] = useState<ImportResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +77,7 @@ export function ImportacaoPecForm({
 
   function handleFile(event: ChangeEvent<HTMLInputElement>) {
     setFile(event.target.files?.[0] ?? null);
+    setStructureReviewed(false);
     setPreview(null);
     setResult(null);
     setError(null);
@@ -70,6 +96,10 @@ export function ImportacaoPecForm({
     formData.set("file", file);
     formData.set("mode", mode);
     formData.set("ubs_id", ubsId);
+    if (mode === "import" && preview?.arquivoSha256) {
+      formData.set("arquivoAnalisadoSha256", preview.arquivoSha256);
+    }
+    if (mode === "import" && structureReviewed) formData.set("estrutura_revisada", "sim");
 
     try {
       const response = await fetch("/api/importacoes/pec", {
@@ -85,6 +115,7 @@ export function ImportacaoPecForm({
 
       if (mode === "preview") {
         setPreview(body);
+        setStructureReviewed(false);
         setResult(null);
       } else {
         setResult(body);
@@ -106,7 +137,13 @@ export function ImportacaoPecForm({
   }
 
   const resultVisual = result
-    ? result.erros === 0
+    ? result.jaImportado
+      ? {
+          className: "pec-result-card--success",
+          title: "Este arquivo já foi importado",
+          Icon: CheckCircle2,
+        }
+      : result.erros === 0
       ? {
           className: "pec-result-card--success",
           title: "Importação concluída",
@@ -172,7 +209,7 @@ export function ImportacaoPecForm({
             <button
               type="button"
               className="pec-primary-button"
-              disabled={!preview || loadingMode !== null}
+              disabled={!preview || loadingMode !== null || Boolean(preview.schemaAudit?.impedeImportacao) || Boolean(preview.schemaAudit?.exigeRevisao && !structureReviewed)}
               onClick={() => void submit("import")}
             >
               {loadingMode === "import" ? (
@@ -229,6 +266,97 @@ export function ImportacaoPecForm({
             </div>
           </div>
 
+          {preview.comparacaoEstrutura && (
+            <section className="pec-warning" aria-label="Comparação com a última importação">
+              <h3>O que mudou desde a última importação</h3>
+              {preview.comparacaoEstrutura.arquivoIdenticoAoUltimo ? (
+                <p>O conteúdo é igual ao último arquivo importado. Uma nova tentativa não deverá duplicar registros.</p>
+              ) : (
+                <p>Arquivo diferente do anterior. Confira as diferenças de estrutura antes de prosseguir.</p>
+              )}
+              <p>
+                Última importação: {preview.comparacaoEstrutura.linhasUltimaImportacao} linhas.
+                Arquivo atual: {preview.totalRows} linhas.
+              </p>
+              {preview.comparacaoEstrutura.camposNovos.length > 0 && (
+                <p>Campos canônicos novos: {preview.comparacaoEstrutura.camposNovos.join(", ")}.</p>
+              )}
+              {preview.comparacaoEstrutura.camposAusentes.length > 0 && (
+                <p>Campos ausentes em relação ao anterior: {preview.comparacaoEstrutura.camposAusentes.join(", ")}.
+                  Os dados anteriores não devem ser apagados só por ausência da coluna.</p>
+              )}
+              <small>Comparação apenas da estrutura e da quantidade de linhas. Não confirma mudanças clínicas entre pacientes.</small>
+            </section>
+          )}
+
+          {preview.schemaAudit && (
+            <div className="pec-warning" role="region" aria-label="Revisão da estrutura do PEC">
+              <h3>Conferência inteligente das colunas</h3>
+              <p>
+                {preview.schemaAudit.reconhecidas} colunas reconhecidas,
+                {" "}{preview.schemaAudit.novas.length} novas,
+                {" "}{preview.schemaAudit.duplicadas.length} conflitantes.
+                Nenhum dado novo é convertido por suposição.
+              </p>
+              {preview.schemaAudit.novas.length > 0 && (
+                <details>
+                  <summary>Conferir {preview.schemaAudit.novas.length} colunas novas ou alteradas</summary>
+                  <ul>
+                    {preview.schemaAudit.novas.map((item, index) => (
+                      <li key={index}>
+                        <strong>{item.coluna}</strong>
+                        {item.sugestao && (
+                          <span> — possível equivalente: {item.sugestao}, não aplicado automaticamente</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+              {preview.schemaAudit.duplicadas.length > 0 && (
+                <p role="alert">
+                  Colunas duplicadas ou que representam o mesmo campo:{" "}
+                  {preview.schemaAudit.duplicadas.map((item) => item.coluna).join("; ")}.
+                  Remova o conflito no CSV e analise novamente.
+                </p>
+              )}
+              {preview.schemaAudit.obrigatoriasAusentes.length > 0 && (
+                <p role="alert">
+                  Colunas necessárias não reconhecidas:{" "}
+                  {preview.schemaAudit.obrigatoriasAusentes.join(", ")}.
+                  Corrija o arquivo antes de importar.
+                </p>
+              )}
+              {preview.schemaAudit.valoresSuspeitos.length > 0 && (
+                <p role="alert">
+                  Valores de data ou contagem incoerentes:{" "}
+                  {preview.schemaAudit.valoresSuspeitos.map((item) =>
+                    `${item.campo} (${item.ocorrencias} ocorrência(s))`
+                  ).join("; ")}.
+                  Nenhum valor será corrigido automaticamente.
+                </p>
+              )}
+              {preview.schemaAudit.impedeImportacao ? (
+                <p><strong>Importação bloqueada até corrigir as divergências.</strong></p>
+              ) : preview.schemaAudit.exigeRevisao ? (
+                <label style={{ display: "flex", alignItems: "start", gap: 10, marginTop: 12 }}>
+                  <input
+                    type="checkbox"
+                    checked={structureReviewed}
+                    onChange={(event) => setStructureReviewed(event.target.checked)}
+                  />
+                  <span>
+                    Conferi os nomes das colunas novas. Entendo que apenas os campos
+                    reconhecidos serão interpretados automaticamente; nenhuma evidência
+                    clínica do C3 será inventada.
+                  </span>
+                </label>
+              ) : (
+                <p><strong>Estrutura reconhecida. Pode importar sem preencher nada adicional.</strong></p>
+              )}
+            </div>
+          )}
+
           {preview.warnings.length > 0 && (
             <div className="pec-warning">
               {preview.warnings.map((warning) => (
@@ -278,9 +406,24 @@ export function ImportacaoPecForm({
           <div>
             <h2>{resultVisual.title}</h2>
             <p>
-              {result.processadas} de {result.total} registros foram
-              processados. Erros: {result.erros}.
+              {result.jaImportado
+                ? "Este arquivo já havia sido processado pela sua conta. Nenhuma gestante foi duplicada ou reimportada."
+                : `${result.processadas} de ${result.total} registros foram processados. Erros: ${result.erros}.`}
             </p>
+
+            {typeof result.pacientesExistentesAntes === "number" && !result.jaImportado && (
+              <div className="pec-warning" style={{marginTop:12}}>
+                <strong>Comparação com fichas existentes antes do envio</strong>
+                <p>
+                  {result.pacientesExistentesAntes} ficha(s) já encontradas sob sua responsabilidade e
+                  {" "}{result.fichasComCorrecoesManuaisAntes ?? 0} com campos manuais protegidos.
+                </p>
+                <small>
+                  Essa contagem foi feita antes de importar; não representa, sozinha, quantidade final de novas pacientes,
+                  alterações efetivas nem validação oficial do C3.
+                </small>
+              </div>
+            )}
 
             {result.processadas > 0 ? (
               <Link href="/dashboard/gestantes">

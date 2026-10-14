@@ -69,7 +69,8 @@ select ok(
           'gestante_vacinas',
           'gestante_altas',
           'classificacoes_risco_gestacional',
-          'classificacao_risco_itens'
+          'classificacao_risco_itens',
+          'rotina_profissional_tarefas_v1'
         )
       )
   ),
@@ -176,6 +177,7 @@ with allowlist(schema_name, function_name) as (
     ('private', 'pii_key'),
     ('private', 'processar_solicitacao_perfil_v22'),
     ('private', 'proteger_campos_manuais_pec'),
+    ('private', 'refinar_bloqueios_manuais_pec_v31'),
     ('private', 'proteger_identidade_manual'),
     ('private', 'restaurar_gestante_v19'),
     ('private', 'salvar_classificacao_risco_v17'),

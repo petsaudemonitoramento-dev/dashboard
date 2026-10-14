@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { originMatchesRequest } from "@/lib/security/origin-check";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -31,7 +32,7 @@ export function mutationRequestError(
 
   if (origin) {
     try {
-      if (new URL(origin).origin !== requestUrl.origin) {
+      if (!originMatchesRequest(request, requestUrl, origin)) {
         return NextResponse.json(
           { error: "Origem da requisição não autorizada." },
           { status: 403 }

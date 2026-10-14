@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { parsePecFile } from "@/lib/pec/columns";
+import { analyzePecSchema } from "@/lib/pec/schema-audit";
 import {
   logServerFailure,
   mutationRequestError,
@@ -139,7 +140,10 @@ export async function POST(request: Request) {
       );
     }
 
+    const hash = createHash("sha256").update(buffer).digest("hex");
     const parsed = parsePecFile(buffer, originalName);
+
+    const schemaAudit = analyzePecSchema(parsed);
 
     if (parsed.rows.length > MAX_ROWS) {
       return NextResponse.json(
@@ -164,12 +168,38 @@ export async function POST(request: Request) {
     }));
 
     if (mode === "preview") {
+      // Compara estrutura apenas com histórico da própria profissional e UBS.
+      // Não usa nomes/identificadores nem infere atendimento ou mudança clínica.
+      const { data: anterior } = await supabase
+        .from("importacoes_pec_resumo")
+        .select("mapeamento,total_linhas,arquivo_sha256")
+        .eq("usuario_id", user.id)
+        .eq("ubs_id", profile.ubs_id)
+        .eq("status", "concluida")
+        .order("concluido_em", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const anteriorMap = anterior?.mapeamento &&
+        typeof anterior.mapeamento === "object" &&
+        !Array.isArray(anterior.mapeamento)
+        ? anterior.mapeamento as Record<string, unknown> : {};
+      const anteriorFields = new Set(Object.keys(anteriorMap));
+      const currentFields = new Set(Object.keys(parsed.mapping));
+      const comparacaoEstrutura = anterior ? {
+        arquivoIdenticoAoUltimo: anterior.arquivo_sha256 === hash,
+        linhasUltimaImportacao: anterior.total_linhas,
+        camposNovos: [...currentFields].filter((key) => !anteriorFields.has(key)),
+        camposAusentes: [...anteriorFields].filter((key) => !currentFields.has(key)),
+      } : null;
       return NextResponse.json(
         {
           sheetName: parsed.sheetName,
           headerRow: parsed.headerRow,
           totalRows: parsed.rows.length,
           mapping: parsed.mapping,
+          schemaAudit,
+          comparacaoEstrutura,
+          arquivoSha256: hash,
           warnings: parsed.warnings.slice(0, 100),
           preview,
         },
@@ -177,9 +207,26 @@ export async function POST(request: Request) {
       );
     }
 
-    const hash = createHash("sha256")
-      .update(buffer)
-      .digest("hex");
+    if (schemaAudit.impedeImportacao) {
+      return NextResponse.json(
+        { error: "A estrutura contém colunas conflitantes, campos obrigatórios ausentes ou valores inválidos. Revise o arquivo antes de importar." },
+        { status: 422, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    if (schemaAudit.exigeRevisao && formData.get("estrutura_revisada") !== "sim") {
+      return NextResponse.json(
+        { error: "Existem colunas novas. Confira o diagnóstico e confirme a revisão antes de importar." },
+        { status: 409, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    if (formData.get("arquivoAnalisadoSha256") !== hash) {
+      return NextResponse.json(
+        { error: "O arquivo mudou desde a análise. Analise novamente para evitar importar outra planilha por engano." },
+        { status: 409, headers: { "Cache-Control": "no-store" } }
+      );
+    }
 
     const { data: resultado, error: importError } =
       await supabase.rpc("profissionais_importar_pec_v30", {

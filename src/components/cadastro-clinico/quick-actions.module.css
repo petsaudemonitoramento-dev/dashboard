@@ -1,0 +1,7 @@
+.toolbar{margin:0 0 16px;padding:15px 18px;border-radius:15px;background:#f8f9fc;border:1px solid #e2e6ed;display:flex;align-items:center;justify-content:space-between;gap:14px}
+.toolbar strong{font-size:13px;color:#29364b}.toolbar p{font-size:11px;color:#6c798d;margin:5px 0 0}
+.links{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.links button,.links a{display:inline-flex;align-items:center;gap:6px;border:1px solid #daddec;border-radius:9px;padding:10px 11px;background:#fff;color:#594c98;text-decoration:none;font-size:11px;font-weight:750;cursor:pointer}
+.links button:hover,.links a:hover{background:#f0ecfa}
+.links button:focus-visible,.links a:focus-visible{outline:3px solid #6c5ad0;outline-offset:2px}
+@media(max-width:800px){.toolbar{align-items:flex-start;flex-direction:column}}

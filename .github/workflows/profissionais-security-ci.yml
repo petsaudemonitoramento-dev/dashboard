@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - main
+      - feature/c3-pec-hybrid-synthetic-v30
+      - feature/rotina-inteligente-profissionais-v1
+      - release/mae-aps-rotina-inteligente-20261013
+      - feature/pec-safe-reimport-v31
       - profissionais-v1-seguranca
       - audit/pre-codex-hardening
       - audit/continue-security-v30
@@ -124,6 +128,15 @@ jobs:
 
       - name: Legacy V2 surface guard
         run: node scripts/check-legacy-surface.mjs
+
+      - name: Lightweight origin protection regressions
+        run: node --experimental-strip-types --test tests/security/origin-check.test.mjs
+
+      - name: Guard browser code against dangerous DOM and eval sinks
+        run: node scripts/check-browser-code-sinks.mjs
+
+      - name: Synthetic PEC and C3 regression tests
+        run: node --experimental-strip-types --test tests/hybrid-c3/*.test.mjs
 
       - name: ESLint
         run: npm run lint
