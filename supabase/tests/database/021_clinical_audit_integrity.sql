@@ -225,6 +225,17 @@ values (
   now(),
   '21000000-0000-4000-8000-000000000002'::uuid,
   'portal_cfm'
+), (
+  '21000000-0000-4000-8000-000000000003'::uuid,
+  'enfermeiro',
+  'COREN',
+  'PB',
+  '210002',
+  'ENFERMEIRO',
+  'pendente',
+  null,
+  null,
+  null
 );
 
 set local role authenticated;

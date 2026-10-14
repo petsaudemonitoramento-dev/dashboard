@@ -89,7 +89,7 @@ export function AdminProfiles({
         perfil:
           profile.perfilSolicitado ??
           profile.perfilAtual ??
-          "profissional_ubs",
+          "equipe_ubs",
         ubsId:
           profile.ubsSolicitadaId ??
           profile.ubsId ??
@@ -267,7 +267,7 @@ export function AdminProfiles({
                             value={draft.perfil}
                           >
                             <option value="administrador">Gestão</option>
-                            <option value="profissional_ubs">
+                            <option value="equipe_ubs">
                               Profissional UBS
                             </option>
                             <option value="acs">ACS</option>
