@@ -125,14 +125,20 @@ export async function POST(request: Request) {
             ? "Ação administrativa não autorizada."
             : message.includes("REQUEST_NOT_PENDING")
               ? "Uma das solicitações não está mais pendente."
-              : "Não foi possível processar as autorizações.",
+              : message.includes("PROFESSIONAL_CREDENTIAL_REQUIRED")
+                ? "É necessário cadastrar um COREN/CRM compatível antes da aprovação."
+                : message.includes("UBS_INACTIVE")
+                  ? "Selecione uma UBS ativa para aprovar o profissional."
+                  : "Não foi possível processar as autorizações.",
         },
         {
           status: forbidden
             ? 403
             : message.includes("REQUEST_NOT_PENDING")
               ? 409
-              : 500,
+              : message.includes("PROFESSIONAL_CREDENTIAL_REQUIRED") || message.includes("UBS_INACTIVE")
+                ? 400
+                : 500,
         }
       );
     }
