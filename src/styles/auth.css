@@ -894,3 +894,32 @@
   margin-top: 18px;
   color: var(--color-primary-700);
 }
+
+
+/* Referências verificáveis do PEC e da LGPD na tela de login.
+   Evitar selo ou promessa de "100% conforme": citar a lei não comprova adequação. */
+.login-compliance {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid #e3dff2;
+  border-radius: 13px;
+  background: #f8f7fc;
+  color: #57506e;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.login-compliance p {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+}
+.login-compliance strong {
+  color: #403867;
+  font-size: 11px;
+  font-weight: 760;
+}
+.login-compliance small { color: #716982; font-size: 10px; }
+.login-compliance a { color: #5544a0; font-weight: 740; text-decoration: underline; }
+.login-compliance a:focus-visible { outline: 3px solid #6554ad; outline-offset: 3px; }
