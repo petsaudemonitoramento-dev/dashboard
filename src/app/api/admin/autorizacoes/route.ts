@@ -78,7 +78,8 @@ export async function POST(request: Request) {
 
       if (action === "approve") {
         if (
-          item.perfil !== "equipe_ubs" ||
+          // Compatibilidade com telas antigas que enviavam profissional_ubs.
+          !["equipe_ubs", "profissional_ubs"].includes(item.perfil ?? "") ||
           !isUuid(ubsId)
         ) {
           return NextResponse.json(
