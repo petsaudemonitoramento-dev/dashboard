@@ -69,7 +69,8 @@ select ok(
           'gestante_vacinas',
           'gestante_altas',
           'classificacoes_risco_gestacional',
-          'classificacao_risco_itens'
+          'classificacao_risco_itens',
+          'rotina_profissional_tarefas_v1'
         )
       )
   ),

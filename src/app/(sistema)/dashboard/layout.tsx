@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppHeader } from "@/components/layout/app-header";
+import { buildProfessionalAlerts, type ProfessionalAlert, type ProfessionalAlertSource } from "@/lib/alertas/professional-alerts";
 
 export default async function Layout({
   children,
@@ -52,6 +53,19 @@ export default async function Layout({
     redirect("/login");
   }
 
+  // O mesmo RPC já usado na lista de gestantes aplica o escopo por profissional.
+  // Falhas do contador não devem derrubar a navegação inteira.
+  let alerts: ProfessionalAlert[] = [];
+  let alertsError = false;
+  if (profile.perfil === "equipe_ubs") {
+    const { data, error } = await supabase.rpc(
+      "profissionais_listar_gestantes_v30",
+      { p_exibir_identidade: true }
+    );
+    if (error) alertsError = true;
+    else alerts = buildProfessionalAlerts((data ?? []) as ProfessionalAlertSource[]);
+  }
+
   return (
     <div className="shell">
       <AppSidebar profile={String(profile.perfil)} />
@@ -59,6 +73,8 @@ export default async function Layout({
         <AppHeader
           name={profile.nome_completo}
           profile={String(profile.perfil)}
+          alerts={alerts}
+          alertsError={alertsError}
         />
         <main className="content">{children}</main>
       </div>

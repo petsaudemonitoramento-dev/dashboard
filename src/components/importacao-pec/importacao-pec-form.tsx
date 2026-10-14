@@ -25,6 +25,12 @@ type SchemaAudit = {
 };
 
 type PreviewResponse = {
+  comparacaoEstrutura?: null | {
+    arquivoIdenticoAoUltimo: boolean;
+    linhasUltimaImportacao: number;
+    camposNovos: string[];
+    camposAusentes: string[];
+  };
   arquivoSha256: string;
   schemaAudit?: SchemaAudit;
   sheetName: string;
@@ -43,6 +49,9 @@ type PreviewResponse = {
 };
 
 type ImportResponse = {
+  pacientesExistentesAntes?: number;
+  fichasComCorrecoesManuaisAntes?: number;
+  notaComparacao?: string;
   jaImportado?: boolean;
   importacao_id: string;
   total: number;
@@ -257,6 +266,29 @@ export function ImportacaoPecForm({
             </div>
           </div>
 
+          {preview.comparacaoEstrutura && (
+            <section className="pec-warning" aria-label="Comparação com a última importação">
+              <h3>O que mudou desde a última importação</h3>
+              {preview.comparacaoEstrutura.arquivoIdenticoAoUltimo ? (
+                <p>O conteúdo é igual ao último arquivo importado. Uma nova tentativa não deverá duplicar registros.</p>
+              ) : (
+                <p>Arquivo diferente do anterior. Confira as diferenças de estrutura antes de prosseguir.</p>
+              )}
+              <p>
+                Última importação: {preview.comparacaoEstrutura.linhasUltimaImportacao} linhas.
+                Arquivo atual: {preview.totalRows} linhas.
+              </p>
+              {preview.comparacaoEstrutura.camposNovos.length > 0 && (
+                <p>Campos canônicos novos: {preview.comparacaoEstrutura.camposNovos.join(", ")}.</p>
+              )}
+              {preview.comparacaoEstrutura.camposAusentes.length > 0 && (
+                <p>Campos ausentes em relação ao anterior: {preview.comparacaoEstrutura.camposAusentes.join(", ")}.
+                  Os dados anteriores não devem ser apagados só por ausência da coluna.</p>
+              )}
+              <small>Comparação apenas da estrutura e da quantidade de linhas. Não confirma mudanças clínicas entre pacientes.</small>
+            </section>
+          )}
+
           {preview.schemaAudit && (
             <div className="pec-warning" role="region" aria-label="Revisão da estrutura do PEC">
               <h3>Conferência inteligente das colunas</h3>
@@ -378,6 +410,20 @@ export function ImportacaoPecForm({
                 ? "Este arquivo já havia sido processado pela sua conta. Nenhuma gestante foi duplicada ou reimportada."
                 : `${result.processadas} de ${result.total} registros foram processados. Erros: ${result.erros}.`}
             </p>
+
+            {typeof result.pacientesExistentesAntes === "number" && !result.jaImportado && (
+              <div className="pec-warning" style={{marginTop:12}}>
+                <strong>Comparação com fichas existentes antes do envio</strong>
+                <p>
+                  {result.pacientesExistentesAntes} ficha(s) já encontradas sob sua responsabilidade e
+                  {" "}{result.fichasComCorrecoesManuaisAntes ?? 0} com campos manuais protegidos.
+                </p>
+                <small>
+                  Essa contagem foi feita antes de importar; não representa, sozinha, quantidade final de novas pacientes,
+                  alterações efetivas nem validação oficial do C3.
+                </small>
+              </div>
+            )}
 
             {result.processadas > 0 ? (
               <Link href="/dashboard/gestantes">

@@ -168,6 +168,29 @@ export async function POST(request: Request) {
     }));
 
     if (mode === "preview") {
+      // Compara estrutura apenas com histórico da própria profissional e UBS.
+      // Não usa nomes/identificadores nem infere atendimento ou mudança clínica.
+      const { data: anterior } = await supabase
+        .from("importacoes_pec_resumo")
+        .select("mapeamento,total_linhas,arquivo_sha256")
+        .eq("usuario_id", user.id)
+        .eq("ubs_id", profile.ubs_id)
+        .eq("status", "concluida")
+        .order("concluido_em", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const anteriorMap = anterior?.mapeamento &&
+        typeof anterior.mapeamento === "object" &&
+        !Array.isArray(anterior.mapeamento)
+        ? anterior.mapeamento as Record<string, unknown> : {};
+      const anteriorFields = new Set(Object.keys(anteriorMap));
+      const currentFields = new Set(Object.keys(parsed.mapping));
+      const comparacaoEstrutura = anterior ? {
+        arquivoIdenticoAoUltimo: anterior.arquivo_sha256 === hash,
+        linhasUltimaImportacao: anterior.total_linhas,
+        camposNovos: [...currentFields].filter((key) => !anteriorFields.has(key)),
+        camposAusentes: [...anteriorFields].filter((key) => !currentFields.has(key)),
+      } : null;
       return NextResponse.json(
         {
           sheetName: parsed.sheetName,
@@ -175,6 +198,7 @@ export async function POST(request: Request) {
           totalRows: parsed.rows.length,
           mapping: parsed.mapping,
           schemaAudit,
+          comparacaoEstrutura,
           arquivoSha256: hash,
           warnings: parsed.warnings.slice(0, 100),
           preview,

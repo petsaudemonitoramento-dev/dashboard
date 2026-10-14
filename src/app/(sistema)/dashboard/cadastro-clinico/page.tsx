@@ -13,6 +13,7 @@ import { createClient } from "@/lib/supabase/server";
 type PageProps = {
   searchParams: Promise<{
     gestante?: string | string[];
+    aba?: string | string[];
   }>;
 };
 
@@ -323,6 +324,7 @@ export default async function CadastroClinicoPage({
       </section>
 
       <ClinicalForm
+        initialTab={(["identificacao","gestacao","consultas","exames","vacinas","alta"].includes(firstParam(params.aba) ?? "") ? firstParam(params.aba) : "identificacao") as "identificacao" | "gestacao" | "consultas" | "exames" | "vacinas" | "alta"}
         data={{
           record,
           examConfigs,

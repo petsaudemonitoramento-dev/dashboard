@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { LogOut, Search } from "lucide-react";
+import { AlertBell } from "./alert-bell";
+import type { ProfessionalAlert } from "@/lib/alertas/professional-alerts";
 
 const PROFILE_LABELS: Record<string, string> = {
   administrador: "Gestão",
@@ -15,9 +17,13 @@ const PROFILE_LABELS: Record<string, string> = {
 export function AppHeader({
   name,
   profile,
+  alerts = [],
+  alertsError = false,
 }: {
   name: string;
   profile: string;
+  alerts?: ProfessionalAlert[];
+  alertsError?: boolean;
 }) {
   const router = useRouter();
 
@@ -38,6 +44,9 @@ export function AppHeader({
       </div>
 
       <div className="user">
+        {profile === "equipe_ubs" && (
+          <AlertBell initialAlerts={alerts} initialError={alertsError} />
+        )}
         <span>
           <b>{name}</b>
           <small>{PROFILE_LABELS[profile] ?? profile}</small>
