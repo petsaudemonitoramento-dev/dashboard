@@ -19,6 +19,11 @@ export async function proxy(request: NextRequest) {
   };
 
   let response = createResponse();
+  // Somente esta rota pública evita a chamada de claims ao Supabase.
+  if (request.nextUrl.pathname === "/api/health/live") {
+    return response;
+  }
+
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const publishableKey =
