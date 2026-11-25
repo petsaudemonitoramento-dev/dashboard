@@ -1017,3 +1017,6 @@
     width: 100%;
   }
 }
+
+.wrapper{margin-top:18px}.toolbar{flex-wrap:wrap;border-color:#e2e7f2;border-radius:15px;box-shadow:0 5px 16px #182b690a}.filters{flex:1 1 100%;flex-wrap:wrap}.filters select{flex:1 1 135px;min-width:0;border-color:#e1e5f0;color:#415279}.searchBox{flex:2 1 230px;min-width:0;max-width:none;background:white;border-color:#e1e5f0}.toolbarActions{flex-wrap:wrap}.presentationToggle{min-width:0;border-color:#e1e5f0;background:#f9faff}.presentationActive .switch{background:#00167a}.newButton,.primaryAction{background:#00167a;color:white;border-color:#00167a}.grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:15px}.card{border-color:#e0e5f0;border-radius:15px;box-shadow:0 4px 17px #1b2e7808}.cardHeader,.cardFooter{border-color:#edf0f6}.identity strong{color:#1a2c61}.quickInfo{background:#f7f7fd}.avatar{background:#f1edff;color:#594bb0}.section h3{color:#3c4786}.risk_high{background:#c74855}.risk_habitual{background:#559a82}.risk_intermediate{background:#c99c48}.privacyNotice{background:#f5f7ff;border-color:#e0e7ff;color:#344b82}.secondaryAction{color:#4858a3;border-color:#dfe4f2}
+@media(max-width:1360px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:730px){.grid{grid-template-columns:1fr}.filters{display:grid;grid-template-columns:1fr 1fr}.searchBox{grid-column:1/-1}.toolbarActions{width:100%}}

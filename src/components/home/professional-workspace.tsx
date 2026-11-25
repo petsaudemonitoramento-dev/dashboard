@@ -36,8 +36,8 @@ function dateBR(date:string|null){
   return p.length===3?p[2]+"/"+p[1]+"/"+p[0]:"Não informada";
 }
 
-export function ProfessionalWorkspace({nome,patients,tasks}:{
-  nome:string;patients:WorkPatient[];tasks:FollowUp[];
+export function ProfessionalWorkspace({nome,patients,tasks,agendaOnly=false}:{
+  nome:string;patients:WorkPatient[];tasks:FollowUp[];agendaOnly?:boolean;
 }){
  const router=useRouter();
  const [search,setSearch]=useState("");
@@ -50,6 +50,12 @@ export function ProfessionalWorkspace({nome,patients,tasks}:{
  const [busy,setBusy]=useState(false);
  const [feedback,setFeedback]=useState<string|null>(null);
  const now=today();
+ const [selected,setSelected]=useState(today),[month,setMonth]=useState(()=>today().slice(0,7)),[filter,setFilter]=useState("todos");
+ const first=new Date(month+"-01T12:00:00");
+ const days=Array.from({length:42},(_,i)=>{const d=new Date(first);d.setDate(1-first.getDay()+i);return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-")});
+ const dayTasks=tasks.filter(t=>t.data_prevista===selected);
+ const highIds=new Set(patients.filter(p=>p.altoRisco).map(p=>p.id));
+ function changeMonth(delta:number){const d=new Date(first);d.setMonth(d.getMonth()+delta);setMonth([d.getFullYear(),String(d.getMonth()+1).padStart(2,"0")].join("-"))}
  const names=new Map(patients.map(p=>[p.id,p.nome]));
  const remaining=tasks.filter(t=>t.status!=="concluida");
  const dueCount=remaining.filter(t=>t.data_prevista<=now).length;
@@ -62,9 +68,9 @@ export function ProfessionalWorkspace({nome,patients,tasks}:{
   .sort((a,b)=>Number(b.altoRisco)-Number(a.altoRisco)||
     b.pendenciasExames-a.pendenciasExames||a.nome.localeCompare(b.nome,"pt-BR"))
   .slice(0,15);
- const visibleTasks=[...tasks].sort((a,b)=>
+ const visibleTasks=[...(agendaOnly?dayTasks.filter(t=>filter==="todos"||(filter==="alto"?highIds.has(t.gestante_id):filter==="concluida"?t.status==="concluida":t.status!=="concluida")):tasks)].sort((a,b)=>
    Number(a.status==="concluida")-Number(b.status==="concluida")||
-   a.data_prevista.localeCompare(b.data_prevista)).slice(0,15);
+   a.data_prevista.localeCompare(b.data_prevista)).slice(0,agendaOnly?200:3);
 
  async function save(method:"POST"|"PATCH"|"DELETE",payload:Record<string,unknown>,ok:string){
    setBusy(true);setFeedback(null);
@@ -80,28 +86,32 @@ export function ProfessionalWorkspace({nome,patients,tasks}:{
  }
  return <div className={styles.workspace}>
    <header className={styles.welcome}>
-     <div><span className={styles.eyebrow}><HeartPulse size={16}/> MAE APS · Minha rotina</span>
-       <h1>Olá, {nome.trim().split(/\s+/)[0]||"profissional"}.</h1>
-       <p>Suas gestantes, pendências documentais e próximos acompanhamentos em um só lugar.</p>
+     <div><span className={styles.eyebrow}><HeartPulse size={16}/> GESTÁRIO APS · Minha rotina</span>
+       <h1>{agendaOnly?"Agenda":`Olá, ${nome.trim().split(/\s+/)[0]||"profissional"}!`}</h1>
+       <p>{agendaOnly?"Organize consultas, retornos e lembretes — com as prioridades à vista.":"Seu dia de cuidado, organizado em um só lugar."}</p>
      </div>
      <div className={styles.topActions}>
-       <button type="button" onClick={()=>router.refresh()} className={styles.lightButton}><RefreshCw size={16}/> Atualizar</button>
-       <Link className={styles.primaryButton} href="/dashboard/importacoes"><FileSpreadsheet size={16}/> Importar PEC</Link>
+       {agendaOnly?<><button type="button" className={styles.lightButton} onClick={()=>{setSelected(now);setMonth(now.slice(0,7))}}>Hoje</button><button type="button" className={styles.primaryButton} disabled={!patients.length} onClick={()=>{setDue(selected);setNewOpen(true)}}><Plus size={16}/> Novo compromisso</button></>:<><Link className={styles.lightButton} href="/dashboard/gestantes"><Stethoscope size={16}/> Registrar consulta</Link><Link className={styles.lightButton} href="/dashboard/cadastro-clinico"><FilePlus2 size={16}/> Nova gestante</Link><button type="button" onClick={()=>router.refresh()} className={styles.lightButton}><RefreshCw size={16}/> Atualizar</button><Link className={styles.primaryButton} href="/dashboard/importacoes"><FileSpreadsheet size={16}/> Importar PEC</Link></>}
      </div>
    </header>
    <div className={styles.metrics}>
-     {[
+     {(agendaOnly?[
+       {value:dayTasks.length,label:"Programados no dia",hint:"Atividades registradas",icon:CalendarClock,href:"#agenda"},
+       {value:dayTasks.filter(t=>t.status==="concluida").length,label:"Concluídos",hint:"Atividades finalizadas",icon:CheckCircle2,href:"#agenda"},
+       {value:dayTasks.filter(t=>t.status!=="concluida").length,label:"A realizar",hint:"Atividades pendentes",icon:Clock3,href:"#agenda"},
+       {value:new Set(dayTasks.filter(t=>highIds.has(t.gestante_id)).map(t=>t.gestante_id)).size,label:"Gestantes de alto risco",hint:"Classificação registrada",icon:Activity,href:"#agenda"},
+     ]:[
        {value:patients.length,label:"Minhas gestantes",hint:"Somente as suas fichas",icon:Baby,href:"/dashboard/gestantes"},
        {value:dueCount,label:"Atividades até hoje",hint:"Sem confirmação de conclusão",icon:CalendarClock,href:"#agenda"},
        {value:examsCount,label:"Exames a conferir",hint:"Sem registro ≠ não realizado",icon:ClipboardList,href:"#atencao"},
        {value:riskCount,label:"Alto risco registrado",hint:"Conforme ficha, sem diagnóstico novo",icon:Activity,href:"#atencao"},
-     ].map(item=><Link className={styles.metric} href={item.href} key={item.label}>
+     ]).map(item=><Link className={styles.metric} href={item.href} key={item.label}>
        <span className={styles.metricIcon}><item.icon size={19}/></span>
        <span>{item.label}</span><strong>{item.value}</strong><small>{item.hint}</small>
      </Link>)}
    </div>
-   <div className={styles.columns}>
-     <section className={styles.panel} id="atencao">
+   <div className={agendaOnly?styles.agendaColumns:styles.columns}>
+     {agendaOnly?<section className={styles.panel}><div className={styles.calendar}><div className={styles.calendarHead}><button aria-label="Mês anterior" onClick={()=>changeMonth(-1)} type="button">‹</button><strong>{first.toLocaleDateString("pt-BR",{month:"long",year:"numeric"})}</strong><button aria-label="Próximo mês" onClick={()=>changeMonth(1)} type="button">›</button></div><div className={styles.calendarGrid}>{["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].map(d=><span key={d}>{d}</span>)}{days.map(d=><button key={d} type="button" aria-pressed={selected===d} aria-label={dateBR(d)} className={d.startsWith(month)?"":styles.outDay} onClick={()=>{setSelected(d);setMonth(d.slice(0,7));setDue(d)}}>{Number(d.slice(-2))}<span className={styles.dots}>{tasks.some(t=>t.data_prevista===d)&&"•"}</span></button>)}</div><p>Selecione um dia para consultar ou registrar compromissos.</p></div></section>:<section className={styles.panel} id="atencao">
        <header className={styles.panelHeader}>
          <div><h2>O que conferir</h2><p>Organização de registros; não é triagem de urgência.</p></div>
          <Search size={20}/>
@@ -137,13 +147,13 @@ export function ProfessionalWorkspace({nome,patients,tasks}:{
          </div>}
        </div>
        <Link className={styles.more} href="/dashboard/gestantes">Todas as gestantes <ArrowRight size={15}/></Link>
-     </section>
+     </section>}
      <section className={styles.panel} id="agenda">
        <header className={styles.panelHeader}>
-         <div><h2>Agenda e busca ativa</h2><p>Registre o próximo passo sem preencher outra ficha.</p></div>
+         <div><h2>{agendaOnly?dateBR(selected):"Agenda e próximos atendimentos"}</h2><p>Registre o próximo passo sem preencher outra ficha.</p></div>
          <button className={styles.add} type="button" title="Adicionar atividade"
            aria-label="Adicionar atividade" disabled={!patients.length}
-           onClick={()=>setNewOpen(!newOpen)}><Plus size={20}/></button>
+           onClick={()=>{if(agendaOnly)setDue(selected);setNewOpen(!newOpen)}}><Plus size={20}/></button>
        </header>
        {newOpen&&<form className={styles.newTask} onSubmit={e=>{
          e.preventDefault();void save("POST",{gestanteId:patient,tipo:kind,dataPrevista:due},"Atividade agendada.");
@@ -158,6 +168,7 @@ export function ProfessionalWorkspace({nome,patients,tasks}:{
          <button type="submit" className={styles.primaryButton} disabled={busy}>Salvar na agenda</button>
        </form>}
        {feedback&&<p role="status" className={styles.feedback}>{feedback}</p>}
+       {agendaOnly&&<div className={styles.dayFilters}>{[["todos","Todos"],["pendente","A realizar"],["concluida","Concluídos"],["alto","Alto risco"]].map(([v,label])=><button key={v} type="button" aria-pressed={filter===v} onClick={()=>setFilter(v)}>{label}</button>)}</div>}
        <div className={styles.tasks}>
          {visibleTasks.map(t=><article className={styles.task} key={t.id}>
            <div className={styles.taskIcon}><Clock3 size={18}/></div>
@@ -190,14 +201,15 @@ export function ProfessionalWorkspace({nome,patients,tasks}:{
                <Trash2 size={16}/></button>
            </div>
          </article>)}
-         {!tasks.length&&<div className={styles.empty}>
-           <CalendarClock size={24}/><strong>Sem atividades agendadas</strong>
+         {!visibleTasks.length&&<div className={styles.empty}>
+           <CalendarClock size={24}/><strong>Nenhuma atividade nesta seleção</strong>
            <p>Use + para planejar consultas, contatos ou revisões.</p>
          </div>}
        </div>
+       {!agendaOnly&&<Link href="/dashboard/atendimentos" className={styles.more}>Abrir agenda completa <ArrowRight size={15}/></Link>}
      </section>
    </div>
-   <section className={styles.shortcuts}>
+   {!agendaOnly&&<section className={styles.shortcuts}>
      <div><h2>Atalhos de atendimento</h2>
        <p>Acesse diretamente o que mais utiliza, sem um segundo prontuário.</p></div>
      <div className={styles.shortcutItems}>
@@ -205,7 +217,7 @@ export function ProfessionalWorkspace({nome,patients,tasks}:{
        <Link href="/dashboard/cadastro-clinico"><FilePlus2 size={19}/> Nova gestante <ArrowRight size={14}/></Link>
        <Link href="/dashboard/importacoes"><FileSpreadsheet size={19}/> Revisar importação <ArrowRight size={14}/></Link>
      </div>
-   </section>
+   </section>}
    <p className={styles.disclaimer}>Agenda de organização, não substitui o prontuário oficial.
      Pendência de registro não significa procedimento não realizado.</p>
  </div>;

@@ -3,7 +3,7 @@
 import {
   FileSpreadsheet,
   Home,
-  Stethoscope,
+  CalendarDays,
   UserRound,
   UsersRound,
 } from "lucide-react";
@@ -26,20 +26,12 @@ const professionalItems: NavigationItem[] = [
     label: "Início",
     icon: Home,
   },
-  {
-    href: "/dashboard/gestantes",
-    label: "Minhas gestantes",
-    icon: UsersRound,
-  },
-  {
-    href: "/dashboard/importacoes",
-    label: "Importar PEC",
-    icon: FileSpreadsheet,
-  },
+  {href:"/dashboard/importacoes",label:"Importar PEC",icon:FileSpreadsheet},
+  {href:"/dashboard/gestantes",label:"Minhas gestantes",icon:UsersRound},
   {
     href: "/dashboard/atendimentos",
-    label: "Atendimentos",
-    icon: Stethoscope,
+    label: "Agenda",
+    icon: CalendarDays,
   },
   {
     href: "/dashboard/perfil",
@@ -57,35 +49,18 @@ function isActive(pathname: string, href: string): boolean {
 }
 
 export function AppSidebar({
-  profile,
+  profile, onNavigate,
 }: {
-  profile: SidebarProfile;
+  profile: SidebarProfile; onNavigate?:()=>void;
 }) {
   const pathname = usePathname();
   const visibleItems =
     profile === "equipe_ubs" ? professionalItems : [];
 
   return (
-    <aside className="sidebar">
+    <aside className="sidebar" id="gestario-sidebar" aria-label="Menu lateral">
       <div className="sidebar-main">
-        <div className="side-brand">
-          <div className="side-brand-logo">
-            <Image
-              src="/brand/pet-saude-white-v10.png"
-              alt="Símbolo PET-Saúde"
-              width={48}
-              height={48}
-              priority
-            />
-          </div>
-
-          <span>
-            Cuidado na Gestação
-            <br />
-            <small>APS • Profissionais</small>
-          </span>
-        </div>
-
+        <Link className="side-brand ga-brand" href="/dashboard" onClick={()=>{onNavigate?.();if(pathname==="/dashboard")window.scrollTo({top:0,behavior:"auto"})}}><Image src="/brand/gestario-original.png" alt="Gestário APS" width={1377} height={785} priority/></Link>
         <nav
           className="sidebar-navigation"
           aria-label="Menu principal"
@@ -99,6 +74,7 @@ export function AppSidebar({
                 isActive(pathname, href) ? "active" : ""
               }
               href={href}
+              onClick={onNavigate}
               key={href}
             >
               <Icon />
@@ -108,6 +84,7 @@ export function AppSidebar({
         </nav>
       </div>
 
+      <div className="ga-quote"><span aria-hidden="true">☀️</span><div><b>Frase do dia</b><p>“Cada cuidado hoje constrói um amanhã mais seguro.”</p></div></div>
       <footer className="sidebar-footer">
         <span>Versão {APP_CONFIG.version}</span>
         <span>Desenvolvido por {APP_CONFIG.developer}</span>

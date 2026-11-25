@@ -46,14 +46,6 @@ export default async function ImportacoesPage() {
 
   return (
     <>
-      <section className="heading">
-        <p>PET-Saúde UFCG</p>
-        <h1>Importação adaptável do PEC</h1>
-        <span>
-          Anexe o arquivo CSV exportado do PEC/e-SUS APS.
-        </span>
-      </section>
-
       <ImportacaoPecForm
         ubsId={profile.ubs_id}
         ubsName={ubsRelation.nome}

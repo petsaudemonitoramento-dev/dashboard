@@ -172,8 +172,8 @@ gestantes = rows.map((row) => ({
     return (
       <>
         <section className="heading">
-          <p>PET-Saúde UFCG</p>
-          <h1>Gestantes monitoradas</h1>
+          <p>GESTÁRIO APS · ACOMPANHAMENTO</p>
+          <h1>Minhas gestantes</h1>
           <span>{loadError}</span>
         </section>
         <div className="pec-error">{loadError}</div>
@@ -184,10 +184,10 @@ gestantes = rows.map((row) => ({
 return (
     <>
       <section className="heading">
-        <p>PET-Saúde UFCG</p>
-        <h1>Gestantes monitoradas</h1>
+        <p>GESTÁRIO APS · ACOMPANHAMENTO</p>
+        <h1>Minhas gestantes</h1>
         <span>
-          Cards assistenciais com acesso direto ao cadastro clínico.
+          Acompanhe cada ficha com os dados essenciais à vista, sem precisar abrir várias telas.
         </span>
       </section>
 

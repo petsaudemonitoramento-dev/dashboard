@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChangeEvent, FormEvent, useState } from "react";
+import { ChangeEvent, FormEvent, useRef, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -67,6 +67,7 @@ export function ImportacaoPecForm({
   ubsId: string;
   ubsName: string;
 }) {
+  const fileInput=useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [structureReviewed, setStructureReviewed] = useState(false);
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
@@ -75,13 +76,15 @@ export function ImportacaoPecForm({
   const [loadingMode, setLoadingMode] =
     useState<"preview" | "import" | null>(null);
 
-  function handleFile(event: ChangeEvent<HTMLInputElement>) {
-    setFile(event.target.files?.[0] ?? null);
+  function chooseFile(selected:File|null) {
+    setFile(selected);
     setStructureReviewed(false);
     setPreview(null);
     setResult(null);
     setError(null);
   }
+
+  function handleFile(event:ChangeEvent<HTMLInputElement>){chooseFile(event.target.files?.[0]??null)}
 
   async function submit(mode: "preview" | "import") {
     if (!file) {
@@ -163,20 +166,20 @@ export function ImportacaoPecForm({
     : null;
 
   return (
-    <div className="pec-import-grid">
+    <><section className="ga-pec-hero"><div><small>GESTÁRIO APS · IMPORTAR PEC</small><h1>Importar dados do PEC</h1><p>Analise arquivos exportados do PEC e prepare a atualização dos registros da sua UBS com atenção à qualidade e à privacidade dos dados.</p><button type="button" disabled={loadingMode!==null} onClick={()=>fileInput.current?.click()}>Selecionar arquivo CSV →</button></div><Upload aria-hidden="true"/></section><div className="pec-import-grid">
       <section className="pec-card pec-upload-card">
         <div className="pec-card-heading">
           <div className="pec-card-icon">
             <FileSpreadsheet size={25} />
           </div>
           <div>
-            <h2>Anexar relatório do PEC</h2>
+            <h2>Conciliação de dados do PEC</h2>
             <p>UBS vinculada: {ubsName}</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <label className="pec-file-drop">
+          <label className="pec-file-drop" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();if(loadingMode===null)chooseFile(e.dataTransfer.files[0]??null)}}>
             <Upload size={28} />
             <strong>
               {file ? file.name : "Selecionar arquivo CSV"}
@@ -186,6 +189,8 @@ export function ImportacaoPecForm({
               inclusive quando ela muda de posição.
             </span>
             <input
+              ref={fileInput}
+              disabled={loadingMode!==null}
               type="file"
               accept=".csv,text/csv"
               onChange={handleFile}
@@ -438,6 +443,6 @@ export function ImportacaoPecForm({
           </div>
         </section>
       )}
-    </div>
+    </div></>
   );
 }
