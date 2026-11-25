@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { workspaceToday } from "@/lib/workspace-date";
 import { createClient } from "@/lib/supabase/server";
 import {
   ProfessionalWorkspace,
@@ -36,13 +37,22 @@ export async function WorkspaceData({agendaOnly=false}:{agendaOnly?:boolean}={})
     profile.aprovacao_status!=="aprovado"||profile.perfil_excluido_em)
       redirect("/aguardando-aprovacao");
 
-  const [{data:listData,error:listError},{data:taskData,error:taskError}]=await Promise.all([
+  const day=workspaceToday();
+  const monthStart=day.slice(0,7)+"-01";
+  const [year,month]=day.split("-").map(Number);
+  const nextMonth=`${month===12?year+1:year}-${String(month===12?1:month+1).padStart(2,"0")}-01`;
+  let taskQuery=supabase.from("rotina_profissional_tarefas_v1")
+    .select("id,gestante_id,tipo,status,data_prevista").eq("profissional_id",user.id);
+  if(!agendaOnly)taskQuery=taskQuery.or(`data_prevista.gte.${day},status.neq.concluida`);
+  const [{data:listData,error:listError},{data:taskData,error:taskError},monthly,todayCount,completedCount]=await Promise.all([
     supabase.rpc("profissionais_listar_gestantes_v30",{p_exibir_identidade:true}),
-    supabase.from("rotina_profissional_tarefas_v1")
-      .select("id,gestante_id,tipo,status,data_prevista")
-      .eq("profissional_id",user.id)
-      .order("data_prevista",{ascending:true})
-      .limit(200),
+    taskQuery.order("data_prevista",{ascending:true}).limit(200),
+    agendaOnly?Promise.resolve({count:null,error:null}):supabase.from("gestante_consultas")
+      .select("id",{count:"exact",head:true}).eq("profissional_id",user.id).gte("data_atendimento",monthStart).lt("data_atendimento",nextMonth),
+    agendaOnly?Promise.resolve({count:null,error:null}):supabase.from("rotina_profissional_tarefas_v1")
+      .select("id",{count:"exact",head:true}).eq("profissional_id",user.id).eq("data_prevista",day),
+    agendaOnly?Promise.resolve({count:null,error:null}):supabase.from("rotina_profissional_tarefas_v1")
+      .select("id",{count:"exact",head:true}).eq("profissional_id",user.id).eq("data_prevista",day).eq("status","concluida"),
   ]);
   if(listError)throw listError;
   if(taskError)throw taskError;
@@ -63,6 +73,8 @@ export async function WorkspaceData({agendaOnly=false}:{agendaOnly?:boolean}={})
   const patientSet=new Set(patients.map(x=>x.id));
   const tasks=((taskData??[]) as FollowUp[]).filter(t=>patientSet.has(t.gestante_id));
 
-  return <ProfessionalWorkspace nome={profile.nome_completo??"profissional"}
-    patients={patients} tasks={tasks} agendaOnly={agendaOnly}/>;
+  return <ProfessionalWorkspace nome={profile.nome_completo??"profissional"} accountId={user.id}
+    patients={patients} tasks={tasks} monthlyVisits={monthly.error?null:monthly.count}
+    todayTotal={todayCount.error?null:todayCount.count} todayCompleted={completedCount.error?null:completedCount.count}
+    agendaOnly={agendaOnly}/>;
 }

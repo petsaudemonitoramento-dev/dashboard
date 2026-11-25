@@ -2,6 +2,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { HomeNotes } from "./home-notes";
+import { workspaceToday } from "@/lib/workspace-date";
 import { Activity, ArrowRight, Baby, CalendarClock, CheckCircle2,
   ClipboardList, FilePlus2, HeartPulse, RefreshCw, Search, Stethoscope,
   FileSpreadsheet, RotateCcw, Trash2, Plus, Clock3 } from "lucide-react";
@@ -23,10 +25,7 @@ const types:Record<FollowUp["tipo"],string> = {
   contato:"Busca ativa / contato",visita:"Verificar visita",
   revisao:"Revisar cadastro / C3",
 };
-const today=()=>{
-  const d=new Date();
-  return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-");
-};
+const today=workspaceToday;
 function clinical(id:string,tab:"consultas"|"exames"|"gestacao"="consultas"){
   return "/dashboard/cadastro-clinico?gestante="+encodeURIComponent(id)+"&aba="+tab;
 }
@@ -36,11 +35,12 @@ function dateBR(date:string|null){
   return p.length===3?p[2]+"/"+p[1]+"/"+p[0]:"Não informada";
 }
 
-export function ProfessionalWorkspace({nome,patients,tasks,agendaOnly=false}:{
-  nome:string;patients:WorkPatient[];tasks:FollowUp[];agendaOnly?:boolean;
+export function ProfessionalWorkspace({nome,accountId,patients,tasks,monthlyVisits,todayTotal,todayCompleted,agendaOnly=false}:{
+  nome:string;accountId:string;patients:WorkPatient[];tasks:FollowUp[];monthlyVisits:number|null;todayTotal:number|null;todayCompleted:number|null;agendaOnly?:boolean;
 }){
  const router=useRouter();
  const [search,setSearch]=useState("");
+ const [showAttention,setShowAttention]=useState(false);
  const [newOpen,setNewOpen]=useState(false);
  const [patient,setPatient]=useState(patients[0]?.id||"");
  const [kind,setKind]=useState<FollowUp["tipo"]>("consulta");
@@ -57,8 +57,8 @@ export function ProfessionalWorkspace({nome,patients,tasks,agendaOnly=false}:{
  const highIds=new Set(patients.filter(p=>p.altoRisco).map(p=>p.id));
  function changeMonth(delta:number){const d=new Date(first);d.setMonth(d.getMonth()+delta);setMonth([d.getFullYear(),String(d.getMonth()+1).padStart(2,"0")].join("-"))}
  const names=new Map(patients.map(p=>[p.id,p.nome]));
- const remaining=tasks.filter(t=>t.status!=="concluida");
- const dueCount=remaining.filter(t=>t.data_prevista<=now).length;
+ const completedToday=todayCompleted??tasks.filter(t=>t.data_prevista===now&&t.status==="concluida").length;
+ const plannedToday=todayTotal??tasks.filter(t=>t.data_prevista===now).length;
  const examsCount=patients.filter(p=>p.pendenciasExames>0).length;
  const riskCount=patients.filter(p=>p.altoRisco).length;
  const relevant=patients.filter(p=>p.altoRisco||p.pendenciasExames>0||
@@ -68,9 +68,8 @@ export function ProfessionalWorkspace({nome,patients,tasks,agendaOnly=false}:{
   .sort((a,b)=>Number(b.altoRisco)-Number(a.altoRisco)||
     b.pendenciasExames-a.pendenciasExames||a.nome.localeCompare(b.nome,"pt-BR"))
   .slice(0,15);
- const visibleTasks=[...(agendaOnly?dayTasks.filter(t=>filter==="todos"||(filter==="alto"?highIds.has(t.gestante_id):filter==="concluida"?t.status==="concluida":t.status!=="concluida")):tasks)].sort((a,b)=>
-   Number(a.status==="concluida")-Number(b.status==="concluida")||
-   a.data_prevista.localeCompare(b.data_prevista)).slice(0,agendaOnly?200:3);
+ const upcoming=tasks.filter(t=>t.data_prevista>=now||t.status!=="concluida").sort((a,b)=>a.data_prevista.localeCompare(b.data_prevista)||a.id.localeCompare(b.id));
+ const visibleTasks=agendaOnly?dayTasks.filter(t=>filter==="todos"||(filter==="alto"?highIds.has(t.gestante_id):filter==="concluida"?t.status==="concluida":t.status!=="concluida")).sort((a,b)=>Number(a.status==="concluida")-Number(b.status==="concluida")).slice(0,200):upcoming.slice(0,3);
 
  async function save(method:"POST"|"PATCH"|"DELETE",payload:Record<string,unknown>,ok:string){
    setBusy(true);setFeedback(null);
@@ -101,17 +100,94 @@ export function ProfessionalWorkspace({nome,patients,tasks,agendaOnly=false}:{
        {value:dayTasks.filter(t=>t.status!=="concluida").length,label:"A realizar",hint:"Atividades pendentes",icon:Clock3,href:"#agenda"},
        {value:new Set(dayTasks.filter(t=>highIds.has(t.gestante_id)).map(t=>t.gestante_id)).size,label:"Gestantes de alto risco",hint:"Classificação registrada",icon:Activity,href:"#agenda"},
      ]:[
-       {value:patients.length,label:"Minhas gestantes",hint:"Somente as suas fichas",icon:Baby,href:"/dashboard/gestantes"},
-       {value:dueCount,label:"Atividades até hoje",hint:"Sem confirmação de conclusão",icon:CalendarClock,href:"#agenda"},
-       {value:examsCount,label:"Exames a conferir",hint:"Sem registro ≠ não realizado",icon:ClipboardList,href:"#atencao"},
-       {value:riskCount,label:"Alto risco registrado",hint:"Conforme ficha, sem diagnóstico novo",icon:Activity,href:"#atencao"},
+       {value:patients.length,label:"Minhas gestantes",hint:"Gestantes vinculadas ao seu acompanhamento",icon:Baby,href:"/dashboard/gestantes"},
+       {value:plannedToday,label:"Agenda de hoje",hint:`${completedToday} concluídas · ${Math.max(0,plannedToday-completedToday)} pendentes`,icon:CalendarClock,href:"/dashboard/atendimentos"},
+       {value:monthlyVisits??"—",label:"Atendimentos no mês",hint:monthlyVisits===null?"Contagem indisponível":"Atendimentos registrados neste mês",icon:ClipboardList,href:"/dashboard/gestantes"},
+       {value:riskCount,label:"Gestantes de alto risco",hint:"Conforme classificação registrada",icon:Activity,href:"/dashboard/gestantes"},
      ]).map(item=><Link className={styles.metric} href={item.href} key={item.label}>
        <span className={styles.metricIcon}><item.icon size={19}/></span>
        <span>{item.label}</span><strong>{item.value}</strong><small>{item.hint}</small>
+       {!agendaOnly&&item.label==="Agenda de hoje"&&<progress className={styles.todayProgress} value={Math.min(completedToday,plannedToday)} max={Math.max(1,plannedToday)} aria-label="Progresso da agenda de hoje"/>}
      </Link>)}
    </div>
-   <div className={agendaOnly?styles.agendaColumns:styles.columns}>
-     {agendaOnly?<section className={styles.panel}><div className={styles.calendar}><div className={styles.calendarHead}><button aria-label="Mês anterior" onClick={()=>changeMonth(-1)} type="button">‹</button><strong>{first.toLocaleDateString("pt-BR",{month:"long",year:"numeric"})}</strong><button aria-label="Próximo mês" onClick={()=>changeMonth(1)} type="button">›</button></div><div className={styles.calendarGrid}>{["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].map(d=><span key={d}>{d}</span>)}{days.map(d=><button key={d} type="button" aria-pressed={selected===d} aria-label={dateBR(d)} className={d.startsWith(month)?"":styles.outDay} onClick={()=>{setSelected(d);setMonth(d.slice(0,7));setDue(d)}}>{Number(d.slice(-2))}<span className={styles.dots}>{tasks.some(t=>t.data_prevista===d)&&"•"}</span></button>)}</div><p>Selecione um dia para consultar ou registrar compromissos.</p></div></section>:<section className={styles.panel} id="atencao">
+   <div className={agendaOnly?styles.agendaColumns:styles.homeColumns}>
+     {agendaOnly?<section className={styles.panel}><div className={styles.calendar}><div className={styles.calendarHead}><button aria-label="Mês anterior" onClick={()=>changeMonth(-1)} type="button">‹</button><strong>{first.toLocaleDateString("pt-BR",{month:"long",year:"numeric"})}</strong><button aria-label="Próximo mês" onClick={()=>changeMonth(1)} type="button">›</button></div><div className={styles.calendarGrid}>{["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].map(d=><span key={d}>{d}</span>)}{days.map(d=><button key={d} type="button" aria-pressed={selected===d} aria-label={dateBR(d)} className={d.startsWith(month)?"":styles.outDay} onClick={()=>{setSelected(d);setMonth(d.slice(0,7));setDue(d)}}>{Number(d.slice(-2))}<span className={styles.dots}>{tasks.some(t=>t.data_prevista===d)&&"•"}</span></button>)}</div><p>Selecione um dia para consultar ou registrar compromissos.</p></div></section>:null}
+     <section className={`${styles.panel} ${agendaOnly?"":styles.homeAgenda}`} id="agenda">
+       <header className={styles.panelHeader}>
+         <div><h2>{agendaOnly?dateBR(selected):"Agenda e próximos atendimentos"}</h2><p>{agendaOnly?"Registre o próximo passo sem preencher outra ficha.":"Visualize o que está previsto e o que já foi realizado."}</p></div>
+         {agendaOnly?<button className={styles.add} type="button" title="Adicionar atividade"
+           aria-label="Adicionar atividade" disabled={!patients.length}
+           onClick={()=>{setDue(selected);setNewOpen(!newOpen)}}><Plus size={20}/></button>:<Link className={styles.lightButton} href="/dashboard/atendimentos"><CalendarClock size={15}/> Ver agenda</Link>}
+       </header>
+       {newOpen&&<form className={styles.newTask} onSubmit={e=>{
+         e.preventDefault();void save("POST",{gestanteId:patient,tipo:kind,dataPrevista:due},"Atividade agendada.");
+       }}>
+         <label>Gestante<select required value={patient} onChange={e=>setPatient(e.target.value)}>
+           {patients.map(p=><option value={p.id} key={p.id}>{p.nome}</option>)}</select></label>
+         <label>Atividade<select value={kind} onChange={e=>setKind(e.target.value as FollowUp["tipo"])}>
+           {Object.entries(types).map(([v,label])=><option value={v} key={v}>{label}</option>)}
+         </select></label>
+         <label>Data<input type="date" value={due} min="2020-01-01" max="2100-12-31"
+           required onChange={e=>setDue(e.target.value)}/></label>
+         <button type="submit" className={styles.primaryButton} disabled={busy}>Salvar na agenda</button>
+       </form>}
+       {feedback&&<p role="status" className={styles.feedback}>{feedback}</p>}
+       {agendaOnly&&<div className={styles.dayFilters}>{[["todos","Todos"],["pendente","A realizar"],["concluida","Concluídos"],["alto","Alto risco"]].map(([v,label])=><button key={v} type="button" aria-pressed={filter===v} onClick={()=>setFilter(v)}>{label}</button>)}</div>}
+       <div className={styles.tasks}>
+         {!agendaOnly&&visibleTasks.map(t=>{
+           const status=t.status==="concluida"?"Concluída":t.status==="adiada"?"Reagendada":t.data_prevista<now?"Em atraso":"Pendente";
+           return <article key={t.id} className={styles.previewTask} data-status={status}>
+             <time className={styles.previewDate} dateTime={t.data_prevista}>{t.data_prevista===now?"Hoje":dateBR(t.data_prevista).slice(0,5)}</time>
+             <div className={styles.previewTaskBody}>
+               <strong>{types[t.tipo]}</strong>
+               <Link href={clinical(t.gestante_id,t.tipo==="exame"?"exames":"consultas")}>{names.get(t.gestante_id)||"Gestante vinculada"}</Link>
+             </div>
+             <span className={styles.statusPill} data-status={status}>{status}</span>
+           </article>
+         })}
+         {agendaOnly&&visibleTasks.map(t=><article className={styles.task} key={t.id}>
+           <div className={styles.taskIcon}><Clock3 size={18}/></div>
+           <div className={styles.taskMain}>
+             <strong>{types[t.tipo]}</strong>
+             <Link href={clinical(t.gestante_id,t.tipo==="exame"?"exames":"consultas")}>
+               {names.get(t.gestante_id)||"Gestante vinculada"}
+             </Link>
+             <small>{dateBR(t.data_prevista)} · {t.status==="concluida"?"Concluída":
+               t.status==="adiada"?"Reagendada":t.data_prevista<now?"Data anterior a hoje":"Pendente"}</small>
+             {rescheduling===t.id&&<form className={styles.reschedule} onSubmit={e=>{
+               e.preventDefault();void save("PATCH",{id:t.id,status:"adiada",dataPrevista:newDue},"Atividade reagendada.");
+             }}><input aria-label="Nova data" type="date" value={newDue}
+                 onChange={e=>setNewDue(e.target.value)} required/>
+               <button type="submit" disabled={busy}>Confirmar</button></form>}
+           </div>
+           <div className={styles.taskButtons}>
+             <button type="button" disabled={busy} title={t.status==="concluida"?"Reabrir":"Concluir"}
+               aria-label={t.status==="concluida"?"Reabrir atividade":"Concluir atividade"}
+               onClick={()=>void save("PATCH",{id:t.id,status:t.status==="concluida"?"pendente":"concluida"},
+                 t.status==="concluida"?"Atividade reaberta.":"Atividade concluída.")}>
+                 {t.status==="concluida"?<RotateCcw size={16}/>:<CheckCircle2 size={17}/>}
+             </button>
+             {t.status!=="concluida"&&<button type="button" disabled={busy}
+               title="Reagendar" aria-label="Reagendar" onClick={()=>{setRescheduling(t.id);setNewDue(t.data_prevista);}}>
+               <CalendarClock size={16}/></button>}
+             <button type="button" disabled={busy} title="Remover" aria-label="Remover"
+               onClick={()=>{if(window.confirm("Remover esta atividade da agenda?"))
+                 void save("DELETE",{id:t.id},"Atividade removida.");}}>
+               <Trash2 size={16}/></button>
+           </div>
+         </article>)}
+         {!visibleTasks.length&&<div className={styles.empty}>
+           <CalendarClock size={24}/><strong>Nenhuma atividade nesta seleção</strong>
+           <p>{agendaOnly?"Use + para planejar consultas, contatos ou revisões.":"Abra a agenda para planejar consultas, retornos ou revisões."}</p>
+         </div>}
+       </div>
+       {!agendaOnly&&<footer className={styles.previewFooter}><span>{visibleTasks.length} compromisso{visibleTasks.length===1?"":"s"} exibido{visibleTasks.length===1?"":"s"}</span><Link href="/dashboard/atendimentos" className={styles.more}>Abrir agenda completa <ArrowRight size={15}/></Link></footer>}
+     </section>
+     {!agendaOnly&&<HomeNotes accountId={accountId} key={accountId}/>}
+   </div>
+   {!agendaOnly&&<div className={styles.attentionDisclosure}>
+     <button type="button" className={styles.lightButton} aria-expanded={showAttention} aria-controls="home-attention" onClick={()=>setShowAttention(v=>!v)}><ClipboardList size={16}/> {showAttention?"Ocultar pendências":"Conferir pendências"} · {examsCount} fichas com pendências sugeridas</button>
+     <div id="home-attention" hidden={!showAttention}><section className={styles.panel} id="atencao">
        <header className={styles.panelHeader}>
          <div><h2>O que conferir</h2><p>Organização de registros; não é triagem de urgência.</p></div>
          <Search size={20}/>
@@ -147,77 +223,8 @@ export function ProfessionalWorkspace({nome,patients,tasks,agendaOnly=false}:{
          </div>}
        </div>
        <Link className={styles.more} href="/dashboard/gestantes">Todas as gestantes <ArrowRight size={15}/></Link>
-     </section>}
-     <section className={styles.panel} id="agenda">
-       <header className={styles.panelHeader}>
-         <div><h2>{agendaOnly?dateBR(selected):"Agenda e próximos atendimentos"}</h2><p>Registre o próximo passo sem preencher outra ficha.</p></div>
-         <button className={styles.add} type="button" title="Adicionar atividade"
-           aria-label="Adicionar atividade" disabled={!patients.length}
-           onClick={()=>{if(agendaOnly)setDue(selected);setNewOpen(!newOpen)}}><Plus size={20}/></button>
-       </header>
-       {newOpen&&<form className={styles.newTask} onSubmit={e=>{
-         e.preventDefault();void save("POST",{gestanteId:patient,tipo:kind,dataPrevista:due},"Atividade agendada.");
-       }}>
-         <label>Gestante<select required value={patient} onChange={e=>setPatient(e.target.value)}>
-           {patients.map(p=><option value={p.id} key={p.id}>{p.nome}</option>)}</select></label>
-         <label>Atividade<select value={kind} onChange={e=>setKind(e.target.value as FollowUp["tipo"])}>
-           {Object.entries(types).map(([v,label])=><option value={v} key={v}>{label}</option>)}
-         </select></label>
-         <label>Data<input type="date" value={due} min="2020-01-01" max="2100-12-31"
-           required onChange={e=>setDue(e.target.value)}/></label>
-         <button type="submit" className={styles.primaryButton} disabled={busy}>Salvar na agenda</button>
-       </form>}
-       {feedback&&<p role="status" className={styles.feedback}>{feedback}</p>}
-       {agendaOnly&&<div className={styles.dayFilters}>{[["todos","Todos"],["pendente","A realizar"],["concluida","Concluídos"],["alto","Alto risco"]].map(([v,label])=><button key={v} type="button" aria-pressed={filter===v} onClick={()=>setFilter(v)}>{label}</button>)}</div>}
-       <div className={styles.tasks}>
-         {visibleTasks.map(t=><article className={styles.task} key={t.id}>
-           <div className={styles.taskIcon}><Clock3 size={18}/></div>
-           <div className={styles.taskMain}>
-             <strong>{types[t.tipo]}</strong>
-             <Link href={clinical(t.gestante_id,t.tipo==="exame"?"exames":"consultas")}>
-               {names.get(t.gestante_id)||"Gestante vinculada"}
-             </Link>
-             <small>{dateBR(t.data_prevista)} · {t.status==="concluida"?"Concluída":
-               t.status==="adiada"?"Reagendada":t.data_prevista<now?"Data anterior a hoje":"Pendente"}</small>
-             {rescheduling===t.id&&<form className={styles.reschedule} onSubmit={e=>{
-               e.preventDefault();void save("PATCH",{id:t.id,status:"adiada",dataPrevista:newDue},"Atividade reagendada.");
-             }}><input aria-label="Nova data" type="date" value={newDue}
-                 onChange={e=>setNewDue(e.target.value)} required/>
-               <button type="submit" disabled={busy}>Confirmar</button></form>}
-           </div>
-           <div className={styles.taskButtons}>
-             <button type="button" disabled={busy} title={t.status==="concluida"?"Reabrir":"Concluir"}
-               aria-label={t.status==="concluida"?"Reabrir atividade":"Concluir atividade"}
-               onClick={()=>void save("PATCH",{id:t.id,status:t.status==="concluida"?"pendente":"concluida"},
-                 t.status==="concluida"?"Atividade reaberta.":"Atividade concluída.")}>
-                 {t.status==="concluida"?<RotateCcw size={16}/>:<CheckCircle2 size={17}/>}
-             </button>
-             {t.status!=="concluida"&&<button type="button" disabled={busy}
-               title="Reagendar" aria-label="Reagendar" onClick={()=>{setRescheduling(t.id);setNewDue(t.data_prevista);}}>
-               <CalendarClock size={16}/></button>}
-             <button type="button" disabled={busy} title="Remover" aria-label="Remover"
-               onClick={()=>{if(window.confirm("Remover esta atividade da agenda?"))
-                 void save("DELETE",{id:t.id},"Atividade removida.");}}>
-               <Trash2 size={16}/></button>
-           </div>
-         </article>)}
-         {!visibleTasks.length&&<div className={styles.empty}>
-           <CalendarClock size={24}/><strong>Nenhuma atividade nesta seleção</strong>
-           <p>Use + para planejar consultas, contatos ou revisões.</p>
-         </div>}
-       </div>
-       {!agendaOnly&&<Link href="/dashboard/atendimentos" className={styles.more}>Abrir agenda completa <ArrowRight size={15}/></Link>}
-     </section>
-   </div>
-   {!agendaOnly&&<section className={styles.shortcuts}>
-     <div><h2>Atalhos de atendimento</h2>
-       <p>Acesse diretamente o que mais utiliza, sem um segundo prontuário.</p></div>
-     <div className={styles.shortcutItems}>
-       <Link href="/dashboard/gestantes"><Stethoscope size={19}/> Registrar consulta <ArrowRight size={14}/></Link>
-       <Link href="/dashboard/cadastro-clinico"><FilePlus2 size={19}/> Nova gestante <ArrowRight size={14}/></Link>
-       <Link href="/dashboard/importacoes"><FileSpreadsheet size={19}/> Revisar importação <ArrowRight size={14}/></Link>
-     </div>
-   </section>}
+     </section></div>
+   </div>}
    <p className={styles.disclaimer}>Agenda de organização, não substitui o prontuário oficial.
      Pendência de registro não significa procedimento não realizado.</p>
  </div>;

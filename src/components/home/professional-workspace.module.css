@@ -55,3 +55,53 @@
 
 .workspace{color:#102451;gap:21px}.welcome{padding:0 0 6px;flex-wrap:wrap}.welcome h1{color:#0b2466;font-size:30px}.eyebrow{color:#6861a9;font-size:11px}.primaryButton{background:#00167a;border-color:#00167a}.primaryButton:hover{background:#263c99}.lightButton{color:#253e80;border-color:#dce2ef}.metric{min-height:171px;padding:19px 18px 17px;border-color:#e7eaf4;border-radius:17px;box-shadow:0 5px 22px #26417d09}.metric strong{color:#092363;font-size:32px}.metricIcon{width:39px;height:39px;background:#eaf1ff;color:#2149bd}.metric:nth-child(2) .metricIcon{background:#fff4db;color:#af7c1c}.metric:nth-child(3) .metricIcon{background:#e8f5f1;color:#357e71}.metric:nth-child(4) .metricIcon{background:#ffedef;color:#b64258}.panel{border:1px solid #e7eaf4;border-radius:19px;box-shadow:0 7px 25px #19296508}.panelHeader h2,.shortcuts h2{color:#10265e}.record,.task{margin:9px 14px;padding:13px;border:1px solid #ecedf5;border-radius:12px}.recordBody strong,.taskMain strong{color:#243969}.agendaColumns{display:grid;grid-template-columns:minmax(270px,360px) minmax(0,1fr);gap:18px;align-items:start}.calendar{padding:21px 20px}.calendarHead{display:flex;justify-content:space-between;align-items:center;gap:8px;color:#182c68;text-transform:capitalize;margin-bottom:17px}.calendarHead button,.dayFilters button{border:1px solid #e5eafa;background:#f8faff;color:#254484;border-radius:9px;padding:8px 11px}.calendarGrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center}.calendarGrid>span{color:#687897;font-size:11px;padding:8px 0}.calendarGrid button{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0;min-height:40px;border:1px solid transparent;border-radius:10px;background:white;color:#40547d;font-size:12px}.calendarGrid button[aria-pressed=true],.dayFilters button[aria-pressed=true]{background:#00167a;color:white}.calendarGrid button:hover:not([aria-pressed=true]){background:#e0e7ff}.calendarGrid .outDay{color:#8995ad}.dots{height:12px;line-height:10px;color:#8da3dc}.calendar p{font-size:12px;color:#687897;margin:18px 0 0}.dayFilters{display:flex;flex-wrap:wrap;gap:7px;margin:0 20px 12px}.dayFilters button{font-size:12px}
 @media(max-width:1100px){.agendaColumns{grid-template-columns:1fr}}@media(max-width:550px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.metric{min-height:156px;padding:12px}.metric strong{font-size:26px}.record,.task{margin:8px;padding:10px}.calendar{padding:15px 12px}}
+
+/* Home: two equally tall, calm panels, without repeated bottom shortcuts. */
+.homeColumns{display:grid;grid-template-columns:minmax(0,1.27fr) minmax(0,1fr);gap:18px;align-items:stretch}
+.homeColumns>.panel{min-height:400px;display:flex;flex-direction:column}
+.homeColumns .panelHeader{padding:22px 22px 16px}
+.homeColumns .panelHeader .lightButton{padding:8px 10px;font-size:11px;white-space:nowrap;flex:none}
+.homeAgenda .tasks{padding:0 20px;overflow:visible}
+.previewTask{display:grid;grid-template-columns:62px minmax(0,1fr) auto;align-items:center;gap:12px;padding:13px 12px;margin:0 0 9px;border:1px solid #e4e8f1;border-radius:12px;background:#fff}
+.previewDate{font-size:13px;font-weight:780;color:#233e79}
+.previewTaskBody{min-width:0;display:grid;gap:3px;border-left:3px solid #9b96ca;padding-left:12px}
+.previewTaskBody strong{font-size:12px;color:#1b305e;overflow-wrap:anywhere}
+.previewTaskBody a{font-size:11px;color:#4f607b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.previewTaskBody a:hover{text-decoration:underline}
+.previewTask[data-status="Concluída"] .previewTaskBody{border-color:#72a99a}
+.previewTask[data-status="Em atraso"] .previewTaskBody{border-color:#bc805a}
+.statusPill{font-size:10px;font-weight:700;border-radius:999px;background:#efedf9;color:#514681;padding:6px 9px;white-space:nowrap}
+.statusPill[data-status="Concluída"]{background:#e7f4ed;color:#245f4a}
+.statusPill[data-status="Em atraso"]{background:#fff1e4;color:#825020}
+.previewFooter{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:12px 20px 0;padding:14px 0;border-top:1px solid #e9edf4;color:#596982;font-size:11px;flex-wrap:wrap}
+.previewFooter .more{padding:5px 0;border:0;margin:0;color:#254181}
+.todayProgress{width:100%;height:6px;appearance:none;border:0;border-radius:10px;background:#e8edf3;overflow:hidden;accent-color:#568a7b}
+.todayProgress::-webkit-progress-bar{background:#e8edf3;border-radius:10px}
+.todayProgress::-webkit-progress-value{background:#568a7b;border-radius:10px}
+.todayProgress::-moz-progress-bar{background:#568a7b;border-radius:10px}
+.notesIcon{display:grid;place-items:center;width:35px;height:35px;flex:none;border-radius:11px;background:#eaf0ff;color:#274998}
+.notesBody{padding:0 22px 20px;display:grid;gap:12px}
+.notesLabel{display:flex;justify-content:space-between;align-items:center;gap:10px;color:#4b5d7a;font-size:12px;font-weight:700}
+.notesLabel small{font-size:10px;color:#526d65;font-weight:500;text-align:right}
+.notesText{width:100%;min-height:106px;resize:vertical;padding:12px;border:1px solid #dbe2ee;border-radius:12px;background:#f8faff;color:#24365c;font-size:13px;line-height:1.55}
+.notesText::placeholder,.notesAdd input::placeholder{color:#61708a}
+.notesDivider{border:0;border-top:1px solid #e8edf3;margin:2px 0}
+.notesList{list-style:none;padding:0;margin:0;display:grid;gap:7px;max-height:185px;overflow:auto}
+.notesList li{display:flex;align-items:center;gap:6px;min-width:0}
+.notesList label{display:flex;flex:1;min-width:0;gap:9px;align-items:center;font-size:12px;line-height:1.4;color:#344564;overflow-wrap:anywhere}
+.notesList input{width:16px;height:16px;flex:none;accent-color:#528b7a}
+.notesList label[data-done="true"] span{text-decoration:line-through;color:#637185}
+.notesList button,.notesClear{padding:5px 8px;border:0;border-radius:7px;color:#4e5f7a;background:transparent;font-size:11px}
+.notesList button:hover,.notesClear:hover{background:#f1f4fc;color:#172e6a}
+.notesAdd{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px}
+.notesAdd input{min-width:0;width:100%;border:1px solid #dbe2ee;border-radius:10px;padding:10px 12px;background:#fff;color:#24365c;font-size:12px}
+.notesAdd button{width:40px;border:0;border-radius:10px;background:#e9edfb;color:#244285;display:grid;place-items:center}
+.notesNotice{font-size:10px;line-height:1.5;color:#596982;margin:0}
+.notesEmpty{color:#596982;font-size:12px;margin:2px 0}
+.notesEnd{display:flex;align-items:flex-start;gap:9px;justify-content:space-between}
+.notesClear{white-space:nowrap;flex:none}
+.attentionDisclosure{display:grid;gap:12px;justify-items:start}
+.attentionDisclosure>div{width:100%}
+.attentionDisclosure>div[hidden]{display:none}
+@media(max-width:1100px){.homeColumns{grid-template-columns:1fr}.homeColumns>.panel{min-height:0}}
+@media(max-width:550px){.homeColumns .panelHeader{padding:16px 15px 12px}.homeAgenda .tasks,.notesBody{padding-inline:13px}.previewTask{grid-template-columns:47px minmax(0,1fr);gap:7px;padding:10px}.previewTask .statusPill{grid-column:2;justify-self:start}.previewFooter{margin-inline:13px}.notesEnd{flex-wrap:wrap}}
