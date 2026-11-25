@@ -57,6 +57,8 @@ export type GestanteCardData = {
   altaMotivo: string | null;
   pendencias: number;
   atualizadoEm: string;
+  proximoAtendimento?: string | null;
+  agendaConsultada?: boolean;
 };
 
 type Props = {
@@ -273,6 +275,7 @@ function ActiveCard({
           </div>
         </div>
 
+        {gestante.agendaConsultada&&<div className={styles.nextVisit}><CalendarDays size={16}/><span>Próxima consulta: <strong>{gestante.proximoAtendimento?formatDate(gestante.proximoAtendimento):"Sem agendamento registrado"}</strong></span></div>}
         {gestante.pendencias > 0 && (
           <div className={styles.pendingBadge}>
             <HeartPulse size={15} />
@@ -284,6 +287,17 @@ function ActiveCard({
           </div>
         )}
 
+        <details className={styles.checkDetails}>
+          <summary>Conferir informações da ficha</summary>
+          <ul>
+            {gestante.ultimaConsulta===null&&<li>Data da última consulta não informada.</li>}
+            {gestante.igSemanas===null&&<li>Idade gestacional não informada.</li>}
+            {gestante.dpp===null&&<li>DPP não informada.</li>}
+            {Object.entries(gestante.exames).filter(([,v])=>!v||v==="-"||normalize(v)==="nao informado").map(([k])=><li key={k}>{({hivPrimeiro:"HIV — 1º trimestre",sifilisPrimeiro:"Sífilis — 1º trimestre",hepatiteB:"Hepatite B",hepatiteC:"Hepatite C",hivTerceiro:"HIV — 3º trimestre",sifilisTerceiro:"Sífilis — 3º trimestre"} as Record<string,string>)[k]}: sem registro neste campo.</li>)}
+          </ul>
+          <small>Informações ausentes não significam procedimento não realizado ou indicação clínica. Confira a ficha completa.</small>
+          {!presentationMode&&<Link href={`/dashboard/gestantes?editar=${encodeURIComponent(gestante.id)}&aba=exames`} prefetch={false}>Conferir exames e pendências →</Link>}
+        </details>
         <section className={styles.section}>
           <h3>
             <Activity size={16} />
@@ -393,27 +407,19 @@ function ActiveCard({
         {!presentationMode && (
           <div className={styles.cardActions}>
             <Link
-              href={`/dashboard/cadastro-clinico?gestante=${encodeURIComponent(gestante.id)}`}
+              href={`/dashboard/gestantes?editar=${encodeURIComponent(gestante.id)}`}
               prefetch={false}
               className={styles.primaryAction}
               aria-label={`Atualizar ficha de ${gestante.nomeVisual}`}
-              onNavigate={(event) => {
-                event.preventDefault();
-                window.location.assign(`/dashboard/cadastro-clinico?gestante=${encodeURIComponent(gestante.id)}`);
-              }}
             >
               <FilePenLine size={15} />
               Atualizar
             </Link>
             <Link
-              href={`/dashboard/classificacao-risco?gestante=${encodeURIComponent(gestante.id)}`}
+              href={`/dashboard/gestantes?risco=${encodeURIComponent(gestante.id)}`}
               prefetch={false}
               className={styles.secondaryAction}
               aria-label={`Classificar risco de ${gestante.nomeVisual}`}
-              onNavigate={(event) => {
-                event.preventDefault();
-                window.location.assign(`/dashboard/classificacao-risco?gestante=${encodeURIComponent(gestante.id)}`);
-              }}
             >
               <HeartPulse size={15} />
               Risco
@@ -477,6 +483,7 @@ export function GestantesGrid({
   const [isPending, startTransition] = useTransition();
 
   const [currentSearch, setCurrentSearch] = useState("");
+  const [pagination,setPagination]=useState({key:"",page:1});
   const [organization,setOrganization] = useState<Organization>("atendimento");
   const [year,setYear] = useState("todos");
   const [month,setMonth] = useState("todos");
@@ -540,21 +547,26 @@ export function GestantesGrid({
     statusFilter,
   ]);
 
-  const activeGestantes = filtered.filter(
+  const pageSize=12;
+  const filterKey=JSON.stringify([currentSearch,currentRisk,currentMicroarea,statusFilter,organization,year,month]);
+  const pages=Math.max(1,Math.ceil(filtered.length/pageSize));
+  const page=Math.min(pages,pagination.key===filterKey?pagination.page:1);
+  const paged=filtered.slice((page-1)*pageSize,page*pageSize);
+  const activeGestantes = paged.filter(
     (gestante) => !gestante.altaAtiva
   );
-  const dischargedGestantes = filtered.filter(
+  const dischargedGestantes = paged.filter(
     (gestante) => gestante.altaAtiva
   );
 
-  const groups = useMemo(()=>{
+  const groups = (()=>{
     const map=new Map<string,GestanteCardData[]>();
-    for(const g of filtered.filter(g=>!g.altaAtiva)){
+    for(const g of paged.filter(g=>!g.altaAtiva)){
       const key=organization==="mes"?(consultationPeriod(g.ultimaConsulta)??"sem-data"):"todas";
       map.set(key,[...(map.get(key)??[]),g]);
     }
     return [...map.entries()];
-  },[filtered,organization]);
+  })();
 
   async function confirmMoveToTrash() {
     if (!trashTarget) return;
@@ -775,6 +787,11 @@ export function GestantesGrid({
         </section>
       )}
 
+      {pages>1&&<nav className={styles.pagination} aria-label="Paginação das gestantes">
+        <button type="button" disabled={page<=1} onClick={()=>setPagination({key:filterKey,page:page-1})}>Anterior</button>
+        <span>Página {page} de {pages} · {filtered.length} fichas</span>
+        <button type="button" disabled={page>=pages} onClick={()=>setPagination({key:filterKey,page:page+1})}>Próxima</button>
+      </nav>}
       {filtered.length === 0 && (
         <div className={styles.emptyState}>
           <UserRound size={30} />

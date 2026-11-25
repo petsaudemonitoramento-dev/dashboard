@@ -105,3 +105,15 @@
 .attentionDisclosure>div[hidden]{display:none}
 @media(max-width:1100px){.homeColumns{grid-template-columns:1fr}.homeColumns>.panel{min-height:0}}
 @media(max-width:550px){.homeColumns .panelHeader{padding:16px 15px 12px}.homeAgenda .tasks,.notesBody{padding-inline:13px}.previewTask{grid-template-columns:47px minmax(0,1fr);gap:7px;padding:10px}.previewTask .statusPill{grid-column:2;justify-self:start}.previewFooter{margin-inline:13px}.notesEnd{flex-wrap:wrap}}
+
+.calendarLegend{display:flex;flex-wrap:wrap;gap:9px;font-size:11px;color:#516583}
+.calendarLegend span{display:flex;align-items:center;gap:5px}
+.calendarLegend i,.dots i{display:inline-block;width:6px;height:6px;border-radius:50%;background:#8298d9}
+.calendarLegend i[data-kind="done"],.dots i[data-kind="done"]{background:#4d8c71}
+.calendarLegend i[data-kind="risk"],.dots i[data-kind="risk"]{background:#c34a59}
+.dots{display:flex;justify-content:center;gap:3px}
+.dayNavigation{display:flex;justify-content:space-between;gap:6px;padding:0 18px 10px;flex-wrap:wrap}
+.dayNavigation button{border:1px solid #dde5f2;background:#fff;color:#28447d;border-radius:9px;padding:8px;font-size:11px;font-weight:700}
+.nextAppointments{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:10px;padding:0 20px 20px}
+.nextAppointments button{text-align:left;display:grid;gap:5px;border:1px solid #e4e9f3;border-radius:11px;background:#f9faff;color:#253a74;padding:12px;min-width:0;overflow-wrap:anywhere}
+.nextAppointments button small,.nextAppointments button span{font-size:11px;color:#586981}

@@ -57,6 +57,8 @@ export function ProfessionalWorkspace({nome,accountId,patients,tasks,monthlyVisi
  const highIds=new Set(patients.filter(p=>p.altoRisco).map(p=>p.id));
  function changeMonth(delta:number){const d=new Date(first);d.setMonth(d.getMonth()+delta);setMonth([d.getFullYear(),String(d.getMonth()+1).padStart(2,"0")].join("-"))}
  const names=new Map(patients.map(p=>[p.id,p.nome]));
+ function selectDay(date:string){setSelected(date);setMonth(date.slice(0,7));setDue(date)}
+ function shiftDay(delta:number){const d=new Date(selected+"T12:00:00Z");d.setUTCDate(d.getUTCDate()+delta);selectDay(d.toISOString().slice(0,10))}
  const completedToday=todayCompleted??tasks.filter(t=>t.data_prevista===now&&t.status==="concluida").length;
  const plannedToday=todayTotal??tasks.filter(t=>t.data_prevista===now).length;
  const examsCount=patients.filter(p=>p.pendenciasExames>0).length;
@@ -111,7 +113,7 @@ export function ProfessionalWorkspace({nome,accountId,patients,tasks,monthlyVisi
      </Link>)}
    </div>
    <div className={agendaOnly?styles.agendaColumns:styles.homeColumns}>
-     {agendaOnly?<section className={styles.panel}><div className={styles.calendar}><div className={styles.calendarHead}><button aria-label="Mês anterior" onClick={()=>changeMonth(-1)} type="button">‹</button><strong>{first.toLocaleDateString("pt-BR",{month:"long",year:"numeric"})}</strong><button aria-label="Próximo mês" onClick={()=>changeMonth(1)} type="button">›</button></div><div className={styles.calendarGrid}>{["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].map(d=><span key={d}>{d}</span>)}{days.map(d=><button key={d} type="button" aria-pressed={selected===d} aria-label={dateBR(d)} className={d.startsWith(month)?"":styles.outDay} onClick={()=>{setSelected(d);setMonth(d.slice(0,7));setDue(d)}}>{Number(d.slice(-2))}<span className={styles.dots}>{tasks.some(t=>t.data_prevista===d)&&"•"}</span></button>)}</div><p>Selecione um dia para consultar ou registrar compromissos.</p></div></section>:null}
+     {agendaOnly?<section className={styles.panel}><div className={styles.calendar}><div className={styles.calendarHead}><button aria-label="Mês anterior" onClick={()=>changeMonth(-1)} type="button">‹</button><strong>{first.toLocaleDateString("pt-BR",{month:"long",year:"numeric"})}</strong><button aria-label="Próximo mês" onClick={()=>changeMonth(1)} type="button">›</button></div><div className={styles.calendarGrid}>{["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].map(d=><span key={d}>{d}</span>)}{days.map(d=><button key={d} type="button" aria-pressed={selected===d} aria-label={dateBR(d)} className={d.startsWith(month)?"":styles.outDay} onClick={()=>{setSelected(d);setMonth(d.slice(0,7));setDue(d)}}>{Number(d.slice(-2))}<span className={styles.dots}>{tasks.some(t=>t.data_prevista===d&&t.status!=="concluida")&&<i data-kind="pending"/>}{tasks.some(t=>t.data_prevista===d&&t.status==="concluida")&&<i data-kind="done"/>}{tasks.some(t=>t.data_prevista===d&&highIds.has(t.gestante_id))&&<i data-kind="risk"/>}</span></button>)}</div><p>Selecione um dia para consultar ou registrar compromissos.</p><div className={styles.calendarLegend}><span><i data-kind="pending"/> A realizar</span><span><i data-kind="done"/> Concluído</span><span><i data-kind="risk"/> Alto risco registrado</span></div></div></section>:null}
      <section className={`${styles.panel} ${agendaOnly?"":styles.homeAgenda}`} id="agenda">
        <header className={styles.panelHeader}>
          <div><h2>{agendaOnly?dateBR(selected):"Agenda e próximos atendimentos"}</h2><p>{agendaOnly?"Registre o próximo passo sem preencher outra ficha.":"Visualize o que está previsto e o que já foi realizado."}</p></div>
@@ -132,6 +134,7 @@ export function ProfessionalWorkspace({nome,accountId,patients,tasks,monthlyVisi
          <button type="submit" className={styles.primaryButton} disabled={busy}>Salvar na agenda</button>
        </form>}
        {feedback&&<p role="status" className={styles.feedback}>{feedback}</p>}
+       {agendaOnly&&<div className={styles.dayNavigation}><button type="button" onClick={()=>shiftDay(-1)}>← Dia anterior</button><button type="button" onClick={()=>selectDay(now)}>Hoje</button><button type="button" onClick={()=>shiftDay(1)}>Próximo dia →</button></div>}
        {agendaOnly&&<div className={styles.dayFilters}>{[["todos","Todos"],["pendente","A realizar"],["concluida","Concluídos"],["alto","Alto risco"]].map(([v,label])=><button key={v} type="button" aria-pressed={filter===v} onClick={()=>setFilter(v)}>{label}</button>)}</div>}
        <div className={styles.tasks}>
          {!agendaOnly&&visibleTasks.map(t=>{
@@ -185,6 +188,7 @@ export function ProfessionalWorkspace({nome,accountId,patients,tasks,monthlyVisi
      </section>
      {!agendaOnly&&<HomeNotes accountId={accountId} key={accountId}/>}
    </div>
+   {agendaOnly&&<section className={styles.panel}><header className={styles.panelHeader}><div><h2>Próximos compromissos</h2><p>Compromissos futuros ainda não concluídos.</p></div><CalendarClock size={20}/></header><div className={styles.nextAppointments}>{upcoming.filter(t=>t.data_prevista>now&&t.status!=="concluida").slice(0,6).map(t=><button key={t.id} type="button" onClick={()=>selectDay(t.data_prevista)}><small>{dateBR(t.data_prevista)}</small><strong>{types[t.tipo]}</strong><span>{names.get(t.gestante_id)||"Gestante vinculada"}</span></button>)}{!upcoming.some(t=>t.data_prevista>now&&t.status!=="concluida")&&<p>Nenhum compromisso futuro na lista carregada.</p>}</div></section>}
    {!agendaOnly&&<div className={styles.attentionDisclosure}>
      <button type="button" className={styles.lightButton} aria-expanded={showAttention} aria-controls="home-attention" onClick={()=>setShowAttention(v=>!v)}><ClipboardList size={16}/> {showAttention?"Ocultar pendências":"Conferir pendências"} · {examsCount} fichas com pendências sugeridas</button>
      <div id="home-attention" hidden={!showAttention}><section className={styles.panel} id="atencao">
