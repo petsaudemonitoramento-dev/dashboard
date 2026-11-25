@@ -49,7 +49,7 @@ export async function WorkspaceData({agendaOnly=false,entry=false}:{agendaOnly?:
   if(!agendaOnly)taskQuery=taskQuery.or(`data_prevista.gte.${day},status.neq.concluida`);
   const [{data:listData,error:listError},{data:taskData,error:taskError},monthly,todayCount,completedCount]=await Promise.all([
     supabase.rpc("profissionais_listar_gestantes_v30",{p_exibir_identidade:true}),
-    taskQuery.order("data_prevista",{ascending:true}).limit(200),
+    taskQuery.order("data_prevista",{ascending:true}).limit(200).overrideTypes<FollowUp[], {merge:false}>(),
     agendaOnly?Promise.resolve({count:null,error:null}):supabase.from("gestante_consultas")
       .select("id",{count:"exact",head:true}).eq("profissional_id",user.id).gte("data_atendimento",monthStart).lt("data_atendimento",nextMonth),
     agendaOnly?Promise.resolve({count:null,error:null}):supabase.from("rotina_profissional_tarefas_v1")
