@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { parseGestarioPreferences } from "@/lib/gestario-preferences";
 import { GestarioShell } from "@/components/layout/gestario-shell";
 import { buildProfessionalAlerts, type ProfessionalAlert, type ProfessionalAlertSource } from "@/lib/alertas/professional-alerts";
 
@@ -66,6 +67,6 @@ export default async function Layout({
   }
 
   return (
-    <GestarioShell name={profile.nome_completo} profile={String(profile.perfil)} alerts={alerts} alertsError={alertsError}>{children}</GestarioShell>
+    <GestarioShell preferences={parseGestarioPreferences(user.user_metadata?.gestario_ui_v1)} name={profile.nome_completo} profile={String(profile.perfil)} alerts={alerts} alertsError={alertsError}>{children}</GestarioShell>
   );
 }

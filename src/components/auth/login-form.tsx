@@ -57,7 +57,7 @@ export function LoginForm() {
 
       setMessageType("success");
       setMessage("Login realizado com sucesso.");
-      window.location.href = "/dashboard";
+      window.location.href = "/dashboard?entrada=1";
     } catch (error) {
       setMessageType("error");
       setMessage(

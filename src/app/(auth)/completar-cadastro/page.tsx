@@ -36,7 +36,7 @@ export default async function CompleteProfilePage() {
 
   if (profile?.cadastro_completo) {
     if (profile.aprovacao_status === "aprovado") {
-      redirect("/dashboard");
+      redirect("/dashboard?entrada=1");
     }
 
     redirect("/aguardando-aprovacao");

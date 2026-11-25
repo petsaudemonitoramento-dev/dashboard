@@ -37,3 +37,5 @@
 .ga-history-note{font-size:12px;color:#596982;line-height:1.55;margin:15px 0 0}
 .ga-pec-history-empty{border:1px dashed #dce1ef;background:#f9faff;border-radius:12px;padding:22px;color:#53627e;font-size:13px}
 @media(max-width:550px){.ga-pec-brand{flex-basis:48px}.ga-pec-brand img{height:91px}.ga-pec-hero p{font-size:12px}.ga-pec-hero h1{font-size:23px}}
+
+.ga-pref-form{display:grid;gap:8px;margin-top:15px}.ga-pref-form label{display:flex;justify-content:space-between;gap:12px;align-items:center;border-bottom:1px solid #e6eaf3;padding:11px 0;color:#253e80;font-size:12px}.ga-pref-form label span{display:grid;gap:4px}.ga-pref-form small{color:#586981;font-size:11px}.ga-pref-form input{accent-color:#00167a;min-width:18px;width:18px;height:18px}.ga-pref-form select{max-width:50%;padding:8px;border:1px solid #dce3f1;background:#fff;border-radius:9px;color:#243a75}.ga-pref-form>button{justify-self:start;background:#00167a;color:#fff;padding:10px 14px;border-radius:10px;border:0;font-weight:700}.ga-pref-form p{margin:0}

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { LogOut, Search, Menu, UserRound, Settings } from "lucide-react";
+import { parseGestarioPreferences,type GestarioPreferences } from "@/lib/gestario-preferences";
 import { AlertBell } from "./alert-bell";
 import type { ProfessionalAlert } from "@/lib/alertas/professional-alerts";
 
@@ -19,12 +20,12 @@ export function AppHeader({
   name,
   profile,
   alerts = [],
-  alertsError = false, onMenu,
+  alertsError = false, onMenu, preferences = parseGestarioPreferences(null),
 }: {
   name: string;
   profile: string;
   alerts?: ProfessionalAlert[];
-  alertsError?: boolean; onMenu?:()=>void;
+  alertsError?: boolean; onMenu?:()=>void; preferences?:GestarioPreferences;
 }) {
   const router = useRouter();
 
@@ -41,7 +42,7 @@ export function AppHeader({
 
       <div className="user">
         {profile === "equipe_ubs" && (
-          <AlertBell initialAlerts={alerts} initialError={alertsError} />
+          <AlertBell initialAlerts={alerts} initialError={alertsError} preferences={preferences} />
         )}
         <Link href="/dashboard/perfil" className="ga-icon" aria-label={`Perfil: ${name} — ${PROFILE_LABELS[profile]??profile}`} title="Meu perfil"><UserRound size={20}/></Link>
         <Link href="/dashboard/perfil#seguranca" className="ga-icon" aria-label="Configurações da conta" title="Configurações"><Settings size={20}/></Link>

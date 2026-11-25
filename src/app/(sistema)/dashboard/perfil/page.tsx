@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { ProfilePreferences } from "@/components/layout/profile-preferences";
+import { parseGestarioPreferences } from "@/lib/gestario-preferences";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
@@ -36,7 +38,7 @@ export default async function PerfilPage() {
     <div className="ga-profile-grid">
       <div className="ga-profile-stack"><section className="ga-profile-card" id="dados"><h3>Dados pessoais e contato</h3><p>Informações para identificação profissional.</p>{fields([["Nome completo",profile.nome_completo],["E-mail profissional",profile.email],["Cargo / função",profile.cargo_funcao],["Matrícula",profile.matricula]])}<p>Alterações de identificação e vínculo devem ser validadas pela administração.</p></section>
       <section className="ga-profile-card"><h3>Vínculo e atuação</h3><p>Unidade e permissões vinculadas ao perfil.</p>{fields([["UBS vinculada",ubs?.nome],["Equipe",profile.perfil==="equipe_ubs"?"Equipe UBS":"Administrador"],["Status",profile.status],["Aprovação",profile.aprovacao_status]])}<p>A visibilidade das fichas depende do perfil autorizado e do vínculo.</p></section></div>
-      <div className="ga-profile-stack"><section className="ga-profile-card"><h3>Avisos e preferências</h3><p>Os avisos de acompanhamento estão disponíveis no sino do cabeçalho. As preferências individuais de notificação ainda não são configuráveis.</p></section><section className="ga-profile-card" id="seguranca"><h3>Segurança da conta</h3><p>O acesso aos cadastros é condicionado às permissões da equipe. Utilize a opção de sair no cabeçalho para encerrar a sessão.</p><div className="ga-links"><Link href="/recuperar-senha">Alterar senha</Link></div></section></div>
+      <div className="ga-profile-stack"><section className="ga-profile-card"><h3>Avisos e preferências</h3>{profile.perfil==="equipe_ubs"?<ProfilePreferences initial={parseGestarioPreferences(user.user_metadata?.gestario_ui_v1)}/>:<p>As preferências assistenciais estão disponíveis para contas profissionais.</p>}</section><section className="ga-profile-card" id="seguranca"><h3>Segurança da conta</h3><p>O acesso aos cadastros é condicionado às permissões da equipe. Utilize a opção de sair no cabeçalho para encerrar a sessão.</p><div className="ga-links"><Link href="/recuperar-senha">Alterar senha</Link></div></section></div>
     </div>{profile.perfil==="equipe_ubs"&&<section className="ga-profile-card" style={{marginTop:18}}><h3>Acessos rápidos do meu trabalho</h3><p>Retome suas tarefas sem voltar ao menu principal.</p><div className="ga-links"><Link href="/dashboard/gestantes">Minhas gestantes →</Link><Link href="/dashboard/atendimentos">Abrir agenda →</Link><Link href="/dashboard/importacoes">Importar PEC →</Link></div></section>}
   </>;
 }

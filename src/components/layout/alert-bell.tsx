@@ -5,13 +5,15 @@ import Link from "next/link";
 import { Bell, ClipboardList, RefreshCw, X } from "lucide-react";
 import type { ProfessionalAlert } from "@/lib/alertas/professional-alerts";
 import styles from "./alert-bell.module.css";
+import {filterNoticeReasons,parseGestarioPreferences,type GestarioPreferences} from "@/lib/gestario-preferences";
 
 type Props = {
   initialAlerts: ProfessionalAlert[];
   initialError?: boolean;
+  preferences?:GestarioPreferences;
 };
 
-export function AlertBell({ initialAlerts, initialError = false }: Props) {
+export function AlertBell({ initialAlerts, initialError = false, preferences=parseGestarioPreferences(null) }: Props) {
   const panelId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -73,7 +75,8 @@ export function AlertBell({ initialAlerts, initialError = false }: Props) {
     void refresh();
   }
 
-  const count = alerts.length;
+  const displayed=alerts.map(a=>({...a,motivos:filterNoticeReasons(a.motivos,preferences)})).filter(a=>a.motivos.length>0);
+  const count = displayed.length;
 
   return (
     <div className={styles.root} ref={rootRef}>
@@ -136,10 +139,10 @@ export function AlertBell({ initialAlerts, initialError = false }: Props) {
               <div className={styles.empty}>
                 <Bell size={24}/>
                 <strong>Nenhum aviso ativo</strong>
-                <p>Seus registros estão sem pendências identificadas por esta verificação.</p>
+                <p>Nenhum aviso visível conforme suas preferências. Confira também as fichas.</p>
               </div>
             )}
-            {alerts.slice(0, visible).map(alert => (
+            {displayed.slice(0, visible).map(alert => (
               <Link
                 key={alert.gestanteId}
                 className={styles.item}

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import {preferredPath} from "@/lib/gestario-preferences";
 import { workspaceToday } from "@/lib/workspace-date";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -21,7 +22,7 @@ type HomeRow = {
   alta_ativa:boolean;
 };
 
-export async function WorkspaceData({agendaOnly=false}:{agendaOnly?:boolean}={}){
+export async function WorkspaceData({agendaOnly=false,entry=false}:{agendaOnly?:boolean;entry?:boolean}={}){
   const supabase=await createClient();
   const {data:{user}}=await supabase.auth.getUser();
   if(!user)redirect("/login");
@@ -37,6 +38,7 @@ export async function WorkspaceData({agendaOnly=false}:{agendaOnly?:boolean}={})
     profile.aprovacao_status!=="aprovado"||profile.perfil_excluido_em)
       redirect("/aguardando-aprovacao");
 
+  if(entry){const target=preferredPath(user.user_metadata?.gestario_ui_v1);if(target!=="/dashboard")redirect(target);}
   const day=workspaceToday();
   const monthStart=day.slice(0,7)+"-01";
   const [year,month]=day.split("-").map(Number);
