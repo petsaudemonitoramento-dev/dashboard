@@ -4,7 +4,7 @@ import { LogOut, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-export function ApprovalActions() {
+export function ApprovalActions({ refreshLabel = "Verificar aprovação" }: { refreshLabel?: string } = {}) {
   const router = useRouter();
 
   async function signOut() {
@@ -30,7 +30,7 @@ export function ApprovalActions() {
         type="button"
       >
         <RefreshCw size={17} />
-        Verificar aprovação
+        {refreshLabel}
       </button>
     </div>
   );

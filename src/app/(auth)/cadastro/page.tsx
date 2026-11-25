@@ -15,5 +15,5 @@ export default async function CadastroPage() {
     throw new Error("Não foi possível carregar as UBS ativas.");
   }
 
-  return <RegisterForm ubsOptions={ubsOptions ?? []} />;
+  return <RegisterForm ubsOptions={ubsOptions ?? []} autonomous={process.env.GESTARIO_AUTONOMOUS_SIGNUP === "1"} />;
 }

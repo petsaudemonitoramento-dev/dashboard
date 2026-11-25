@@ -1,5 +1,6 @@
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { isDeclaredProfession } from "@/lib/validation/demo-onboarding";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
 import {
   logServerFailure,
@@ -52,6 +53,8 @@ export async function POST(request: Request) {
     const password =
       typeof body.password === "string" ? body.password : "";
     const ubsId = String(body.ubsId ?? "").trim();
+    const autonomous = process.env.GESTARIO_AUTONOMOUS_SIGNUP === "1";
+    const profession = String(body.profissao ?? "");
 
     if (nomeCompleto.length < 5 || nomeCompleto.length > 160) {
       return NextResponse.json(
@@ -60,7 +63,10 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!dataNascimento) {
+    if (autonomous && !isDeclaredProfession(profession)) {
+      return NextResponse.json({ error: "Selecione uma profissão válida." }, { status: 400 });
+    }
+    if (!autonomous && !dataNascimento) {
       return NextResponse.json(
         {
           error:
@@ -96,7 +102,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!isUuid(ubsId)) {
+    if ((!autonomous || ubsId) && !isUuid(ubsId)) {
       return NextResponse.json(
         { error: "Selecione uma UBS válida." },
         { status: 400 }
@@ -133,6 +139,33 @@ export async function POST(request: Request) {
     const publishableKey =
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
     const secret = process.env.SUPABASE_SECRET_KEY;
+
+    if (autonomous && url && publishableKey) {
+      const auth = createAdminClient(url, publishableKey, {
+        auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+      });
+      if (ubsId) {
+        const { data: ubs, error: ubsError } = await auth.from("ubs").select("id").eq("id", ubsId).eq("ativa", true).maybeSingle();
+        if (ubsError) throw ubsError;
+        if (!ubs) return NextResponse.json({ error: "Selecione uma UBS ativa." }, { status: 400 });
+      }
+      // Metadata is only a prefill hint, never proof of authorization or term acceptance.
+      const { error } = await auth.auth.signUp({
+        email, password,
+        options: {
+          emailRedirectTo: new URL("/login?email_confirmed=1", request.url).toString(),
+          data: { full_name: nomeCompleto, profissao_declarada: profession, ubs_declarada: ubsId },
+        },
+      });
+      if (error) {
+        if (error.status === 429) return NextResponse.json({ error: "Muitas tentativas. Tente mais tarde." }, { status: 429 });
+        if (!["user_already_exists", "email_exists"].includes(error.code ?? "")) {
+          logServerFailure("signup-autonomous", error);
+          return NextResponse.json({ error: "Não foi possível concluir o cadastro." }, { status: 400 });
+        }
+      }
+      return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
+    }
 
     if (!url || !publishableKey || !secret) {
       logServerFailure("signup-config");

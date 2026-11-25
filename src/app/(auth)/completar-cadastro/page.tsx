@@ -43,6 +43,7 @@ export default async function CompleteProfilePage() {
   }
 
   const metadata = user.user_metadata ?? {};
+  const autonomous = process.env.GESTARIO_AUTONOMOUS_SIGNUP === "1";
   const suggestedName = String(
     metadata.full_name ??
       metadata.name ??
@@ -55,6 +56,9 @@ export default async function CompleteProfilePage() {
       email={user.email ?? ""}
       suggestedName={suggestedName}
       ubsOptions={ubsOptions}
+      autonomous={autonomous}
+      suggestedProfession={String(metadata.profissao_declarada ?? "")}
+      suggestedUbs={String(metadata.ubs_declarada ?? "")}
     />
   );
 }

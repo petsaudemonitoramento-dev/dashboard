@@ -9,6 +9,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { FormEvent, useState } from "react";
+import { ProfessionField } from "@/components/auth/profession-field";
 import { BirthDateField } from "@/components/auth/birth-date-field";
 
 type UbsOption = {
@@ -16,7 +17,7 @@ type UbsOption = {
   nome: string;
 };
 
-export function RegisterForm({ ubsOptions }: { ubsOptions: UbsOption[] }) {
+export function RegisterForm({ ubsOptions, autonomous = false }: { ubsOptions: UbsOption[]; autonomous?: boolean }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -43,6 +44,7 @@ export function RegisterForm({ ubsOptions }: { ubsOptions: UbsOption[] }) {
         body: JSON.stringify({
           nomeCompleto: String(form.get("nomeCompleto") ?? ""),
           dataNascimento: String(form.get("dataNascimento") ?? ""),
+          profissao: String(form.get("profissao") ?? ""),
           email: String(form.get("email") ?? ""),
           password,
           ubsId: String(form.get("ubsId") ?? ""),
@@ -57,7 +59,7 @@ export function RegisterForm({ ubsOptions }: { ubsOptions: UbsOption[] }) {
 
       setSuccess(true);
       setMessage(
-        "Se o cadastro puder ser concluído, enviaremos a confirmação por e-mail. Após confirmar, aguarde a aprovação da gestão."
+        autonomous ? "Se o cadastro puder ser concluído, enviaremos a confirmação por e-mail. Depois, entre para completar o cadastro e acessar a demonstração." : "Se o cadastro puder ser concluído, enviaremos a confirmação por e-mail. Após confirmar, entre para acessar a demonstração."
       );
     } catch (error) {
       setMessage(
@@ -99,8 +101,7 @@ export function RegisterForm({ ubsOptions }: { ubsOptions: UbsOption[] }) {
           <div>
             <h1>Criar conta</h1>
             <p>
-              Preencha os dados profissionais. O acesso será liberado após
-              aprovação da gestão.
+              {autonomous ? "Crie sua conta e confirme seu e-mail. A demonstração é livre; dados reais exigem autorização." : "Preencha os dados profissionais. A demonstração está disponível após confirmar o e-mail; o acesso clínico exige autorização."}
             </p>
           </div>
         </header>
@@ -118,24 +119,16 @@ export function RegisterForm({ ubsOptions }: { ubsOptions: UbsOption[] }) {
               />
             </div>
 
-            <div className="v20-field">
-              <BirthDateField />
-            </div>
-
-            <div className="v20-field">
-              <label>Perfil</label>
-              <input
-                disabled
-                value="Profissional da UBS"
-                aria-label="Perfil Profissional da UBS"
-              />
-            </div>
+            {autonomous ? <ProfessionField /> : <>
+              <div className="v20-field"><BirthDateField /></div>
+              <div className="v20-field"><label>Perfil</label><input disabled value="Profissional da UBS" aria-label="Perfil Profissional da UBS" /></div>
+            </>}
 
             <div className="v20-field v20-field-wide">
               <label htmlFor="ubsId">UBS</label>
-              <select defaultValue={ubsOptions[0]?.id ?? ""} id="ubsId" name="ubsId" required>
-                <option disabled value="">
-                  Selecione a UBS
+              <select defaultValue={autonomous ? "" : (ubsOptions[0]?.id ?? "")} id="ubsId" name="ubsId" required={!autonomous}>
+                <option disabled={!autonomous} value="">
+                  {autonomous ? "Não informar (opcional)" : "Selecione a UBS"}
                 </option>
                 {ubsOptions.map((ubs) => (
                   <option key={ubs.id} value={ubs.id}>
