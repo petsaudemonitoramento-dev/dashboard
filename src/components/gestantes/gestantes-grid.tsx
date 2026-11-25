@@ -213,6 +213,7 @@ function ActiveCard({
   onMoveToTrash: (gestante: GestanteCardData) => void;
 }) {
   const tone = riskTone(gestante.risco);
+  const riskLabel = { high: "Alto risco", intermediate: "Risco intermediário", habitual: "Risco habitual", neutral: "Risco não informado" }[tone];
   const ig =
     gestante.igSemanas === null
       ? "Não informada"
@@ -234,7 +235,7 @@ function ActiveCard({
 
         <div className={styles.headerActions}>
           <span className={`${styles.riskBadge} ${styles[`badge_${tone}`]}`}>
-            {gestante.risco ?? "Risco não informado"}
+            {riskLabel}
           </span>
 
           {!presentationMode && (
@@ -390,15 +391,27 @@ function ActiveCard({
         {!presentationMode && (
           <div className={styles.cardActions}>
             <Link
-              href={`/dashboard/cadastro-clinico?gestante=${gestante.id}`}
+              href={`/dashboard/cadastro-clinico?gestante=${encodeURIComponent(gestante.id)}`}
+              prefetch={false}
               className={styles.primaryAction}
+              aria-label={`Atualizar ficha de ${gestante.nomeVisual}`}
+              onNavigate={(event) => {
+                event.preventDefault();
+                window.location.assign(`/dashboard/cadastro-clinico?gestante=${encodeURIComponent(gestante.id)}`);
+              }}
             >
               <FilePenLine size={15} />
               Atualizar
             </Link>
             <Link
-              href={`/dashboard/classificacao-risco?gestante=${gestante.id}`}
+              href={`/dashboard/classificacao-risco?gestante=${encodeURIComponent(gestante.id)}`}
+              prefetch={false}
               className={styles.secondaryAction}
+              aria-label={`Classificar risco de ${gestante.nomeVisual}`}
+              onNavigate={(event) => {
+                event.preventDefault();
+                window.location.assign(`/dashboard/classificacao-risco?gestante=${encodeURIComponent(gestante.id)}`);
+              }}
             >
               <HeartPulse size={15} />
               Risco

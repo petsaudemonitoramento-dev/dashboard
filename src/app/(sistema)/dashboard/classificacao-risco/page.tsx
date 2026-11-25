@@ -6,7 +6,8 @@ import type {
   RiskPageData,
   RiskPatient,
 } from "@/components/classificacao-risco/types";
-import { isUuid } from "@/lib/security/request";
+import { isUuid, logServerFailure } from "@/lib/security/request";
+import { ClinicalAccessError } from "@/components/gestantes/clinical-access-error";
 import { createClient } from "@/lib/supabase/server";
 
 const INSTRUMENT_VERSION =
@@ -224,7 +225,8 @@ export default async function ClassificacaoRiscoPage({ searchParams }: PageProps
       );
 
     if (recordError || !recordData) {
-      redirect("/dashboard/gestantes");
+      logServerFailure("risk-record-open", recordError);
+      return <ClinicalAccessError title="Classificação de risco gestacional" />;
     }
 
     const record = recordData as ClinicalRecord;
