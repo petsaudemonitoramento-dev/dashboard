@@ -13,6 +13,8 @@ on:
     paths:
       - ".github/workflows/profissionais-accessibility-ci.yml"
       - "src/**"
+      - "package.json"
+      - "package-lock.json"
       - "tests/accessibility/**"
       - "playwright.a11y.config.mjs"
       - "supabase/migrations/**"
@@ -23,6 +25,8 @@ on:
     paths:
       - ".github/workflows/profissionais-accessibility-ci.yml"
       - "src/**"
+      - "package.json"
+      - "package-lock.json"
       - "tests/accessibility/**"
       - "playwright.a11y.config.mjs"
       - "supabase/migrations/**"
@@ -39,7 +43,7 @@ concurrency:
 jobs:
   accessibility:
     name: Public auth accessibility
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
       CI: "true"
