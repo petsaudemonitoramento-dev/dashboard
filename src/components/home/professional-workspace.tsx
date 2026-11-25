@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { HomeNotes } from "./home-notes";
+import {agendaTimeLabel} from "@/lib/agenda-time";
 import { workspaceToday } from "@/lib/workspace-date";
 import { Activity, ArrowRight, Baby, CalendarClock, CheckCircle2,
   ClipboardList, FilePlus2, HeartPulse, RefreshCw, Search, Stethoscope,
@@ -18,7 +19,7 @@ export type WorkPatient = {
 export type FollowUp = {
   id:string; gestante_id:string;
   tipo:"consulta"|"exame"|"contato"|"visita"|"revisao";
-  status:"pendente"|"adiada"|"concluida"; data_prevista:string;
+  status:"pendente"|"adiada"|"concluida"; data_prevista:string; hora_prevista?:string|null;
 };
 const types:Record<FollowUp["tipo"],string> = {
   consulta:"Consulta / retorno",exame:"Conferir exame",
@@ -35,8 +36,8 @@ function dateBR(date:string|null){
   return p.length===3?p[2]+"/"+p[1]+"/"+p[0]:"Não informada";
 }
 
-export function ProfessionalWorkspace({nome,accountId,patients,tasks,monthlyVisits,todayTotal,todayCompleted,agendaOnly=false}:{
-  nome:string;accountId:string;patients:WorkPatient[];tasks:FollowUp[];monthlyVisits:number|null;todayTotal:number|null;todayCompleted:number|null;agendaOnly?:boolean;
+export function ProfessionalWorkspace({nome,accountId,patients,tasks,monthlyVisits,todayTotal,todayCompleted,agendaOnly=false,timesEnabled=false}:{
+  nome:string;accountId:string;patients:WorkPatient[];tasks:FollowUp[];monthlyVisits:number|null;todayTotal:number|null;todayCompleted:number|null;agendaOnly?:boolean;timesEnabled?:boolean;
 }){
  const router=useRouter();
  const [search,setSearch]=useState("");
@@ -47,6 +48,8 @@ export function ProfessionalWorkspace({nome,accountId,patients,tasks,monthlyVisi
  const [due,setDue]=useState(today);
  const [rescheduling,setRescheduling]=useState<string|null>(null);
  const [newDue,setNewDue]=useState(today);
+ const [dueTime,setDueTime]=useState("");
+ const [newDueTime,setNewDueTime]=useState("");
  const [busy,setBusy]=useState(false);
  const [feedback,setFeedback]=useState<string|null>(null);
  const now=today();
@@ -70,8 +73,8 @@ export function ProfessionalWorkspace({nome,accountId,patients,tasks,monthlyVisi
   .sort((a,b)=>Number(b.altoRisco)-Number(a.altoRisco)||
     b.pendenciasExames-a.pendenciasExames||a.nome.localeCompare(b.nome,"pt-BR"))
   .slice(0,15);
- const upcoming=tasks.filter(t=>t.data_prevista>=now||t.status!=="concluida").sort((a,b)=>a.data_prevista.localeCompare(b.data_prevista)||a.id.localeCompare(b.id));
- const visibleTasks=agendaOnly?dayTasks.filter(t=>filter==="todos"||(filter==="alto"?highIds.has(t.gestante_id):filter==="concluida"?t.status==="concluida":t.status!=="concluida")).sort((a,b)=>Number(a.status==="concluida")-Number(b.status==="concluida")).slice(0,200):upcoming.slice(0,3);
+ const upcoming=tasks.filter(t=>t.data_prevista>=now||t.status!=="concluida").sort((a,b)=>a.data_prevista.localeCompare(b.data_prevista)||(agendaTimeLabel(a.hora_prevista)??"99:99").localeCompare(agendaTimeLabel(b.hora_prevista)??"99:99")||a.id.localeCompare(b.id));
+ const visibleTasks=agendaOnly?dayTasks.filter(t=>filter==="todos"||(filter==="alto"?highIds.has(t.gestante_id):filter==="concluida"?t.status==="concluida":t.status!=="concluida")).sort((a,b)=>Number(a.status==="concluida")-Number(b.status==="concluida")||(agendaTimeLabel(a.hora_prevista)??"99:99").localeCompare(agendaTimeLabel(b.hora_prevista)??"99:99")).slice(0,200):upcoming.slice(0,3);
 
  async function save(method:"POST"|"PATCH"|"DELETE",payload:Record<string,unknown>,ok:string){
    setBusy(true);setFeedback(null);
@@ -122,7 +125,7 @@ export function ProfessionalWorkspace({nome,accountId,patients,tasks,monthlyVisi
            onClick={()=>{setDue(selected);setNewOpen(!newOpen)}}><Plus size={20}/></button>:<Link className={styles.lightButton} href="/dashboard/atendimentos"><CalendarClock size={15}/> Ver agenda</Link>}
        </header>
        {newOpen&&<form className={styles.newTask} onSubmit={e=>{
-         e.preventDefault();void save("POST",{gestanteId:patient,tipo:kind,dataPrevista:due},"Atividade agendada.");
+         e.preventDefault();void save("POST",{gestanteId:patient,tipo:kind,dataPrevista:due,...(timesEnabled?{horaPrevista:dueTime||null}:{})},"Atividade agendada.");
        }}>
          <label>Gestante<select required value={patient} onChange={e=>setPatient(e.target.value)}>
            {patients.map(p=><option value={p.id} key={p.id}>{p.nome}</option>)}</select></label>
@@ -131,6 +134,7 @@ export function ProfessionalWorkspace({nome,accountId,patients,tasks,monthlyVisi
          </select></label>
          <label>Data<input type="date" value={due} min="2020-01-01" max="2100-12-31"
            required onChange={e=>setDue(e.target.value)}/></label>
+         {timesEnabled&&<label>Horário (opcional)<input type="time" value={dueTime} onChange={e=>setDueTime(e.target.value)}/></label>}
          <button type="submit" className={styles.primaryButton} disabled={busy}>Salvar na agenda</button>
        </form>}
        {feedback&&<p role="status" className={styles.feedback}>{feedback}</p>}
@@ -140,7 +144,7 @@ export function ProfessionalWorkspace({nome,accountId,patients,tasks,monthlyVisi
          {!agendaOnly&&visibleTasks.map(t=>{
            const status=t.status==="concluida"?"Concluída":t.status==="adiada"?"Reagendada":t.data_prevista<now?"Em atraso":"Pendente";
            return <article key={t.id} className={styles.previewTask} data-status={status}>
-             <time className={styles.previewDate} dateTime={t.data_prevista}>{t.data_prevista===now?"Hoje":dateBR(t.data_prevista).slice(0,5)}</time>
+             <time className={styles.previewDate} dateTime={t.data_prevista}>{t.data_prevista===now?"Hoje":dateBR(t.data_prevista).slice(0,5)}{agendaTimeLabel(t.hora_prevista)&&<small style={{display:"block"}}>{agendaTimeLabel(t.hora_prevista)}</small>}</time>
              <div className={styles.previewTaskBody}>
                <strong>{types[t.tipo]}</strong>
                <Link href={clinical(t.gestante_id,t.tipo==="exame"?"exames":"consultas")}>{names.get(t.gestante_id)||"Gestante vinculada"}</Link>
@@ -155,12 +159,13 @@ export function ProfessionalWorkspace({nome,accountId,patients,tasks,monthlyVisi
              <Link href={clinical(t.gestante_id,t.tipo==="exame"?"exames":"consultas")}>
                {names.get(t.gestante_id)||"Gestante vinculada"}
              </Link>
-             <small>{dateBR(t.data_prevista)} · {t.status==="concluida"?"Concluída":
+             <small>{dateBR(t.data_prevista)}{timesEnabled?" · "+(agendaTimeLabel(t.hora_prevista)??"Sem horário"):""} · {t.status==="concluida"?"Concluída":
                t.status==="adiada"?"Reagendada":t.data_prevista<now?"Data anterior a hoje":"Pendente"}</small>
              {rescheduling===t.id&&<form className={styles.reschedule} onSubmit={e=>{
-               e.preventDefault();void save("PATCH",{id:t.id,status:"adiada",dataPrevista:newDue},"Atividade reagendada.");
+               e.preventDefault();void save("PATCH",{id:t.id,status:"adiada",dataPrevista:newDue,...(timesEnabled?{horaPrevista:newDueTime||null}:{})},"Atividade reagendada.");
              }}><input aria-label="Nova data" type="date" value={newDue}
                  onChange={e=>setNewDue(e.target.value)} required/>
+               {timesEnabled&&<input aria-label="Novo horário" type="time" value={newDueTime} onChange={e=>setNewDueTime(e.target.value)}/>}
                <button type="submit" disabled={busy}>Confirmar</button></form>}
            </div>
            <div className={styles.taskButtons}>
@@ -171,7 +176,7 @@ export function ProfessionalWorkspace({nome,accountId,patients,tasks,monthlyVisi
                  {t.status==="concluida"?<RotateCcw size={16}/>:<CheckCircle2 size={17}/>}
              </button>
              {t.status!=="concluida"&&<button type="button" disabled={busy}
-               title="Reagendar" aria-label="Reagendar" onClick={()=>{setRescheduling(t.id);setNewDue(t.data_prevista);}}>
+               title="Reagendar" aria-label="Reagendar" onClick={()=>{setRescheduling(t.id);setNewDue(t.data_prevista);setNewDueTime(agendaTimeLabel(t.hora_prevista)??"");}}>
                <CalendarClock size={16}/></button>}
              <button type="button" disabled={busy} title="Remover" aria-label="Remover"
                onClick={()=>{if(window.confirm("Remover esta atividade da agenda?"))
@@ -188,7 +193,7 @@ export function ProfessionalWorkspace({nome,accountId,patients,tasks,monthlyVisi
      </section>
      {!agendaOnly&&<HomeNotes accountId={accountId} key={accountId}/>}
    </div>
-   {agendaOnly&&<section className={styles.panel}><header className={styles.panelHeader}><div><h2>Próximos compromissos</h2><p>Compromissos futuros ainda não concluídos.</p></div><CalendarClock size={20}/></header><div className={styles.nextAppointments}>{upcoming.filter(t=>t.data_prevista>now&&t.status!=="concluida").slice(0,6).map(t=><button key={t.id} type="button" onClick={()=>selectDay(t.data_prevista)}><small>{dateBR(t.data_prevista)}</small><strong>{types[t.tipo]}</strong><span>{names.get(t.gestante_id)||"Gestante vinculada"}</span></button>)}{!upcoming.some(t=>t.data_prevista>now&&t.status!=="concluida")&&<p>Nenhum compromisso futuro na lista carregada.</p>}</div></section>}
+   {agendaOnly&&<section className={styles.panel}><header className={styles.panelHeader}><div><h2>Próximos compromissos</h2><p>Compromissos futuros ainda não concluídos.</p></div><CalendarClock size={20}/></header><div className={styles.nextAppointments}>{upcoming.filter(t=>t.data_prevista>now&&t.status!=="concluida").slice(0,6).map(t=><button key={t.id} type="button" onClick={()=>selectDay(t.data_prevista)}><small>{dateBR(t.data_prevista)}{agendaTimeLabel(t.hora_prevista)?" · "+agendaTimeLabel(t.hora_prevista):""}</small><strong>{types[t.tipo]}</strong><span>{names.get(t.gestante_id)||"Gestante vinculada"}</span></button>)}{!upcoming.some(t=>t.data_prevista>now&&t.status!=="concluida")&&<p>Nenhum compromisso futuro na lista carregada.</p>}</div></section>}
    {!agendaOnly&&<div className={styles.attentionDisclosure}>
      <button type="button" className={styles.lightButton} aria-expanded={showAttention} aria-controls="home-attention" onClick={()=>setShowAttention(v=>!v)}><ClipboardList size={16}/> {showAttention?"Ocultar pendências":"Conferir pendências"} · {examsCount} fichas com pendências sugeridas</button>
      <div id="home-attention" hidden={!showAttention}><section className={styles.panel} id="atencao">

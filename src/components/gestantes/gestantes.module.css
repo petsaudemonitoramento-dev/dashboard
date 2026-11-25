@@ -1088,7 +1088,7 @@
 @media(max-width:550px){.organizeTabs{width:100%}.organizeTabs button{flex:1;padding:9px 5px;font-size:11px}}
 
 /* Cards uniformes, sem carrossel; número de colunas depende da área disponível. */
-.grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,325px),1fr));gap:16px}
+.grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,325px),1fr));gap:16px}
 .card{height:565px;min-height:565px;max-height:565px}
 .identity h2{display:block;overflow:visible;white-space:normal;overflow-wrap:anywhere;font-size:16px;line-height:1.25}
 .cardScroll{min-height:0;flex:1 1 auto}

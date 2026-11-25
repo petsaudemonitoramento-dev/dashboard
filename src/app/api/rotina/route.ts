@@ -1,3 +1,4 @@
+import {validAgendaTime} from "@/lib/agenda-time";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -12,6 +13,8 @@ const TYPES = new Set(["consulta", "exame", "contato", "visita", "revisao"]);
 const STATUSES = new Set(["pendente", "adiada", "concluida"]);
 const MAX_BODY = 4096;
 const noCache = { "Cache-Control": "no-store" };
+const timeEnabled=()=>process.env.GESTARIO_AGENDA_HORARIOS==="1";
+function validOptionalTime(body:Record<string,unknown>){return body.horaPrevista===undefined||(timeEnabled()&&validAgendaTime(body.horaPrevista));}
 
 function validDate(value: unknown): value is string {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -54,7 +57,7 @@ export async function POST(request: Request) {
   if (error) return error;
   if (!body || !isUuid(body.gestanteId) ||
       typeof body.tipo !== "string" || !TYPES.has(body.tipo) ||
-      !validDate(body.dataPrevista)) {
+      !validDate(body.dataPrevista) || !validOptionalTime(body)) {
     return NextResponse.json({error:"Informe gestante, atividade e data válidas."},
       {status:400,headers:noCache});
   }
@@ -72,6 +75,7 @@ export async function POST(request: Request) {
         profissional_id:actor,gestante_id:body.gestanteId,
         tipo:body.tipo,data_prevista:body.dataPrevista,
         status:"pendente",
+        ...(body.horaPrevista!==undefined?{hora_prevista:body.horaPrevista}:{}),
       }).select("id").single();
     if (insertError || !data) return NextResponse.json(
       {error:"Não foi possível registrar a atividade para esta gestante."},
@@ -90,7 +94,7 @@ export async function PATCH(request: Request) {
   if (!body || !isUuid(body.id) ||
       typeof body.status !== "string" || !STATUSES.has(body.status) ||
       (body.status === "adiada" && !validDate(body.dataPrevista)) ||
-      (body.dataPrevista !== undefined && !validDate(body.dataPrevista))) {
+      (body.dataPrevista !== undefined && !validDate(body.dataPrevista)) || !validOptionalTime(body)) {
     return NextResponse.json({error:"Revisão de atividade inválida."},
       {status:400,headers:noCache});
   }
@@ -107,6 +111,7 @@ export async function PATCH(request: Request) {
       concluida_em:body.status==="concluida"?new Date().toISOString():null,
       atualizada_em:new Date().toISOString(),
       ...(body.dataPrevista ? {data_prevista:body.dataPrevista} : {}),
+      ...(body.horaPrevista!==undefined?{hora_prevista:body.horaPrevista}:{}),
     };
     const {data, error: updateError} = await supabase
       .from("rotina_profissional_tarefas_v1")

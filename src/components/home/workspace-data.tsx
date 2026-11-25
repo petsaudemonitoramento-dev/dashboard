@@ -43,8 +43,9 @@ export async function WorkspaceData({agendaOnly=false,entry=false}:{agendaOnly?:
   const monthStart=day.slice(0,7)+"-01";
   const [year,month]=day.split("-").map(Number);
   const nextMonth=`${month===12?year+1:year}-${String(month===12?1:month+1).padStart(2,"0")}-01`;
+  const timesEnabled=process.env.GESTARIO_AGENDA_HORARIOS==="1";
   let taskQuery=supabase.from("rotina_profissional_tarefas_v1")
-    .select("id,gestante_id,tipo,status,data_prevista").eq("profissional_id",user.id);
+    .select(timesEnabled?"id,gestante_id,tipo,status,data_prevista,hora_prevista":"id,gestante_id,tipo,status,data_prevista").eq("profissional_id",user.id);
   if(!agendaOnly)taskQuery=taskQuery.or(`data_prevista.gte.${day},status.neq.concluida`);
   const [{data:listData,error:listError},{data:taskData,error:taskError},monthly,todayCount,completedCount]=await Promise.all([
     supabase.rpc("profissionais_listar_gestantes_v30",{p_exibir_identidade:true}),
@@ -78,5 +79,5 @@ export async function WorkspaceData({agendaOnly=false,entry=false}:{agendaOnly?:
   return <ProfessionalWorkspace nome={profile.nome_completo??"profissional"} accountId={user.id}
     patients={patients} tasks={tasks} monthlyVisits={monthly.error?null:monthly.count}
     todayTotal={todayCount.error?null:todayCount.count} todayCompleted={completedCount.error?null:completedCount.count}
-    agendaOnly={agendaOnly}/>;
+    agendaOnly={agendaOnly} timesEnabled={timesEnabled}/>;
 }
