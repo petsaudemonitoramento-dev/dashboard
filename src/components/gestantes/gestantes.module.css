@@ -1076,3 +1076,13 @@
   .card { height: 515px; min-height: 515px; max-height: 515px; }
 }
 @media (prefers-reduced-motion: reduce) { .card:hover { transform: none; } }
+
+.organizeBar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex:1 1 100%;flex-wrap:wrap}
+.organizeTabs{display:flex;flex-wrap:wrap;gap:4px;background:#f1f1fa;border:1px solid #e5e6f2;padding:4px;border-radius:12px}
+.organizeTabs button{background:transparent;border:0;border-radius:8px;padding:10px 13px;color:#42537a;font-size:12px;font-weight:700}
+.organizeTabs button[aria-pressed="true"]{background:#00167a;color:#fff}
+.periodHint{font-size:11px;color:#566781}
+.periodGroup{margin:16px 0 22px}
+.periodTitle{display:flex;align-items:center;gap:10px;text-transform:capitalize;font-size:16px;font-weight:750;color:#203a73;margin:0 0 12px}
+.periodTitle small{font-size:11px;color:#586982;font-weight:600;text-transform:none}
+@media(max-width:550px){.organizeTabs{width:100%}.organizeTabs button{flex:1;padding:9px 5px;font-size:11px}}

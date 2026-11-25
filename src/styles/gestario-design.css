@@ -14,3 +14,26 @@
 @media(max-width:930px){.gestario-shell,.gestario-shell.ga-collapsed{display:block}.gestario-shell .sidebar,.gestario-shell.ga-collapsed .sidebar{position:fixed;inset:0 auto 0 0;width:min(288px,87vw);height:100dvh;transform:translateX(-105%);opacity:0;visibility:hidden;pointer-events:none;z-index:41}.gestario-shell.ga-mobile-open .sidebar{transform:none;opacity:1;visibility:visible;pointer-events:auto;box-shadow:12px 0 38px #13205929}.ga-backdrop{display:block;position:fixed;inset:0;border:0;background:#0815474d;z-index:40}.gestario-shell .content{padding:24px 18px}}
 @media(max-width:550px){.gestario-shell .app-header{height:65px;padding:0 12px;gap:8px}.ga-header-left{gap:8px}.gestario-shell .user{gap:5px}.ga-icon,.gestario-shell .user>button{width:34px;height:36px;border-radius:10px}.gestario-shell .search{height:38px;padding:0 8px}.gestario-shell .search input{font-size:12px}.gestario-shell .content{padding:21px 12px}.gestario-shell .heading h1{font-size:26px}.ga-pec-hero{padding:22px 19px;gap:6px}.ga-pec-hero h1{font-size:25px}.ga-pec-hero svg{display:none}.ga-profile-hero{padding:19px 15px}.ga-avatar{width:58px;height:58px}.ga-fields{grid-template-columns:1fr}.ga-profile-card{padding:19px 16px}}
 @media(prefers-reduced-motion:reduce){.gestario-shell,.gestario-shell .sidebar{transition:none}.gestario-shell .sidebar:before{animation:none}}
+
+/* PEC banner — original mark from approved design, not a generic upload icon. */
+.ga-pec-hero{isolation:isolate;min-height:195px}
+.ga-pec-hero::before,.ga-pec-hero::after{content:"";position:absolute;pointer-events:none;z-index:-1;border-radius:50%}
+.ga-pec-hero::before{width:320px;height:230px;right:-35px;top:-120px;border:1px solid #ffffff26}
+.ga-pec-hero::after{width:420px;height:170px;right:-65px;bottom:-125px;background:#ffffff19}
+.ga-pec-brand{flex:0 0 140px;display:flex;align-items:center;justify-content:center}
+.ga-pec-brand img{width:auto;height:158px;max-width:100%;object-fit:contain;opacity:.56}
+.ga-pec-guide>p{font-size:13px;color:#465672;line-height:1.6}
+.ga-pec-guide-list{list-style:none;margin:17px 0 0;padding:0;display:grid;gap:13px}
+.ga-pec-guide-list li{display:grid;gap:5px;border-top:1px solid #e6eaf3;padding-top:12px;font-size:12px;line-height:1.55;color:#4f5e78}
+.ga-pec-guide-list li strong{color:#253b78;font-size:13px}
+.ga-pec-history{margin-top:20px}
+.ga-pec-history header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}
+.ga-pec-history header small{font-size:10px;letter-spacing:.12em;font-weight:800;color:#615198}
+.ga-pec-history header h2{margin:5px 0 0}
+.ga-pec-history header>span,.ga-history-status{border-radius:999px;background:#f0edf9;color:#534582;padding:6px 10px;font-size:11px;font-weight:700}
+.ga-history-status[data-tone="ok"]{background:#e5f4eb;color:#286146}
+.ga-history-status[data-tone="warning"]{background:#fff0de;color:#7e4e12}
+.ga-history-errors{display:block;font-size:11px;color:#80501c}
+.ga-history-note{font-size:12px;color:#596982;line-height:1.55;margin:15px 0 0}
+.ga-pec-history-empty{border:1px dashed #dce1ef;background:#f9faff;border-radius:12px;padding:22px;color:#53627e;font-size:13px}
+@media(max-width:550px){.ga-pec-brand{flex-basis:48px}.ga-pec-brand img{height:91px}.ga-pec-hero p{font-size:12px}.ga-pec-hero h1{font-size:23px}}

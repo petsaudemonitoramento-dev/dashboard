@@ -67,6 +67,8 @@ type Props = {
 
 type RiskTone = "high" | "intermediate" | "habitual" | "neutral";
 type StatusFilter = "ativas" | "altas" | "todas";
+type Organization = "atendimento" | "mes" | "todas";
+import { consultationPeriod, periodLabel } from "@/lib/gestantes-period";
 
 function normalize(value: string | null | undefined): string {
   return String(value ?? "")
@@ -475,6 +477,10 @@ export function GestantesGrid({
   const [isPending, startTransition] = useTransition();
 
   const [currentSearch, setCurrentSearch] = useState("");
+  const [organization,setOrganization] = useState<Organization>("atendimento");
+  const [year,setYear] = useState("todos");
+  const [month,setMonth] = useState("todos");
+  const years = useMemo(()=>[...new Set(gestantes.map(g=>consultationPeriod(g.ultimaConsulta)?.slice(0,4)).filter((v):v is string=>Boolean(v)))].sort().reverse(),[gestantes]);
   const [currentRisk, setCurrentRisk] = useState("todos");
   const [currentMicroarea, setCurrentMicroarea] = useState("todas");
   const [statusFilter, setStatusFilter] =
@@ -517,15 +523,17 @@ export function GestantesGrid({
           ? gestante.altaAtiva
           : !gestante.altaAtiva);
 
+      const period=consultationPeriod(gestante.ultimaConsulta);
+      const matchesPeriod=(year==="todos"|| (year==="sem-data"?!period:period?.startsWith(year+"-"))) && (month==="todos"||period?.slice(5,7)===month);
       return (
-        matchesSearch &&
+        matchesPeriod && matchesSearch &&
         matchesRisk &&
         matchesMicroarea &&
         matchesStatus
       );
-    });
+    }).sort((a,b)=>organization==="todas"?a.nomeVisual.localeCompare(b.nomeVisual,"pt-BR")||a.codigo.localeCompare(b.codigo): (b.ultimaConsulta??"").localeCompare(a.ultimaConsulta??"")||a.nomeVisual.localeCompare(b.nomeVisual,"pt-BR"));
   }, [
-    gestantes,
+    organization,year,month,gestantes,
     currentMicroarea,
     currentRisk,
     currentSearch,
@@ -538,6 +546,15 @@ export function GestantesGrid({
   const dischargedGestantes = filtered.filter(
     (gestante) => gestante.altaAtiva
   );
+
+  const groups = useMemo(()=>{
+    const map=new Map<string,GestanteCardData[]>();
+    for(const g of filtered.filter(g=>!g.altaAtiva)){
+      const key=organization==="mes"?(consultationPeriod(g.ultimaConsulta)??"sem-data"):"todas";
+      map.set(key,[...(map.get(key)??[]),g]);
+    }
+    return [...map.entries()];
+  },[filtered,organization]);
 
   async function confirmMoveToTrash() {
     if (!trashTarget) return;
@@ -594,6 +611,12 @@ export function GestantesGrid({
   return (
     <section className={styles.wrapper}>
       <div className={styles.toolbar}>
+        <div className={styles.organizeBar}>
+          <div className={styles.organizeTabs} role="group" aria-label="Organização das gestantes">
+            {([["atendimento","Por atendimento"],["mes","Por mês"],["todas","Todas as gestantes"]] as const).map(([value,label])=><button key={value} type="button" aria-pressed={organization===value} onClick={()=>{setOrganization(value);if(value==="todas"){setYear("todos");setMonth("todos");setStatusFilter("todas")}}}>{label}</button>)}
+          </div>
+          <span className={styles.periodHint}>{organization==="todas"?"Ordem alfabética":"Referência: última consulta pré-natal registrada"}</span>
+        </div>
         <div className={styles.filters}>
           <label className={styles.searchBox}>
             <Search size={18} />
@@ -647,6 +670,15 @@ export function GestantesGrid({
                 Microárea {microarea}
               </option>
             ))}
+          </select>
+          <select aria-label="Ano da última consulta" value={year} onChange={e=>{setYear(e.target.value);setMonth("todos")}}>
+            <option value="todos">Todos os anos</option>
+            {years.map(y=><option value={y} key={y}>{y}</option>)}
+            <option value="sem-data">Sem consulta registrada</option>
+          </select>
+          <select aria-label="Mês da última consulta" value={month} disabled={year==="sem-data"} onChange={e=>setMonth(e.target.value)}>
+            <option value="todos">Todos os meses</option>
+            {Array.from({length:12},(_,i)=>String(i+1).padStart(2,"0")).map(m=><option key={m} value={m}>{new Intl.DateTimeFormat("pt-BR",{month:"long",timeZone:"UTC"}).format(new Date("2026-"+m+"-01T12:00:00Z"))}</option>)}
           </select>
         </div>
 
@@ -714,18 +746,12 @@ export function GestantesGrid({
         </span>
       </div>
 
-      {activeGestantes.length > 0 && (
-        <div className={styles.grid}>
-          {activeGestantes.map((gestante) => (
-            <ActiveCard
-              gestante={gestante}
-              onMoveToTrash={setTrashTarget}
-              presentationMode={presentationMode}
-              key={gestante.id}
-            />
-          ))}
-        </div>
-      )}
+      {activeGestantes.length > 0 && groups.map(([period,items])=>(
+        <section key={period} className={styles.periodGroup} aria-label={period==="todas"?"Gestantes ativas":periodLabel(period)}>
+          {organization==="mes"&&<h2 className={styles.periodTitle}>{periodLabel(period)} <small>{items.length} ficha{items.length===1?"":"s"}</small></h2>}
+          <div className={styles.grid}>{items.map(gestante=><ActiveCard gestante={gestante} onMoveToTrash={setTrashTarget} presentationMode={presentationMode} key={gestante.id}/>)}</div>
+        </section>
+      ))}
 
       {dischargedGestantes.length > 0 && (
         <section className={styles.dischargedSection}>
