@@ -12,6 +12,7 @@ for(const viewport of [{width:1194,height:650},{width:1024,height:600},{width:82
   for(const locator of [page.getByRole("heading",{name:"Gestário APS"}),page.getByRole("button",{name:"Entrar",exact:true}),page.getByRole("link",{name:"Criar conta"}),page.getByRole("link",{name:"LGPD — Lei nº 13.709/2018"}),page.getByRole("button",{name:"Rever abertura"})]){
    await expect(locator).toBeInViewport({ratio:1});
   }
+  await expect(page.getByRole("link",{name:"Manual v5.6 (09/11/2026)"})).toBeInViewport({ratio:1});
   const metrics=await page.evaluate(()=>({h:document.documentElement.scrollHeight,v:window.innerHeight,w:document.documentElement.scrollWidth,vw:window.innerWidth}));
   expect(metrics.h).toBeLessThanOrEqual(metrics.v+1);
   expect(metrics.w).toBeLessThanOrEqual(metrics.vw+1);
