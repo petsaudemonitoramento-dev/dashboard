@@ -1,0 +1,23 @@
+/* Adapted from the approved six-second HTML. The mask is the original
+   designer logo: its transparent 26px border is excluded by mask sizing. */
+.intro{position:fixed;inset:0;width:100%;height:100dvh;max-width:none;max-height:none;margin:0;padding:0;border:0;overflow:hidden;isolation:isolate;color:#00167a;background:radial-gradient(ellipse at 12% 14%,#dbeeee,transparent 47%),radial-gradient(ellipse at 88% 82%,#f9dad7,transparent 50%),#f6f5fc}
+.intro:not([open]){display:none}
+.intro[open]{animation:exit 6s ease both}
+.intro::backdrop{background:transparent}
+.light,.dark{position:absolute;inset:0;display:grid;place-items:center}
+.light::before{content:"";position:absolute;width:70vmin;height:70vmin;background:radial-gradient(circle,#fff 0%,#a5a0e64a 35%,transparent 72%);border-radius:50%;opacity:0;animation:glow 6s ease both}
+.logo{display:block;position:relative;width:min(520px,75vw,65vh);aspect-ratio:1325/733;background:#00167a;mask:url("/brand/gestario-original.png") center / 103.9245% auto no-repeat;-webkit-mask:url("/brand/gestario-original.png") center / 103.9245% auto no-repeat}
+.light .logo{animation:reveal 6s cubic-bezier(.25,.65,.25,1) both}
+.dark{background:radial-gradient(ellipse at 88% 40%,#8062b2 0%,transparent 48%),linear-gradient(120deg,#00167a,#30217f 55%,#69519e);clip-path:circle(0% at 86% 48%);animation:darken 6s cubic-bezier(.3,.65,.3,1) both}
+.dark::before,.dark::after{content:"";position:absolute;width:85vmax;height:85vmax;right:-45vmax;border:1px solid #ffffff1b;border-radius:50%;pointer-events:none}
+.dark::after{width:100vmax;height:100vmax;right:-52vmax}
+.dark .logo{background:#f9dad7}
+.skip,.replay{min-height:44px;padding:10px 17px;border:1px solid #a9a5d3;border-radius:999px;color:#00167a;background:#fff;font-size:13px;font-weight:600}
+.skip{position:absolute;right:clamp(18px,4vw,52px);bottom:max(env(safe-area-inset-bottom),clamp(20px,4vw,45px));z-index:3}
+.replay{margin:12px auto 0;display:block;box-shadow:0 5px 20px #00167a0d}
+@keyframes reveal{0%,12%{clip-path:inset(0 0 100% 0);opacity:0;transform:translateY(5px)}23%{opacity:1}34%,39%{clip-path:inset(0 0 27% 0);transform:translateY(0)}53%,100%{clip-path:inset(0 0 0 0);opacity:1;transform:translateY(0)}}
+@keyframes glow{0%{opacity:0;transform:scale(.65)}13%{opacity:1;transform:scale(1)}35%{opacity:.6}60%,100%{opacity:0;transform:scale(1.2)}}
+@keyframes darken{0%,53%{clip-path:circle(0% at 86% 48%)}77%,100%{clip-path:circle(170% at 86% 48%)}}
+@keyframes exit{0%,91%{opacity:1}100%{opacity:0}}
+@media(max-width:700px){.logo{width:min(80vw,440px,85vh)}}
+@media(prefers-reduced-motion:reduce){.intro,.intro *,.intro *::before{animation:none!important}.replay{display:none}}

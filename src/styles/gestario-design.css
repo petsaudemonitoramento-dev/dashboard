@@ -39,3 +39,21 @@
 @media(max-width:550px){.ga-pec-brand{flex-basis:48px}.ga-pec-brand img{height:91px}.ga-pec-hero p{font-size:12px}.ga-pec-hero h1{font-size:23px}}
 
 .ga-pref-form{display:grid;gap:8px;margin-top:15px}.ga-pref-form label{display:flex;justify-content:space-between;gap:12px;align-items:center;border-bottom:1px solid #e6eaf3;padding:11px 0;color:#253e80;font-size:12px}.ga-pref-form label span{display:grid;gap:4px}.ga-pref-form small{color:#586981;font-size:11px}.ga-pref-form input{accent-color:#00167a;min-width:18px;width:18px;height:18px}.ga-pref-form select{max-width:50%;padding:8px;border:1px solid #dce3f1;background:#fff;border-radius:9px;color:#243a75}.ga-pref-form>button{justify-self:start;background:#00167a;color:#fff;padding:10px 14px;border-radius:10px;border:0;font-weight:700}.ga-pref-form p{margin:0}
+
+/* Login with official brand and unchanged authentication form. */
+.login-page.ga-login-page{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);align-items:center;min-height:100dvh;height:auto;overflow:visible;padding:clamp(22px,5vw,75px);gap:clamp(24px,5vw,80px);background:radial-gradient(ellipse at 0 5%,#dbeeee 0,transparent 50%),radial-gradient(ellipse at 50% 100%,#f9dad7 0,transparent 55%),#f6f5fc}
+.ga-login-page::before{display:none}
+.ga-login-brand{display:grid;justify-items:center;gap:18px;min-width:0;text-align:center;color:#00167a}
+.ga-login-brand h1{margin:0;display:flex;justify-content:center;width:100%}
+.ga-login-brand h1 img{width:min(400px,85%);height:auto;object-fit:contain}
+.ga-login-brand>p{font-size:16px;line-height:1.6;margin:0;max-width:310px;color:#445478}
+.ga-login-institutions{display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap;margin-top:16px}
+.ga-login-institutions img{width:auto;max-width:140px;height:48px;object-fit:contain}
+.ga-login-credit{color:#526181;font-size:11px}
+.ga-login-access{min-width:0;display:grid;justify-items:center;align-content:center;position:relative}
+.ga-login-page .login-card{width:min(100%,530px);max-height:none;overflow:visible;transform:none;padding:clamp(22px,3vw,40px);border:1px solid #e0e3f2;border-radius:26px;background:#fffffff2;box-shadow:0 20px 80px #00167a12}
+.ga-login-page .login-button{position:relative;isolation:isolate;overflow:hidden;border:1px solid #a3a2ed;color:#fff;background:linear-gradient(120deg,#00167a,#50409f 48%,#8266c4);box-shadow:0 8px 24px #5144aa40,inset 0 1px 0 #ffffff70}
+.ga-login-page .login-button::after{content:"";position:absolute;inset:-100% -50%;background:linear-gradient(110deg,transparent 40%,#ffffff38 49%,transparent 58%);transform:translateX(-70%);animation:ga-login-shine 4s 6s 2;pointer-events:none;z-index:-1}
+@keyframes ga-login-shine{0%,68%{transform:translateX(-70%)}100%{transform:translateX(70%)}}
+@media(max-width:850px){.login-page.ga-login-page{grid-template-columns:minmax(0,1fr);padding:28px 18px 42px;gap:20px}.ga-login-brand{gap:8px}.ga-login-brand h1 img{width:min(210px,70vw)}.ga-login-brand>p{font-size:13px}.ga-login-institutions{margin-top:4px;gap:14px}.ga-login-institutions img{height:32px;max-width:110px}.ga-login-page .login-card{width:min(100%,530px)}.ga-login-page .mobile-version{display:none}}
+@media(prefers-reduced-motion:reduce){.ga-login-page .login-button::after{animation:none}}

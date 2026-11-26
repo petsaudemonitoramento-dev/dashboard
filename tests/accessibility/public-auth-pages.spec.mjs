@@ -5,7 +5,7 @@ const pages = [
   {
     name: "login",
     path: "/login",
-    heading: "Cuidado na Gestação na APS",
+    heading: "Gestário APS",
     labels: ["E-mail ou usuário", "Senha"],
     controls: [
       { role: "button", name: "Continuar com Google" },
@@ -59,6 +59,7 @@ function describeViolations(violations) {
 
 for (const publicPage of pages) {
   test(publicPage.name + " não possui barreiras graves/críticas", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
     const response = await page.goto(publicPage.path, {
       waitUntil: "networkidle",
     });
