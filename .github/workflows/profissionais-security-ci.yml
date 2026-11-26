@@ -174,11 +174,11 @@ jobs:
         run: |
           psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f database/PROPOSTA_UBS_OPCIONAL_V31.sql
           psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f tests/isolated/ubs-optional.sql
-      - name: Validate individual workspace proposal in ephemeral database only
+      - name: Restore canonical V32 migration and validate individual workspace
         run: |
-          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f database/PROPOSTA_ACESSO_INDIVIDUAL_V32.sql
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f supabase/migrations/20261126043751_gestario_individual_workspace_v32.sql
           psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f tests/isolated/acesso-individual-v32.sql
-      - name: Repeat database regression suite after individual-workspace proposal
+      - name: Repeat database regression suite after canonical V32 migration
         run: supabase test db
       - name: Show local migration state
         run: supabase migration list --local
