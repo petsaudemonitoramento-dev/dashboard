@@ -220,3 +220,8 @@
  .ga-login-source{grid-column:1/-1;grid-row:2;justify-self:stretch}
  .ga-login-replay{grid-column:2;grid-row:1}
 }
+
+/* Reuse the existing account divider instead of adding another login row. */
+.ga-login-page .ga-confirmation-divider .confirmation-resend { min-width: 0; flex: 0 1 auto; }
+.ga-login-page .ga-confirmation-divider .confirmation-resend-button { display: inline-block; font-size: 11px; padding: 0 2px; line-height: 1.35; text-decoration: underline; text-underline-offset: 2px; }
+.ga-login-page .ga-confirmation-divider .confirmation-resend p { white-space: normal; }

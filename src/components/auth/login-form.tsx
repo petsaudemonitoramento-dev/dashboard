@@ -206,13 +206,12 @@ export function LoginForm() {
           <LogIn size={23} strokeWidth={1.7} />
           {loading ? "Entrando..." : "Entrar"}
         </button>
-        <ResendConfirmation email={identifier} disabled={loading} />
       </form>
 
-      <div className="login-divider account-divider">
-        <span />
-        <p>Não tem uma conta?</p>
-        <span />
+      <div className="login-divider account-divider ga-confirmation-divider">
+        <span aria-hidden="true" />
+        <ResendConfirmation email={identifier} disabled={loading} />
+        <span aria-hidden="true" />
       </div>
 
       <Link href="/cadastro" className="create-account-button">
