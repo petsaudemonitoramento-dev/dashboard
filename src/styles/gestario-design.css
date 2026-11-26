@@ -117,3 +117,28 @@
   .ga-login-page .login-card{padding:18px 20px}
   .ga-login-page>.login-compliance{width:min(100%,530px)}
 }
+
+/* Secondary technical credits: no card, border, shadow or competing headline. */
+.ga-login-page>.ga-login-footnote{
+  display:grid;
+  justify-items:center;
+  align-self:start;
+  width:min(100%,440px);
+  gap:4px;
+  padding:0 4px;
+  margin:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+  text-align:center;
+  color:#555c73;
+  font-size:11px;
+  line-height:1.45;
+  font-weight:400;
+}
+.ga-login-page>.ga-login-footnote p{display:block;margin:0;line-height:inherit;font-size:inherit;font-weight:400}
+.ga-login-page>.ga-login-footnote .ga-pec-reference{font-size:11px;max-width:410px}
+.ga-login-page>.ga-login-footnote a{color:#4b497d;font-weight:500;text-decoration:underline;text-underline-offset:2px}
+.ga-login-page>.ga-login-footnote a:hover{color:#00167a}
+@media(max-width:740px){.ga-login-page>.ga-login-footnote{padding:4px 6px 0;max-width:440px}}
