@@ -429,9 +429,11 @@ function NumberInput({
 export function ClinicalForm({
   data,
   initialTab = "identificacao",
+  onDemoSave,
 }: {
   data: ClinicalPageData;
   initialTab?: TabId;
+  onDemoSave?: (record: ClinicalRecord) => void;
 }) {
   const router = useRouter();
   const [record, setRecord] = useState<ClinicalRecord>(
@@ -729,6 +731,12 @@ export function ClinicalForm({
       return;
     }
 
+    if (onDemoSave) {
+      onDemoSave({ ...record, gestacao: { ...record.gestacao, igSemanas: currentWeeks, igDias: currentDays, dpp: calculatedPregnancy.dpp || record.gestacao.dpp } });
+      setMessage({ tone: "success", text: "Alterações simuladas nesta sessão. Nenhum dado foi enviado ao banco." });
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -829,7 +837,7 @@ export function ClinicalForm({
         )}
       </section>
 
-      {record.id && (
+      {record.id && !onDemoSave && (
         <section className={quickStyles.toolbar} aria-label="Registro rápido">
           <div>
             <strong>Registrar sem procurar campos</strong>

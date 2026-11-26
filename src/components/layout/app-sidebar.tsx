@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { APP_CONFIG } from "@/config/app";
 
 type SidebarProfile = string;
@@ -49,18 +49,20 @@ function isActive(pathname: string, href: string): boolean {
 }
 
 export function AppSidebar({
-  profile, onNavigate,
+  profile, onNavigate, demo=false,
 }: {
-  profile: SidebarProfile; onNavigate?:()=>void;
+  profile: SidebarProfile; onNavigate?:()=>void; demo?:boolean;
 }) {
   const pathname = usePathname();
-  const visibleItems =
-    profile === "equipe_ubs" ? professionalItems : [];
+  const query=useSearchParams();
+  const demoTabs=["inicio","importacoes","gestantes","agenda","perfil"];
+  const visibleItems = demo ? professionalItems.map((item,i)=>({...item,href:"/demonstracao?aba="+demoTabs[i]})) : profile === "equipe_ubs" ? professionalItems : [];
+  const active=(href:string)=>demo?href==="/demonstracao?aba="+(query.get("aba")??"inicio"):isActive(pathname,href);
 
   return (
     <aside className="sidebar" id="gestario-sidebar" aria-label="Menu lateral">
       <div className="sidebar-main">
-        <Link className="side-brand ga-brand" href="/dashboard" onClick={()=>{onNavigate?.();if(pathname==="/dashboard")window.scrollTo({top:0,behavior:"auto"})}}><Image src="/brand/gestario-original.png" alt="Gestário APS" width={1377} height={785} priority/></Link>
+        <Link className="side-brand ga-brand" href={demo?"/demonstracao":"/dashboard"} onClick={()=>{onNavigate?.();if(pathname==="/dashboard")window.scrollTo({top:0,behavior:"auto"})}}><Image src="/brand/gestario-original.png" alt="Gestário APS" width={1377} height={785} priority/></Link>
         <nav
           className="sidebar-navigation"
           aria-label="Menu principal"
@@ -68,10 +70,10 @@ export function AppSidebar({
           {visibleItems.map(({ href, label, icon: Icon }) => (
             <Link
               aria-current={
-                isActive(pathname, href) ? "page" : undefined
+                active(href) ? "page" : undefined
               }
               className={
-                isActive(pathname, href) ? "active" : ""
+                active(href) ? "active" : ""
               }
               href={href}
               onClick={onNavigate}

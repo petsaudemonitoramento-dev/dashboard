@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { normalizeBirthDate } from "@/lib/validation/profile-input";
 import { CompleteProfileForm } from "@/components/auth/complete-profile-form";
 import { createClient } from "@/lib/supabase/server";
 
@@ -61,6 +62,7 @@ export default async function CompleteProfilePage() {
       previewOtherUbs={process.env.VERCEL_ENV === "preview" || process.env.GESTARIO_UBS_OPTION_PREVIEW === "1"}
       suggestedProfession={String(metadata.profissao_declarada ?? "")}
       suggestedUbs={String(metadata.ubs_declarada ?? "")}
+      suggestedBirthDate={normalizeBirthDate(metadata.data_nascimento_declarada) ?? ""}
     />
   );
 }

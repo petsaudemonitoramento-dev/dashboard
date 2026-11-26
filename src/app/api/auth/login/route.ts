@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { normalizeBirthDate } from "@/lib/validation/profile-input";
+import { parseUbsChoice } from "@/lib/validation/ubs-choice";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
 import {
   logServerFailure,
@@ -84,7 +86,7 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createClient();
-    const { error } =
+    const { data: loginData, error } =
       await supabase.auth.signInWithPassword({
         email,
         password,
@@ -95,6 +97,26 @@ export async function POST(request: Request) {
         { error: "E-mail ou senha inválidos." },
         { status: 401 }
       );
+    }
+
+    // Metadata is a self-declared prefill only. The existing authenticated RPC
+    // creates a pending profile, never an approved clinical role.
+    const user = loginData.user;
+    const metadata = user?.user_metadata ?? {};
+    if (user?.email_confirmed_at && metadata.cadastro_email_v1 === true && process.env.GESTARIO_AUTONOMOUS_SIGNUP !== "1") {
+      const nome = String(metadata.full_name ?? "").replace(/\s+/g, " ").trim();
+      const nascimento = normalizeBirthDate(metadata.data_nascimento_declarada);
+      const ubs = parseUbsChoice(metadata.ubs_declarada, false);
+      if (nome.length >= 5 && nome.length <= 160 && nascimento && typeof ubs === "string") {
+        const { data: profile, error: profileError } = await supabase.from("perfis").select("cadastro_completo, aprovacao_status, ativo, perfil_excluido_em").eq("id", user.id).maybeSingle();
+        if (!profileError && !profile?.cadastro_completo && profile?.aprovacao_status !== "aprovado" && profile?.aprovacao_status !== "desativado" && profile?.ativo !== false && !profile?.perfil_excluido_em) {
+          const { data: activeUbs, error: ubsError } = await supabase.from("ubs").select("id").eq("id", ubs).eq("ativa", true).maybeSingle();
+          if (!ubsError && activeUbs) {
+            const { error: completionError } = await supabase.rpc("profissionais_completar_perfil_v30", { p_nome_completo: nome, p_data_nascimento: nascimento, p_ubs_id: ubs });
+            if (completionError) logServerFailure("signup-profile-prefill", completionError);
+          }
+        }
+      }
     }
 
     return NextResponse.json(

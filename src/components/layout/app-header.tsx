@@ -20,12 +20,12 @@ export function AppHeader({
   name,
   profile,
   alerts = [],
-  alertsError = false, onMenu, preferences = parseGestarioPreferences(null),
+  alertsError = false, onMenu, demo=false, preferences = parseGestarioPreferences(null),
 }: {
   name: string;
   profile: string;
   alerts?: ProfessionalAlert[];
-  alertsError?: boolean; onMenu?:()=>void; preferences?:GestarioPreferences;
+  alertsError?: boolean; onMenu?:()=>void; demo?:boolean; preferences?:GestarioPreferences;
 }) {
   const router = useRouter();
 
@@ -38,14 +38,14 @@ export function AppHeader({
   return (
     <header className="app-header">
       <div className="ga-header-left"><button className="ga-icon" type="button" aria-label="Alternar menu lateral" aria-controls="gestario-sidebar" onClick={onMenu}><Menu size={20}/></button>
-      {profile==="equipe_ubs"&&<Link href="/dashboard/gestantes" className="search"><Search/><span>Pesquisar gestantes...</span></Link>}</div>
+      {(demo||profile==="equipe_ubs")&&<Link href={demo?"/demonstracao?aba=gestantes":"/dashboard/gestantes"} className="search"><Search/><span>Pesquisar gestantes...</span></Link>}</div>
 
       <div className="user">
         {profile === "equipe_ubs" && (
           <AlertBell initialAlerts={alerts} initialError={alertsError} preferences={preferences} />
         )}
-        <Link href="/dashboard/perfil" className="ga-icon" aria-label={`Perfil: ${name} — ${PROFILE_LABELS[profile]??profile}`} title="Meu perfil"><UserRound size={20}/></Link>
-        <Link href="/dashboard/perfil#seguranca" className="ga-icon" aria-label="Configurações da conta" title="Configurações"><Settings size={20}/></Link>
+        <Link href={demo?"/demonstracao?aba=perfil":"/dashboard/perfil"} className="ga-icon" aria-label={`Perfil: ${name} — ${PROFILE_LABELS[profile]??profile}`} title="Meu perfil"><UserRound size={20}/></Link>
+        <Link href={demo?"/demonstracao?aba=perfil":"/dashboard/perfil#seguranca"} className="ga-icon" aria-label="Configurações da conta" title="Configurações"><Settings size={20}/></Link>
 
         <button
           aria-label="Sair da conta"

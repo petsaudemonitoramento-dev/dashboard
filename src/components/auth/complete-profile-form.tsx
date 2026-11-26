@@ -26,6 +26,7 @@ type Props = {
   previewOtherUbs?: boolean;
   suggestedProfession?: string;
   suggestedUbs?: string;
+  suggestedBirthDate?: string;
 };
 
 export function CompleteProfileForm({
@@ -37,6 +38,7 @@ export function CompleteProfileForm({
   previewOtherUbs = false,
   suggestedProfession = "",
   suggestedUbs = "",
+  suggestedBirthDate = "",
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -119,7 +121,7 @@ export function CompleteProfileForm({
             </div>
 
             {autonomous ? <ProfessionField initial={suggestedProfession} /> : <>
-              <div className="v20-field"><BirthDateField /></div>
+              <div className="v20-field"><BirthDateField defaultValue={suggestedBirthDate} /></div>
               <div className="v20-field"><label>Perfil</label><input disabled value="Profissional da UBS" aria-label="Perfil Profissional da UBS" /></div>
             </>}
 

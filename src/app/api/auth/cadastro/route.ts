@@ -156,7 +156,7 @@ export async function POST(request: Request) {
         email, password,
         options: {
           emailRedirectTo: confirmationRedirectUrl(request.url),
-          data: { full_name: nomeCompleto, ...(autonomous ? { profissao_declarada: profession } : {}), ubs_declarada: ubsId ?? "" },
+          data: { full_name: nomeCompleto, ...(autonomous ? { profissao_declarada: profession } : { data_nascimento_declarada: dataNascimento, cadastro_email_v1: true }), ubs_declarada: ubsId ?? "" },
         },
       });
       if (error) {
