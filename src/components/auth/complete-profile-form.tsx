@@ -114,7 +114,7 @@ export function CompleteProfileForm({
             </div>
 
             <div className="v20-field v20-field-wide">
-              <label htmlFor="email">E-mail da conta Google</label>
+              <label htmlFor="email">E-mail da conta</label>
               <input disabled id="email" value={email} />
             </div>
 

@@ -1,5 +1,7 @@
 "use client";
 
+import { PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH } from "@/lib/validation/password-policy";
+
 import Link from "next/link";
 import {
   CheckCircle2,
@@ -65,7 +67,7 @@ export function RegisterForm({ ubsOptions, autonomous = false, optionalUbs = fal
 
       setSuccess(true);
       setMessage(
-        autonomous ? "Se o cadastro puder ser concluído, enviaremos a confirmação por e-mail. Depois, entre para completar o cadastro e acessar a demonstração." : "Se o cadastro puder ser concluído, enviaremos a confirmação por e-mail. Após confirmar, entre para acessar a demonstração."
+        (autonomous || body.completeAfterConfirmation === true) ? "Se o cadastro puder ser concluído, enviaremos a confirmação por e-mail. Depois, entre para completar o cadastro e acessar a demonstração." : "Se o cadastro puder ser concluído, enviaremos a confirmação por e-mail. Após confirmar, entre para acessar a demonstração."
       );
     } catch (error) {
       setMessage(
@@ -168,9 +170,10 @@ export function RegisterForm({ ubsOptions, autonomous = false, optionalUbs = fal
                 <input
                   autoComplete="new-password"
                   id="password"
-                  minLength={10}
+                  minLength={PASSWORD_MIN_LENGTH}
+                  maxLength={PASSWORD_MAX_LENGTH}
                   name="password"
-                  placeholder="Mínimo de 10 caracteres"
+                  placeholder="Mínimo de 8 caracteres"
                   required
                   type="password"
                 />
@@ -182,7 +185,8 @@ export function RegisterForm({ ubsOptions, autonomous = false, optionalUbs = fal
               <input
                 autoComplete="new-password"
                 id="passwordConfirmation"
-                minLength={10}
+                minLength={PASSWORD_MIN_LENGTH}
+                  maxLength={PASSWORD_MAX_LENGTH}
                 name="passwordConfirmation"
                 required
                 type="password"

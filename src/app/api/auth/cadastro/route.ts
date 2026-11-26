@@ -1,3 +1,4 @@
+import { isValidNewPassword, PASSWORD_REQUIREMENTS } from "@/lib/validation/password-policy";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { parseUbsChoice } from "@/lib/validation/ubs-choice";
@@ -89,15 +90,12 @@ export async function POST(request: Request) {
     }
 
     if (
-      password.length < 10 ||
-      password.length > 128 ||
-      !/[A-Za-z]/.test(password) ||
-      !/\d/.test(password)
+      !isValidNewPassword(password)
     ) {
       return NextResponse.json(
         {
           error:
-            "A senha deve ter de 10 a 128 caracteres, com letras e números.",
+            PASSWORD_REQUIREMENTS,
         },
         { status: 400 }
       );
@@ -141,7 +139,9 @@ export async function POST(request: Request) {
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
     const secret = process.env.SUPABASE_SECRET_KEY;
 
-    if (autonomous && url && publishableKey) {
+    // Preview uses public signup, never a copied administrative credential.
+    const publicPreviewSignup = process.env.VERCEL_ENV === "preview" && !secret;
+    if ((autonomous || publicPreviewSignup) && url && publishableKey) {
       const auth = createAdminClient(url, publishableKey, {
         auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
       });
@@ -151,21 +151,26 @@ export async function POST(request: Request) {
         if (!ubs) return NextResponse.json({ error: "Selecione uma UBS ativa." }, { status: 400 });
       }
       // Metadata is only a prefill hint, never proof of authorization or term acceptance.
-      const { error } = await auth.auth.signUp({
+      const { data: signupData, error } = await auth.auth.signUp({
         email, password,
         options: {
           emailRedirectTo: new URL("/login?email_confirmed=1", request.url).toString(),
-          data: { full_name: nomeCompleto, profissao_declarada: profession, ubs_declarada: ubsId ?? "" },
+          data: { full_name: nomeCompleto, ...(autonomous ? { profissao_declarada: profession } : {}), ubs_declarada: ubsId ?? "" },
         },
       });
       if (error) {
         if (error.status === 429) return NextResponse.json({ error: "Muitas tentativas. Tente mais tarde." }, { status: 429 });
         if (!["user_already_exists", "email_exists"].includes(error.code ?? "")) {
-          logServerFailure("signup-autonomous", error);
+          logServerFailure("signup-public", error);
           return NextResponse.json({ error: "Não foi possível concluir o cadastro." }, { status: 400 });
         }
       }
-      return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
+      if (signupData.session) {
+        await auth.auth.signOut();
+        logServerFailure("signup-confirmation-config");
+        return NextResponse.json({ error: "Confirmação de e-mail indisponível. Procure o suporte." }, { status: 503 });
+      }
+      return NextResponse.json({ ok: true, completeAfterConfirmation: true }, { headers: { "Cache-Control": "no-store" } });
     }
 
     if (!url || !publishableKey || !secret) {
