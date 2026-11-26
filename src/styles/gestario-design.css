@@ -57,3 +57,63 @@
 @keyframes ga-login-shine{0%,68%{transform:translateX(-70%)}100%{transform:translateX(70%)}}
 @media(max-width:850px){.login-page.ga-login-page{grid-template-columns:minmax(0,1fr);padding:28px 18px 42px;gap:20px}.ga-login-brand{gap:8px}.ga-login-brand h1 img{width:min(210px,70vw)}.ga-login-brand>p{font-size:13px}.ga-login-institutions{margin-top:4px;gap:14px}.ga-login-institutions img{height:32px;max-width:110px}.ga-login-page .login-card{width:min(100%,530px)}.ga-login-page .mobile-version{display:none}}
 @media(prefers-reduced-motion:reduce){.ga-login-page .login-button::after{animation:none}}
+
+/* Fit the complete default sign-in view to the available viewport.
+   Natural document scrolling is retained for narrow screens, zoom, keyboard and errors. */
+.login-page.ga-login-page{
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  grid-template-areas:"brand access" "compliance access";
+  grid-template-rows:auto auto;
+  align-content:center;
+  align-items:center;
+  justify-content:center;
+  column-gap:clamp(20px,4vw,64px);
+  row-gap:12px;
+  padding:clamp(12px,2.3vh,24px) clamp(20px,4vw,64px);
+}
+.ga-login-brand{grid-area:brand;align-self:end;gap:10px}
+.ga-login-brand h1 img{width:min(370px,85%,48vh);height:auto}
+.ga-login-brand>p{font-size:clamp(13px,1.7vh,16px);line-height:1.45}
+.ga-login-institutions{margin-top:2px;gap:16px}
+.ga-login-institutions img{height:40px;max-width:140px}
+.ga-login-credit{line-height:1.4;text-align:center}
+.ga-login-access{grid-area:access;align-self:center}
+.ga-login-page>.login-compliance{grid-area:compliance;align-self:start;justify-self:center;width:min(100%,420px);margin:0;padding:10px 13px;gap:6px;background:#ffffff90;line-height:1.4;font-size:11px}
+.ga-login-page .login-compliance small{font-size:11px}
+.ga-login-page .login-card{padding:clamp(18px,3vh,30px) clamp(22px,3vw,36px)}
+.ga-login-page .login-header{gap:13px}
+.ga-login-page .login-icon{width:48px;height:48px}
+.ga-login-page .login-header h2{font-size:clamp(27px,3.5vh,34px)}
+.ga-login-page .login-header p{font-size:13px;margin-top:4px}
+.ga-login-page .google-button{height:44px;min-height:44px;margin-top:14px;font-size:13px}
+.ga-login-page .google-button img{width:22px;height:22px}
+.ga-login-page .login-divider{margin:10px 0;gap:10px}
+.ga-login-page .login-divider p{font-size:11px}
+.ga-login-page .login-card form>label{font-size:13px;margin-bottom:5px}
+.ga-login-page .input-container{height:44px;min-height:44px;margin-bottom:10px;padding:0 12px;gap:10px}
+.ga-login-page .input-container input{font-size:14px}
+.ga-login-page .login-options{flex-direction:row;align-items:center;flex-wrap:wrap;gap:8px;margin-top:0}
+.ga-login-page .remember-option,.ga-login-page .forgot-button{font-size:12px}
+.ga-login-page .login-button{height:44px;min-height:44px;margin-top:12px;font-size:14px}
+.ga-login-page .create-account-button{height:44px;min-height:44px;font-size:13px}
+.ga-login-page .login-footer{margin-top:12px;font-size:11px;line-height:1.4;gap:7px}
+.ga-login-page .login-footer svg{flex-shrink:0}
+.ga-login-page .mobile-version{display:none}
+@media(min-width:741px) and (min-height:800px){
+  .ga-login-page .login-card{padding:30px 36px}
+  .ga-login-page .google-button,.ga-login-page .input-container,.ga-login-page .login-button,.ga-login-page .create-account-button{height:48px}
+  .ga-login-page .login-divider{margin:14px 0}
+  .ga-login-page .input-container{margin-bottom:14px}
+  .ga-login-page .login-button{margin-top:16px}
+  .ga-login-page .login-footer{margin-top:16px}
+}
+@media(max-width:740px){
+  .login-page.ga-login-page{grid-template-columns:minmax(0,1fr);grid-template-areas:"brand" "access" "compliance";grid-template-rows:auto auto auto;align-content:start;padding:14px 14px 20px;gap:12px}
+  .ga-login-brand{gap:6px}
+  .ga-login-brand h1 img{width:min(150px,55vw);height:auto}
+  .ga-login-brand>p{font-size:12px;max-width:none}
+  .ga-login-institutions{margin:0;gap:12px}
+  .ga-login-institutions img{height:28px;max-width:100px}
+  .ga-login-page .login-card{padding:18px 20px}
+  .ga-login-page>.login-compliance{width:min(100%,530px)}
+}
