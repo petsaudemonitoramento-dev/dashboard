@@ -202,3 +202,21 @@
   .ga-login-credits .ga-login-credit{text-align:center}
   .ga-login-replay{justify-self:center}
 }
+
+/* Keep the approved sign-in geometry; distribute only the footer references. */
+@media(min-width:741px){
+ .ga-login-bottom{grid-template-columns:minmax(0,245px) minmax(0,1fr) auto;gap:clamp(10px,1.6vw,24px);align-items:center}
+ .ga-login-source{grid-template-columns:minmax(0,1fr) minmax(0,1.22fr) minmax(0,.8fr);align-items:center;justify-items:stretch;gap:clamp(7px,1vw,14px);text-align:center;line-height:1.4}
+ .ga-login-source p{min-width:0;overflow-wrap:break-word}
+ .ga-login-source p+p{border-left:1px solid #77768a30;padding-left:clamp(7px,1vw,14px)}
+ .ga-login-replay{align-self:center}
+}
+@media(min-width:741px) and (max-width:1000px){
+ .ga-login-bottom{grid-template-columns:minmax(0,175px) minmax(0,1fr) auto;gap:10px}
+ .ga-login-source{column-gap:7px}
+}
+@media(min-width:741px) and (max-width:850px){
+ .ga-login-bottom{grid-template-columns:minmax(0,1fr) auto;align-items:center}
+ .ga-login-source{grid-column:1/-1;grid-row:2;justify-self:stretch}
+ .ga-login-replay{grid-column:2;grid-row:1}
+}
