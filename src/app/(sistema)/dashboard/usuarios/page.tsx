@@ -46,6 +46,14 @@ export default async function UsuariosPage() {
   }
 
   const payload = data as ProfilesPayload;
+  // The existing admin RPC is the access gate. Keep administrator profiles
+  // read-only here; never pass them to the professional mutation controls.
+  const { data: administrators, error: administratorsError } = await supabase
+    .from("perfis")
+    .select("id,nome_completo,email,ativo,status,aprovacao_status")
+    .eq("perfil", "administrador")
+    .is("perfil_excluido_em", null)
+    .order("nome_completo");
 
   const profiles: AdminProfileRow[] = payload.rows.map((row) => ({
     id: row.id,
@@ -71,8 +79,35 @@ export default async function UsuariosPage() {
         <p>PET-Saúde UFCG</p>
         <h1>Usuários e acessos</h1>
         <span>
-          Perfis aprovados, desativados ou rejeitados.
+          Perfis profissionais e contas administrativas.
         </span>
+      </section>
+
+      <section className="v20-admin-card" style={{ marginBottom: 24 }}>
+        <div className="v20-page-heading">
+          <div>
+            <h2>Administradores ({administratorsError ? "—" : administrators?.length ?? 0})</h2>
+            <p>Consulta de acessos administrativos. Alterações não são feitas por esta lista.</p>
+          </div>
+        </div>
+        {administratorsError ? (
+          <p role="alert">Não foi possível consultar os administradores.</p>
+        ) : (
+          <div className="v20-admin-table-wrap">
+            <table className="v20-admin-table">
+              <thead><tr><th>Nome</th><th>E-mail</th><th>Situação</th></tr></thead>
+              <tbody>
+                {(administrators ?? []).map((admin) => (
+                  <tr key={admin.id}>
+                    <td>{admin.nome_completo}{admin.id === user.id ? " (você)" : ""}</td>
+                    <td>{admin.email}</td>
+                    <td>{admin.ativo && admin.status === "ativo" && admin.aprovacao_status === "aprovado" ? "Ativo e aprovado" : admin.aprovacao_status}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       <AdminProfiles
