@@ -9,6 +9,7 @@ import {
 import { FormEvent, useState } from "react";
 import { OTHER_UBS } from "@/lib/validation/ubs-choice";
 import { ProfessionField } from "@/components/auth/profession-field";
+import { WORKSPACE_NOTICE } from "@/lib/validation/workspace-notice";
 import { DEMO_NOTICE } from "@/lib/validation/demo-onboarding";
 import { BirthDateField } from "@/components/auth/birth-date-field";
 
@@ -22,6 +23,7 @@ type Props = {
   suggestedName: string;
   ubsOptions: UbsOption[];
   autonomous?: boolean;
+  selfService?: boolean;
   optionalUbs?: boolean;
   previewOtherUbs?: boolean;
   suggestedProfession?: string;
@@ -34,6 +36,7 @@ export function CompleteProfileForm({
   suggestedName,
   ubsOptions,
   autonomous = false,
+  selfService = false,
   optionalUbs = false,
   previewOtherUbs = false,
   suggestedProfession = "",
@@ -64,6 +67,7 @@ export function CompleteProfileForm({
           dataNascimento: String(form.get("dataNascimento") ?? ""),
           profissao: String(form.get("profissao") ?? ""),
           demoNoticeAccepted: form.get("demoNoticeAccepted") === "on",
+          workspaceNoticeAccepted: form.get("workspaceNoticeAccepted") === "on",
           ubsId: String(form.get("ubsId") ?? ""),
         }),
       });
@@ -73,7 +77,7 @@ export function CompleteProfileForm({
         throw new Error(body.error ?? "Não foi possível completar o cadastro.");
       }
 
-      window.location.href = autonomous ? "/demonstracao" : "/aguardando-aprovacao";
+      window.location.href = selfService ? "/dashboard?entrada=1" : autonomous ? "/demonstracao" : "/aguardando-aprovacao";
     } catch (error) {
       setMessage(
         error instanceof Error
@@ -95,7 +99,7 @@ export function CompleteProfileForm({
           <div>
             <h1>Complete seu cadastro</h1>
             <p>
-              {autonomous ? "Informe sua profissão. A UBS é opcional." : "Antes de acessar o sistema, informe seu perfil e a UBS de vínculo."}
+              {selfService ? "Confira os dados já informados e acesse seu espaço individual." : autonomous ? "Informe sua profissão. A UBS é opcional." : "Antes de acessar o sistema, informe seu perfil e a UBS de vínculo."}
             </p>
           </div>
         </header>
@@ -144,9 +148,10 @@ export function CompleteProfileForm({
 
           <div className="v20-message v20-message-success">
             <CheckCircle2 size={17} />
-            {autonomous ? DEMO_NOTICE : "A demonstração fica disponível após completar o cadastro. Dados clínicos exigem autorização."}
+            {selfService ? WORKSPACE_NOTICE : autonomous ? DEMO_NOTICE : "A demonstração fica disponível após completar o cadastro. Dados clínicos exigem autorização."}
           </div>
 
+          {selfService && <label className="v20-field"><span><input type="checkbox" name="workspaceNoticeAccepted" required /> Li e compreendi as condições de uso.</span></label>}
           {autonomous && <label className="v20-field"><span><input type="checkbox" name="demoNoticeAccepted" required /> Li e compreendi as condições de uso da demonstração.</span></label>}
 
           {message && (

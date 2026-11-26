@@ -49,7 +49,7 @@ export default async function PendingApprovalPage() {
   if (profile.perfil === "aluno" && profile.perfil_solicitado === "equipe_ubs" &&
       profile.aprovacao_status === "pendente" && profile.ativo &&
       profile.status === "ativo" && !profile.perfil_excluido_em && user.email_confirmed_at) {
-    redirect("/demonstracao");
+    redirect(process.env.GESTARIO_SELF_SERVICE_CLINICAL === "1" ? "/completar-cadastro" : "/demonstracao");
   }
 
   let ubsNome: string | null = null;

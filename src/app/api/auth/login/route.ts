@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { activateIndividualWorkspace } from "@/lib/auth/individual-workspace";
 import { normalizeBirthDate } from "@/lib/validation/profile-input";
 import { parseUbsChoice } from "@/lib/validation/ubs-choice";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
@@ -103,7 +104,9 @@ export async function POST(request: Request) {
     // creates a pending profile, never an approved clinical role.
     const user = loginData.user;
     const metadata = user?.user_metadata ?? {};
-    if (user?.email_confirmed_at && metadata.cadastro_email_v1 === true && process.env.GESTARIO_AUTONOMOUS_SIGNUP !== "1") {
+    if (process.env.GESTARIO_SELF_SERVICE_CLINICAL === "1") {
+      await activateIndividualWorkspace(supabase,user);
+    } else if (user?.email_confirmed_at && metadata.cadastro_email_v1 === true && process.env.GESTARIO_AUTONOMOUS_SIGNUP !== "1") {
       const nome = String(metadata.full_name ?? "").replace(/\s+/g, " ").trim();
       const nascimento = normalizeBirthDate(metadata.data_nascimento_declarada);
       const ubs = parseUbsChoice(metadata.ubs_declarada, false);

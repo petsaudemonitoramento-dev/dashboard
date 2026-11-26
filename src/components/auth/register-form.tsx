@@ -3,6 +3,7 @@
 import { PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH } from "@/lib/validation/password-policy";
 
 import Link from "next/link";
+import { WORKSPACE_NOTICE } from "@/lib/validation/workspace-notice";
 import { ResendConfirmation } from "@/components/auth/resend-confirmation";
 import {
   CheckCircle2,
@@ -21,7 +22,7 @@ type UbsOption = {
   nome: string;
 };
 
-export function RegisterForm({ ubsOptions, autonomous = false, optionalUbs = false, previewOtherUbs = false }: { ubsOptions: UbsOption[]; autonomous?: boolean; optionalUbs?: boolean; previewOtherUbs?: boolean }) {
+export function RegisterForm({ ubsOptions, autonomous = false, optionalUbs = false, previewOtherUbs = false, selfService = false }: { ubsOptions: UbsOption[]; autonomous?: boolean; optionalUbs?: boolean; previewOtherUbs?: boolean; selfService?: boolean }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -58,6 +59,7 @@ export function RegisterForm({ ubsOptions, autonomous = false, optionalUbs = fal
           email: String(form.get("email") ?? ""),
           password,
           ubsId: String(form.get("ubsId") ?? ""),
+          workspaceNoticeAccepted: form.get("workspaceNoticeAccepted") === "on",
         }),
       });
 
@@ -70,7 +72,7 @@ export function RegisterForm({ ubsOptions, autonomous = false, optionalUbs = fal
       setRegisteredEmail(String(form.get("email") ?? "").trim());
       setSuccess(true);
       setMessage(
-        (autonomous || body.completeAfterConfirmation === true) ? "Confira seu e-mail (inclusive o spam) para confirmar o cadastro. Se necessário, solicite um novo link abaixo. Depois, entre para completar o cadastro e acessar a demonstração." : "Confira seu e-mail (inclusive o spam) para confirmar o cadastro. Após confirmar, entre para acessar a demonstração. Se necessário, solicite um novo link abaixo."
+        selfService ? "Confira seu e-mail para confirmar a conta. Depois, entre diretamente no seu espaço individual, sem aprovação manual." : (autonomous || body.completeAfterConfirmation === true) ? "Confira seu e-mail (inclusive o spam) para confirmar o cadastro. Se necessário, solicite um novo link abaixo. Depois, entre para completar o cadastro e acessar a demonstração." : "Confira seu e-mail (inclusive o spam) para confirmar o cadastro. Após confirmar, entre para acessar a demonstração. Se necessário, solicite um novo link abaixo."
       );
     } catch (error) {
       setMessage(
@@ -113,7 +115,7 @@ export function RegisterForm({ ubsOptions, autonomous = false, optionalUbs = fal
           <div>
             <h1>Criar conta</h1>
             <p>
-              {autonomous ? "Crie sua conta e confirme seu e-mail. A demonstração é livre; dados reais exigem autorização." : "Preencha os dados profissionais. A demonstração está disponível após confirmar o e-mail; o acesso clínico exige autorização."}
+              {selfService ? "Crie sua conta e confirme seu e-mail para acessar seu espaço individual." : autonomous ? "Crie sua conta e confirme seu e-mail. A demonstração é livre; dados reais exigem autorização." : "Preencha os dados profissionais. A demonstração está disponível após confirmar o e-mail; o acesso clínico exige autorização."}
             </p>
           </div>
         </header>
@@ -197,6 +199,8 @@ export function RegisterForm({ ubsOptions, autonomous = false, optionalUbs = fal
               />
             </div>
           </div>
+
+          {selfService && <div className="v20-field"><p>{WORKSPACE_NOTICE}</p><label><input type="checkbox" name="workspaceNoticeAccepted" required /> Li e compreendi as condições de uso.</label></div>}
 
           {message && (
             <div

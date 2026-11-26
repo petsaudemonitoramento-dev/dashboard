@@ -46,8 +46,9 @@ export async function POST(request: Request) {
       .replace(/\s+/g, " ")
       .trim();
     const dataNascimento = normalizeBirthDate(body.dataNascimento);
-    const autonomous = process.env.GESTARIO_AUTONOMOUS_SIGNUP === "1";
-    const optionalUbs=autonomous||process.env.GESTARIO_UBS_OPTIONAL==="1";
+    const selfService = process.env.GESTARIO_SELF_SERVICE_CLINICAL === "1";
+    const autonomous = !selfService && process.env.GESTARIO_AUTONOMOUS_SIGNUP === "1";
+    const optionalUbs=!selfService&&(autonomous||process.env.GESTARIO_UBS_OPTIONAL==="1");
     const ubsId=parseUbsChoice(body.ubsId,optionalUbs,autonomous);
     const profession = String(body.profissao ?? "");
 
@@ -56,6 +57,21 @@ export async function POST(request: Request) {
         { error: "Informe o nome completo." },
         { status: 400 }
       );
+    }
+
+    if (selfService) {
+      if (!user.email_confirmed_at) return NextResponse.json({ error: "Confirme seu e-mail." }, { status: 403 });
+      if (!dataNascimento || typeof ubsId !== "string" || body.workspaceNoticeAccepted !== true) {
+        return NextResponse.json({ error: "Confira seus dados, a UBS e as condições de uso." }, { status: 400 });
+      }
+      const { error } = await supabase.rpc("gestario_ativar_conta_individual_v32", {
+        p_nome_completo: nomeCompleto, p_data_nascimento: dataNascimento, p_ubs_id: ubsId, p_ciencia: true,
+      });
+      if (error) {
+        logServerFailure("individual-workspace-activation", error);
+        return NextResponse.json({ error: "Não foi possível liberar seu espaço individual. Confira os dados ou procure o suporte." }, { status: 403 });
+      }
+      return NextResponse.json({ ok: true, redirectTo: "/dashboard?entrada=1" }, { headers: { "Cache-Control": "no-store" } });
     }
 
     if (autonomous) {

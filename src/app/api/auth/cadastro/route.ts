@@ -54,8 +54,9 @@ export async function POST(request: Request) {
     const email = String(body.email ?? "").trim().toLowerCase();
     const password =
       typeof body.password === "string" ? body.password : "";
-    const autonomous = process.env.GESTARIO_AUTONOMOUS_SIGNUP === "1";
-    const optionalUbs=autonomous||process.env.GESTARIO_UBS_OPTIONAL==="1";
+    const selfService = process.env.GESTARIO_SELF_SERVICE_CLINICAL === "1";
+    const autonomous = !selfService && process.env.GESTARIO_AUTONOMOUS_SIGNUP === "1";
+    const optionalUbs=!selfService&&(autonomous||process.env.GESTARIO_UBS_OPTIONAL==="1");
     const ubsId=parseUbsChoice(body.ubsId,optionalUbs,autonomous);
     const profession = String(body.profissao ?? "");
 
@@ -66,6 +67,9 @@ export async function POST(request: Request) {
       );
     }
 
+    if (selfService && body.workspaceNoticeAccepted !== true) {
+      return NextResponse.json({ error: "Confirme as condições de uso do seu espaço individual." }, { status: 400 });
+    }
     if (autonomous && !isDeclaredProfession(profession)) {
       return NextResponse.json({ error: "Selecione uma profissão válida." }, { status: 400 });
     }
@@ -142,7 +146,7 @@ export async function POST(request: Request) {
 
     // Preview uses public signup, never a copied administrative credential.
     const publicPreviewSignup = process.env.VERCEL_ENV === "preview" && !secret;
-    if ((autonomous || publicPreviewSignup) && url && publishableKey) {
+    if ((selfService || autonomous || publicPreviewSignup) && url && publishableKey) {
       const auth = createAdminClient(url, publishableKey, {
         auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
       });
@@ -156,7 +160,7 @@ export async function POST(request: Request) {
         email, password,
         options: {
           emailRedirectTo: confirmationRedirectUrl(request.url),
-          data: { full_name: nomeCompleto, ...(autonomous ? { profissao_declarada: profession } : { data_nascimento_declarada: dataNascimento, cadastro_email_v1: true }), ubs_declarada: ubsId ?? "" },
+          data: { full_name: nomeCompleto, ...(autonomous ? { profissao_declarada: profession } : { data_nascimento_declarada: dataNascimento, cadastro_email_v1: true, workspace_notice_v32: selfService && body.workspaceNoticeAccepted === true }), ubs_declarada: ubsId ?? "" },
         },
       });
       if (error) {
@@ -174,7 +178,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, completeAfterConfirmation: true }, { headers: { "Cache-Control": "no-store" } });
     }
 
-    if (!url || !publishableKey || !secret) {
+    if (selfService || !url || !publishableKey || !secret) {
       logServerFailure("signup-config");
       return NextResponse.json(
         { error: "Cadastro temporariamente indisponível." },

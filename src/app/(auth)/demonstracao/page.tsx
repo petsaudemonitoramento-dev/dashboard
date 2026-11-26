@@ -21,6 +21,7 @@ export default async function DemoPage({searchParams}:{searchParams:Promise<{aba
   if (profile.perfil !== "aluno" || profile.perfil_solicitado !== "equipe_ubs" ||
       profile.aprovacao_status !== "pendente" || profile.status !== "ativo" ||
       !profile.ativo || profile.perfil_excluido_em) redirect("/aguardando-aprovacao");
+  if (process.env.GESTARIO_SELF_SERVICE_CLINICAL === "1") redirect("/completar-cadastro");
   return <GestarioShell demo preferences={parseGestarioPreferences(null)} name={profile.nome_completo} profile="aluno" alerts={[]} alertsError={false}>
     <DemoWorkspace tab={["inicio","importacoes","gestantes","agenda","perfil"].includes(params.aba??"")?params.aba:"inicio"} />
     <ApprovalActions refreshLabel="Verificar autorização assistencial" />

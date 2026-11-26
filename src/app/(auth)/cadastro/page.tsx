@@ -15,5 +15,6 @@ export default async function CadastroPage() {
     throw new Error("Não foi possível carregar as UBS ativas.");
   }
 
-  return <RegisterForm ubsOptions={ubsOptions ?? []} autonomous={process.env.GESTARIO_AUTONOMOUS_SIGNUP === "1"} optionalUbs={process.env.GESTARIO_UBS_OPTIONAL === "1"} previewOtherUbs={process.env.VERCEL_ENV === "preview" || process.env.GESTARIO_UBS_OPTION_PREVIEW === "1"} />;
+  const selfService = process.env.GESTARIO_SELF_SERVICE_CLINICAL === "1";
+  return <RegisterForm selfService={selfService} ubsOptions={ubsOptions ?? []} autonomous={!selfService && process.env.GESTARIO_AUTONOMOUS_SIGNUP === "1"} optionalUbs={!selfService && process.env.GESTARIO_UBS_OPTIONAL === "1"} previewOtherUbs={!selfService && (process.env.VERCEL_ENV === "preview" || process.env.GESTARIO_UBS_OPTION_PREVIEW === "1")} />;
 }

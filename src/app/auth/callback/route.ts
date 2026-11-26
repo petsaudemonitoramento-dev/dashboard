@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { activateIndividualWorkspace } from "@/lib/auth/individual-workspace";
 import { createClient } from "@/lib/supabase/server";
 
 const ALLOWED_DESTINATIONS = new Set([
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.exchangeCodeForSession(
+  const { data, error } = await supabase.auth.exchangeCodeForSession(
     code
   );
 
@@ -32,5 +33,6 @@ export async function GET(request: Request) {
     );
   }
 
+  if (next !== "/redefinir-senha") await activateIndividualWorkspace(supabase,data.user);
   return NextResponse.redirect(new URL(next, url.origin));
 }
