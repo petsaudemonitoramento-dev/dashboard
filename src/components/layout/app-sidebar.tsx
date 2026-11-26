@@ -5,6 +5,7 @@ import {
   Home,
   CalendarDays,
   UserRound,
+  ShieldCheck,
   UsersRound,
 } from "lucide-react";
 import Image from "next/image";
@@ -40,6 +41,11 @@ const professionalItems: NavigationItem[] = [
   },
 ];
 
+const adminItems: NavigationItem[] = [
+  { href: "/dashboard/autorizacoes", label: "Autorizações", icon: ShieldCheck },
+  { href: "/dashboard/usuarios", label: "Usuários e acessos", icon: UsersRound },
+];
+
 function isActive(pathname: string, href: string): boolean {
   if (href === "/dashboard") {
     return pathname === "/dashboard";
@@ -56,7 +62,7 @@ export function AppSidebar({
   const pathname = usePathname();
   const query=useSearchParams();
   const demoTabs=["inicio","importacoes","gestantes","agenda","perfil"];
-  const visibleItems = demo ? professionalItems.map((item,i)=>({...item,href:"/demonstracao?aba="+demoTabs[i]})) : profile === "equipe_ubs" ? professionalItems : [];
+  const visibleItems = demo ? professionalItems.map((item,i)=>({...item,href:"/demonstracao?aba="+demoTabs[i]})) : profile === "equipe_ubs" ? professionalItems : profile === "administrador" ? adminItems : [];
   const active=(href:string)=>demo?href==="/demonstracao?aba="+(query.get("aba")??"inicio"):isActive(pathname,href);
 
   return (

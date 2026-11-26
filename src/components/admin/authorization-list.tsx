@@ -209,7 +209,7 @@ export function AuthorizationList({
           <div>
             <h2>Cadastros aguardando autorização</h2>
             <p>
-              Revise perfil, UBS e microárea antes de liberar o acesso.
+              Revise os dados e a UBS antes de liberar o acesso. A autorização clínica exige credencial profissional válida.
             </p>
           </div>
         </div>
@@ -260,7 +260,7 @@ export function AuthorizationList({
         </div>
       )}
 
-      {message && <div className={styles.message}>{message}</div>}
+      {message && <div role="status" className={styles.message}>{message}</div>}
 
       <div className={styles.list}>
         {rows.map((row) => {
@@ -280,6 +280,7 @@ export function AuthorizationList({
             >
               <label className={styles.checkbox}>
                 <input
+                  aria-label={`Selecionar ${row.nomeCompleto}`}
                   checked={selected.has(row.id)}
                   onChange={() => toggle(row.id)}
                   type="checkbox"
@@ -294,10 +295,13 @@ export function AuthorizationList({
                 <div>
                   <strong>{row.nomeCompleto}</strong>
                   <small>{row.email}</small>
-                  <small>
-                    Nascimento: {formatDate(row.dataNascimento)} ·{" "}
-                    {row.origemCadastro}
-                  </small>
+                  <details>
+                    <summary>Ver detalhes da solicitação</summary>
+                    <small>Nascimento: {formatDate(row.dataNascimento)}</small>
+                    <small>Origem: {row.origemCadastro}</small>
+                    <small>Solicitado em: {formatDate(row.solicitadoEm)}</small>
+                    <small>UBS solicitada: {row.ubsSolicitadaNome ?? "Não informada"}</small>
+                  </details>
                 </div>
               </div>
 
@@ -369,6 +373,7 @@ export function AuthorizationList({
                   type="button"
                 >
                   <UserX size={16} />
+                  Rejeitar
                 </button>
               </div>
             </article>
