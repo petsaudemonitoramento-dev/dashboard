@@ -2,6 +2,18 @@
 -- Self-service grants an individual workspace, never a verified professional credential.
 -- Existing RLS, ownership, administrative gates, clinical RPC limits and legacy credential path are unchanged.
 begin;
+-- A technical territory is not an actual health unit; one private territory
+-- per unlisted workspace preserves the existing non-null foreign keys.
+alter table public.ubs add column if not exists gestario_espaco_individual boolean not null default false;
+drop policy if exists gestario_ubs_individual_anon_v32 on public.ubs;
+create policy gestario_ubs_individual_anon_v32 on public.ubs as restrictive for select to anon
+using (not gestario_espaco_individual);
+drop policy if exists gestario_ubs_individual_auth_v32 on public.ubs;
+create policy gestario_ubs_individual_auth_v32 on public.ubs as restrictive for select to authenticated
+using (not gestario_espaco_individual or id = (select security.usuario_ubs_id()) or (select security.usuario_eh_admin()));
+drop policy if exists gestario_microareas_individual_auth_v32 on public.microareas;
+create policy gestario_microareas_individual_auth_v32 on public.microareas as restrictive for select to authenticated
+using (exists (select 1 from public.ubs u where u.id=microareas.ubs_id));
 create table if not exists private.gestario_contas_individuais_v32 (
   usuario_id uuid primary key references auth.users(id) on delete restrict,
   ubs_id uuid not null references public.ubs(id) on delete restrict,
@@ -31,6 +43,7 @@ declare
   v_origem text;
   v_nome text := regexp_replace(trim(coalesce(p_nome_completo,'')), '[[:space:]]+', ' ', 'g');
   v_existing public.perfis%rowtype;
+  v_ubs_id uuid := p_ubs_id;
 begin
   if v_id is null then raise exception 'Sessão inválida'; end if;
   if not exists(select 1 from private.gestario_individual_config_v32 where singleton and habilitado) then raise exception 'Cadastro autônomo indisponível'; end if;
@@ -40,14 +53,15 @@ begin
   if p_ciencia is distinct from true or length(v_nome) not between 5 and 160 or
      p_data_nascimento is null or p_data_nascimento not between date '1930-01-01' and current_date
   then raise exception 'Cadastro inválido'; end if;
-  if p_ubs_id is null or not exists (select 1 from public.ubs u where u.id=p_ubs_id and u.ativa)
+  if p_ubs_id is not null and not exists (select 1 from public.ubs u where u.id=p_ubs_id and u.ativa and not u.gestario_espaco_individual)
   then raise exception 'UBS inválida'; end if;
   perform pg_advisory_xact_lock(hashtextextended(v_id::text,32));
   select * into v_existing from public.perfis where id=v_id for update;
   if found then
     if v_existing.perfil='equipe_ubs' and v_existing.aprovacao_status='aprovado' and
        v_existing.ativo and v_existing.status='ativo' and v_existing.cadastro_completo and v_existing.perfil_excluido_em is null
-       and v_existing.ubs_id=p_ubs_id and exists(select 1 from private.gestario_contas_individuais_v32 w where w.usuario_id=v_id and w.ubs_id=p_ubs_id)
+       and (v_existing.ubs_id=p_ubs_id or (p_ubs_id is null and exists(select 1 from public.ubs u where u.id=v_existing.ubs_id and u.gestario_espaco_individual)))
+       and exists(select 1 from private.gestario_contas_individuais_v32 w where w.usuario_id=v_id and w.ubs_id=v_existing.ubs_id)
     then return jsonb_build_object('ok',true,'status','aprovado'); end if;
     if v_existing.perfil <> 'aluno' or v_existing.aprovacao_status <> 'pendente'
       or v_existing.status='bloqueado' or not v_existing.ativo or v_existing.perfil_excluido_em is not null
@@ -58,18 +72,26 @@ begin
       or exists(select 1 from public.pec_gestantes g where g.profissional_responsavel_id=v_id)
       or exists(select 1 from public.importacoes_pec_resumo i where i.usuario_id=v_id)
     then raise exception 'Cadastro indisponível'; end if;
+  end if;
+  if p_ubs_id is null then
+    v_ubs_id := gen_random_uuid();
+    insert into public.ubs(id,nome,nome_abreviado,codigo_interno,municipio,uf,ativa,gestario_espaco_individual)
+    values(v_ubs_id,'Outra UBS · espaço individual ' || left(v_ubs_id::text,8),'Outra UBS','GESTARIO-IND-' || v_ubs_id::text,'Não informado','NI',true,true);
+    insert into public.microareas(ubs_id,codigo,nome,ativa) values(v_ubs_id,'00','Não informada',true);
+  end if;
+  if v_existing.id is not null then
     update public.perfis set nome_completo=v_nome,email=v_email,data_nascimento=p_data_nascimento,
       perfil='equipe_ubs',perfil_solicitado='equipe_ubs',status='ativo',ativo=true,primeiro_acesso=false,
-      cadastro_completo=true,aprovacao_status='aprovado',ubs_id=p_ubs_id,ubs_solicitada_id=p_ubs_id,
+      cadastro_completo=true,aprovacao_status='aprovado',ubs_id=v_ubs_id,ubs_solicitada_id=p_ubs_id,
       microarea_id=null,origem_cadastro=v_origem,aprovado_em=now(),aprovado_por=null
     where id=v_id;
   else
     insert into public.perfis(id,nome_completo,email,data_nascimento,perfil,perfil_solicitado,status,ativo,
       primeiro_acesso,cadastro_completo,aprovacao_status,ubs_id,ubs_solicitada_id,origem_cadastro,solicitado_em,aprovado_em)
     values(v_id,v_nome,v_email,p_data_nascimento,'equipe_ubs','equipe_ubs','ativo',true,
-      false,true,'aprovado',p_ubs_id,p_ubs_id,v_origem,now(),now());
+      false,true,'aprovado',v_ubs_id,p_ubs_id,v_origem,now(),now());
   end if;
-  insert into private.gestario_contas_individuais_v32(usuario_id,ubs_id) values(v_id,p_ubs_id);
+  insert into private.gestario_contas_individuais_v32(usuario_id,ubs_id) values(v_id,v_ubs_id);
   return jsonb_build_object('ok',true,'status','aprovado');
 end;
 $$;
@@ -103,7 +125,7 @@ AS $$
       AND (p_ubs_id IS NULL OR p.ubs_id = p_ubs_id)
       AND (
         EXISTS (SELECT 1 FROM private.gestario_contas_individuais_v32 w JOIN auth.users a ON a.id=w.usuario_id AND a.email_confirmed_at IS NOT NULL WHERE w.usuario_id=p.id AND w.ubs_id=p.ubs_id)
-        OR (c.situacao = 'validado'
+        OR (not u.gestario_espaco_individual and c.situacao = 'validado'
       AND c.decidido_em IS NOT NULL
       AND c.cargo_funcao = p.cargo_funcao
       AND (

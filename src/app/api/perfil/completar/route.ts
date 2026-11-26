@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     const dataNascimento = normalizeBirthDate(body.dataNascimento);
     const selfService = process.env.GESTARIO_SELF_SERVICE_CLINICAL === "1";
     const autonomous = !selfService && process.env.GESTARIO_AUTONOMOUS_SIGNUP === "1";
-    const optionalUbs=!selfService&&(autonomous||process.env.GESTARIO_UBS_OPTIONAL==="1");
+    const optionalUbs=selfService||autonomous||process.env.GESTARIO_UBS_OPTIONAL==="1";
     const ubsId=parseUbsChoice(body.ubsId,optionalUbs,autonomous);
     const profession = String(body.profissao ?? "");
 
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
 
     if (selfService) {
       if (!user.email_confirmed_at) return NextResponse.json({ error: "Confirme seu e-mail." }, { status: 403 });
-      if (!dataNascimento || typeof ubsId !== "string" || body.workspaceNoticeAccepted !== true) {
+      if (!dataNascimento || ubsId === undefined || body.workspaceNoticeAccepted !== true) {
         return NextResponse.json({ error: "Confira seus dados, a UBS e as condições de uso." }, { status: 400 });
       }
       const { error } = await supabase.rpc("gestario_ativar_conta_individual_v32", {

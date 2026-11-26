@@ -61,7 +61,7 @@ export default async function CompleteProfilePage() {
       ubsOptions={ubsOptions}
       autonomous={autonomous}
       selfService={selfService}
-      optionalUbs={!selfService && process.env.GESTARIO_UBS_OPTIONAL === "1"}
+      optionalUbs={selfService || process.env.GESTARIO_UBS_OPTIONAL === "1"}
       previewOtherUbs={!selfService && (process.env.VERCEL_ENV === "preview" || process.env.GESTARIO_UBS_OPTION_PREVIEW === "1")}
       suggestedProfession={String(metadata.profissao_declarada ?? "")}
       suggestedUbs={String(profile?.ubs_solicitada_id ?? metadata.ubs_declarada ?? "")}

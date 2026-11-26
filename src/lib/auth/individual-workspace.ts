@@ -18,8 +18,8 @@ export async function activateIndividualWorkspace(supabase: Awaited<ReturnType<t
   if (m.workspace_notice_v32 !== true) return; // legacy accounts acknowledge once, not administrative approval
   const name=String(m.full_name ?? profile?.nome_completo ?? "").replace(/\s+/g," ").trim();
   const birth=normalizeBirthDate(m.data_nascimento_declarada ?? profile?.data_nascimento);
-  const ubs=parseUbsChoice(m.ubs_declarada ?? profile?.ubs_solicitada_id,false);
-  if(name.length<5||name.length>160||!birth||typeof ubs!=="string")return;
+  const ubs=parseUbsChoice(m.ubs_declarada ?? profile?.ubs_solicitada_id,true);
+  if(name.length<5||name.length>160||!birth||ubs===undefined)return;
   const {error:activationError}=await supabase.rpc("gestario_ativar_conta_individual_v32",{
     p_nome_completo:name,p_data_nascimento:birth,p_ubs_id:ubs,p_ciencia:true,
   });

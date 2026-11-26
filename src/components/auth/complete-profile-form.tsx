@@ -131,7 +131,7 @@ export function CompleteProfileForm({
 
             <div className="v20-field v20-field-wide">
               <label htmlFor="ubsId">UBS de vínculo</label>
-              <select defaultValue={ubsOptions.some(u => u.id === suggestedUbs) ? suggestedUbs : ""} id="ubsId" name="ubsId" required={!autonomous}>
+              <select defaultValue={ubsOptions.some(u => u.id === suggestedUbs) || (optionalUbs && suggestedUbs === OTHER_UBS) ? suggestedUbs : ""} id="ubsId" name="ubsId" required={!autonomous}>
                 <option disabled={!autonomous} value="">
                   {autonomous ? "Não informar (opcional)" : "Selecione a UBS"}
                 </option>
@@ -142,7 +142,7 @@ export function CompleteProfileForm({
                 ))}
                 {(autonomous || optionalUbs || previewOtherUbs) && <option value={OTHER_UBS}>Outra UBS / unidade não cadastrada</option>}
               </select>
-              {(autonomous || optionalUbs || previewOtherUbs) && <small>Se sua UBS não estiver na lista, selecione Outra UBS. Não precisa informar o nome; o vínculo assistencial será verificado separadamente. {previewOtherUbs && !autonomous && !optionalUbs && "Nesta prévia, a opção ainda não permite concluir o cadastro."}</small>}
+              {(autonomous || optionalUbs || previewOtherUbs) && <small>{selfService ? "Se sua UBS não estiver na lista, selecione Outra UBS. Seu espaço individual será criado sem vincular uma unidade real." : "Se sua UBS não estiver na lista, selecione Outra UBS. Não precisa informar o nome; o vínculo assistencial será verificado separadamente."} {previewOtherUbs && !autonomous && !optionalUbs && "Nesta prévia, a opção ainda não permite concluir o cadastro."}</small>}
             </div>
           </div>
 

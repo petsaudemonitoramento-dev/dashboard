@@ -5,7 +5,9 @@ values
 ('32000000-0000-4000-8000-000000000001','authenticated','authenticated','workspace-a@ci.invalid',now(),now(),now()),
 ('32000000-0000-4000-8000-000000000002','authenticated','authenticated','workspace-b@ci.invalid',now(),now(),now()),
 ('32000000-0000-4000-8000-000000000003','authenticated','authenticated','workspace-unverified@ci.invalid',null,now(),now()),
-('32000000-0000-4000-8000-000000000004','authenticated','authenticated','workspace-rejected@ci.invalid',now(),now(),now());
+('32000000-0000-4000-8000-000000000004','authenticated','authenticated','workspace-rejected@ci.invalid',now(),now(),now()),
+('32000000-0000-4000-8000-000000000005','authenticated','authenticated','workspace-other-a@ci.invalid',now(),now(),now()),
+('32000000-0000-4000-8000-000000000006','authenticated','authenticated','workspace-other-b@ci.invalid',now(),now(),now());
 insert into public.perfis(id,nome_completo,email,perfil,status,ativo,cadastro_completo,aprovacao_status)
 values('32000000-0000-4000-8000-000000000004','Conta rejeitada CI','workspace-rejected@ci.invalid','aluno','ativo',true,true,'rejeitado');
 set local role authenticated;
@@ -142,4 +144,43 @@ do $$ begin
  end;
 end $$;
 reset role;
+
+-- Unlisted units are technical private scopes, never real municipal affiliations.
+set local role authenticated;
+select set_config('request.jwt.claim.sub','32000000-0000-4000-8000-000000000005',true);
+select public.gestario_ativar_conta_individual_v32('Conta Outra UBS A','1995-01-01',null,true);
+select public.gestario_ativar_conta_individual_v32('Conta Outra UBS A','1995-01-01',null,true);
+select set_config('test.other_ubs_a',(select ubs_id::text from public.perfis where id=auth.uid()),true);
+do $$ begin
+ if (select count(*) from public.ubs where gestario_espaco_individual) <> 1 then raise exception 'Private catalog isolation A'; end if;
+ if (select count(*) from public.microareas where ubs_id=security.usuario_ubs_id()) <> 1 then raise exception 'Private workspace requires a microarea'; end if;
+ if (select count(*) from public.profissionais_listar_gestantes_v30(false)) <> 0 then raise exception 'Unlisted workspace not empty'; end if;
+ if not security.usuario_equipe_clinica_elegivel_v23(security.usuario_ubs_id()) then raise exception 'Unlisted workspace not eligible'; end if;
+end $$;
+select public.profissionais_importar_pec_v30('outra-ubs-sintetica.csv',repeat('8',64),26,'{"nome":"Nome","data_nascimento":"Data de nascimento","microarea":"Microárea"}'::jsonb,'[{"linha":27,"canonical":{"nome":"PACIENTE FICTICIA OUTRA UBS","data_nascimento":"15/04/1998","cpf":"00000000000","cns":"000000000000000","microarea":"00","atendimentos_pre_natal":"2"},"raw":{},"extras":{}}]'::jsonb,'[]'::jsonb);
+do $$ begin
+ if (select count(*) from public.profissionais_listar_gestantes_v30(false)) <> 1 then raise exception 'Unlisted PEC import failed'; end if;
+end $$;
+select set_config('request.jwt.claim.sub','32000000-0000-4000-8000-000000000006',true);
+do $$ begin
+ begin
+  perform public.gestario_ativar_conta_individual_v32('Conta Outra UBS B','1995-01-01',current_setting('test.other_ubs_a')::uuid,true);
+  raise exception 'Foreign private unit accepted' using errcode='XX000';
+ exception when raise_exception then if sqlerrm <> 'UBS inválida' then raise; end if;
+ end;
+end $$;
+select public.gestario_ativar_conta_individual_v32('Conta Outra UBS B','1995-01-01',null,true);
+do $$ begin
+ if security.usuario_ubs_id()=current_setting('test.other_ubs_a')::uuid then raise exception 'Private units shared'; end if;
+ if exists(select 1 from public.ubs where id=current_setting('test.other_ubs_a')::uuid) then raise exception 'Foreign unit visible'; end if;
+ if exists(select 1 from public.microareas where ubs_id=current_setting('test.other_ubs_a')::uuid) then raise exception 'Foreign microarea visible'; end if;
+ if (select count(*) from public.profissionais_listar_gestantes_v30(false)) <> 0 then raise exception 'Foreign records visible'; end if;
+end $$;
+reset role;
+set local role anon;
+do $$ begin
+ if exists(select 1 from public.ubs where gestario_espaco_individual) then raise exception 'Private unit publicly visible'; end if;
+end $$;
+reset role;
+
 rollback;
