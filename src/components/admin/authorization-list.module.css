@@ -282,3 +282,30 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Use the available content width, not only the device viewport. */
+.card { min-width: 0; }
+.header, .bulkBar, .bulkBar > div { flex-wrap: wrap; }
+.item {
+  grid-template-columns: 32px minmax(0, 1fr) minmax(0, 1fr);
+  min-width: 0;
+}
+.fields { grid-template-columns: repeat(2, minmax(0, 1fr)); min-width: 0; }
+.fields label { min-width: 0; }
+.fields select { width: 100%; max-width: 100%; }
+.itemActions { grid-column: 2 / -1; justify-content: flex-end; flex-wrap: wrap; }
+.itemActions .reject { width: auto; padding: 0 13px; }
+.identity strong, .identity small { white-space: normal; overflow-wrap: anywhere; }
+.identity details { margin-top: 6px; font-size: 12px; }
+.identity summary { cursor: pointer; color: var(--p700); font-weight: 650; }
+.checkbox input:focus-visible + span { outline: 2px solid #7547dd; outline-offset: 3px; }
+@media (max-width: 1150px) {
+  .item { grid-template-columns: 32px minmax(0, 1fr); }
+  .fields { grid-column: 2 / -1; }
+}
+@media (max-width: 720px) {
+  .item { grid-template-columns: 28px minmax(0, 1fr); }
+  .fields, .itemActions { grid-column: 1 / -1; }
+  .fields { grid-template-columns: minmax(0, 1fr); }
+  .itemActions { justify-content: flex-start; }
+}
