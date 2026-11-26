@@ -225,3 +225,7 @@
 .ga-login-page .ga-confirmation-divider .confirmation-resend { min-width: 0; flex: 0 1 auto; }
 .ga-login-page .ga-confirmation-divider .confirmation-resend-button { display: inline-block; font-size: 11px; padding: 0 2px; line-height: 1.35; text-decoration: underline; text-underline-offset: 2px; }
 .ga-login-page .ga-confirmation-divider .confirmation-resend p { white-space: normal; }
+
+/* The card is already nearly opaque; avoid a live background blur during
+   the splash handoff, especially in mobile Safari. Geometry is unchanged. */
+.ga-login-page .login-card{backdrop-filter:none;-webkit-backdrop-filter:none}

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef } from "react";
 import styles from "./gestario-intro.module.css";
 
 const DURATION=6000;
-const FALLBACK=6400;
+const FALLBACK=6200;
 
 export function GestarioIntro(){
  const dialog=useRef<HTMLDialogElement>(null);
