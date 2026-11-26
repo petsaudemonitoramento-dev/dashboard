@@ -1,3 +1,4 @@
+import { parseUbsChoice } from "@/lib/validation/ubs-choice";
 import { isDeclaredProfession } from "@/lib/validation/demo-onboarding";
 import { NextResponse } from "next/server";
 import {
@@ -7,7 +8,6 @@ import {
 } from "@/lib/security/request";
 import { createClient } from "@/lib/supabase/server";
 import {
-  isUuid,
   normalizeBirthDate,
 } from "@/lib/validation/profile-input";
 
@@ -46,8 +46,9 @@ export async function POST(request: Request) {
       .replace(/\s+/g, " ")
       .trim();
     const dataNascimento = normalizeBirthDate(body.dataNascimento);
-    const ubsId = String(body.ubsId ?? "").trim();
     const autonomous = process.env.GESTARIO_AUTONOMOUS_SIGNUP === "1";
+    const optionalUbs=autonomous||process.env.GESTARIO_UBS_OPTIONAL==="1";
+    const ubsId=parseUbsChoice(body.ubsId,optionalUbs,autonomous);
     const profession = String(body.profissao ?? "");
 
     if (nomeCompleto.length < 5 || nomeCompleto.length > 160) {
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
 
     if (autonomous) {
       if (!user.email_confirmed_at) return NextResponse.json({ error: "Confirme seu e-mail." }, { status: 403 });
-      if (!isDeclaredProfession(profession) || body.demoNoticeAccepted !== true || (ubsId && !isUuid(ubsId))) {
+      if (!isDeclaredProfession(profession) || body.demoNoticeAccepted !== true || ubsId === undefined) {
         return NextResponse.json({ error: "Confira a profissão, UBS opcional e ciência das condições." }, { status: 400 });
       }
       const { error } = await supabase.rpc("gestario_completar_demonstracao_v31", {
@@ -82,7 +83,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!isUuid(ubsId)) {
+    if (ubsId === undefined) {
       return NextResponse.json(
         { error: "Selecione uma UBS válida." },
         { status: 400 }
@@ -117,6 +118,7 @@ export async function POST(request: Request) {
       );
     }
 
+    if (ubsId !== null) {
     const { data: ubs, error: ubsError } = await supabase
       .from("ubs")
       .select("id")
@@ -138,6 +140,7 @@ export async function POST(request: Request) {
       );
     }
 
+    }
     const { error: completionError } = await supabase.rpc(
       "profissionais_completar_perfil_v30",
       {

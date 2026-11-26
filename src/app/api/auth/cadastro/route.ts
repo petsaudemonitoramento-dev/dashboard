@@ -1,5 +1,6 @@
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { parseUbsChoice } from "@/lib/validation/ubs-choice";
 import { isDeclaredProfession } from "@/lib/validation/demo-onboarding";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
 import {
@@ -8,7 +9,6 @@ import {
   readJsonObject,
 } from "@/lib/security/request";
 import {
-  isUuid,
   normalizeBirthDate,
 } from "@/lib/validation/profile-input";
 
@@ -52,8 +52,9 @@ export async function POST(request: Request) {
     const email = String(body.email ?? "").trim().toLowerCase();
     const password =
       typeof body.password === "string" ? body.password : "";
-    const ubsId = String(body.ubsId ?? "").trim();
     const autonomous = process.env.GESTARIO_AUTONOMOUS_SIGNUP === "1";
+    const optionalUbs=autonomous||process.env.GESTARIO_UBS_OPTIONAL==="1";
+    const ubsId=parseUbsChoice(body.ubsId,optionalUbs,autonomous);
     const profession = String(body.profissao ?? "");
 
     if (nomeCompleto.length < 5 || nomeCompleto.length > 160) {
@@ -102,7 +103,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if ((!autonomous || ubsId) && !isUuid(ubsId)) {
+    if (ubsId === undefined) {
       return NextResponse.json(
         { error: "Selecione uma UBS válida." },
         { status: 400 }
@@ -154,7 +155,7 @@ export async function POST(request: Request) {
         email, password,
         options: {
           emailRedirectTo: new URL("/login?email_confirmed=1", request.url).toString(),
-          data: { full_name: nomeCompleto, profissao_declarada: profession, ubs_declarada: ubsId },
+          data: { full_name: nomeCompleto, profissao_declarada: profession, ubs_declarada: ubsId ?? "" },
         },
       });
       if (error) {
@@ -190,6 +191,7 @@ export async function POST(request: Request) {
       },
     });
 
+    if (ubsId !== null) {
     const { data: ubs, error: ubsError } = await publicAuth
       .from("ubs")
       .select("id")
@@ -211,6 +213,7 @@ export async function POST(request: Request) {
       );
     }
 
+    }
     const confirmationRedirect =
       `${new URL(request.url).origin}/login?email_confirmed=1`;
 

@@ -9,6 +9,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { FormEvent, useState } from "react";
+import { OTHER_UBS } from "@/lib/validation/ubs-choice";
 import { ProfessionField } from "@/components/auth/profession-field";
 import { BirthDateField } from "@/components/auth/birth-date-field";
 
@@ -17,7 +18,7 @@ type UbsOption = {
   nome: string;
 };
 
-export function RegisterForm({ ubsOptions, autonomous = false }: { ubsOptions: UbsOption[]; autonomous?: boolean }) {
+export function RegisterForm({ ubsOptions, autonomous = false, optionalUbs = false }: { ubsOptions: UbsOption[]; autonomous?: boolean; optionalUbs?: boolean }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -126,7 +127,7 @@ export function RegisterForm({ ubsOptions, autonomous = false }: { ubsOptions: U
 
             <div className="v20-field v20-field-wide">
               <label htmlFor="ubsId">UBS</label>
-              <select defaultValue={autonomous ? "" : (ubsOptions[0]?.id ?? "")} id="ubsId" name="ubsId" required={!autonomous}>
+              <select defaultValue="" id="ubsId" name="ubsId" required={!autonomous}>
                 <option disabled={!autonomous} value="">
                   {autonomous ? "Não informar (opcional)" : "Selecione a UBS"}
                 </option>
@@ -135,7 +136,9 @@ export function RegisterForm({ ubsOptions, autonomous = false }: { ubsOptions: U
                     {ubs.nome}
                   </option>
                 ))}
+                {(autonomous || optionalUbs) && <option value={OTHER_UBS}>Outra UBS / unidade não cadastrada</option>}
               </select>
+              {(autonomous || optionalUbs) && <small>Se sua UBS não estiver na lista, selecione Outra UBS. Não precisa informar o nome; o vínculo assistencial será verificado separadamente.</small>}
             </div>
 
             <div className="v20-field v20-field-wide">

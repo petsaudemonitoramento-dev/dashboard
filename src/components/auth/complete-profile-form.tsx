@@ -7,6 +7,7 @@ import {
   UserRoundCheck,
 } from "lucide-react";
 import { FormEvent, useState } from "react";
+import { OTHER_UBS } from "@/lib/validation/ubs-choice";
 import { ProfessionField } from "@/components/auth/profession-field";
 import { DEMO_NOTICE } from "@/lib/validation/demo-onboarding";
 import { BirthDateField } from "@/components/auth/birth-date-field";
@@ -21,6 +22,7 @@ type Props = {
   suggestedName: string;
   ubsOptions: UbsOption[];
   autonomous?: boolean;
+  optionalUbs?: boolean;
   suggestedProfession?: string;
   suggestedUbs?: string;
 };
@@ -30,6 +32,7 @@ export function CompleteProfileForm({
   suggestedName,
   ubsOptions,
   autonomous = false,
+  optionalUbs = false,
   suggestedProfession = "",
   suggestedUbs = "",
 }: Props) {
@@ -115,7 +118,7 @@ export function CompleteProfileForm({
 
             <div className="v20-field v20-field-wide">
               <label htmlFor="ubsId">UBS de vínculo</label>
-              <select defaultValue={autonomous ? (ubsOptions.some(u => u.id === suggestedUbs) ? suggestedUbs : "") : (ubsOptions[0]?.id ?? "")} id="ubsId" name="ubsId" required={!autonomous}>
+              <select defaultValue={ubsOptions.some(u => u.id === suggestedUbs) ? suggestedUbs : ""} id="ubsId" name="ubsId" required={!autonomous}>
                 <option disabled={!autonomous} value="">
                   {autonomous ? "Não informar (opcional)" : "Selecione a UBS"}
                 </option>
@@ -124,7 +127,9 @@ export function CompleteProfileForm({
                     {ubs.nome}
                   </option>
                 ))}
+                {(autonomous || optionalUbs) && <option value={OTHER_UBS}>Outra UBS / unidade não cadastrada</option>}
               </select>
+              {(autonomous || optionalUbs) && <small>Se sua UBS não estiver na lista, selecione Outra UBS. Não precisa informar o nome; o vínculo assistencial será verificado separadamente.</small>}
             </div>
           </div>
 

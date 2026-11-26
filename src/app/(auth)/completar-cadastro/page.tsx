@@ -57,6 +57,7 @@ export default async function CompleteProfilePage() {
       suggestedName={suggestedName}
       ubsOptions={ubsOptions}
       autonomous={autonomous}
+      optionalUbs={process.env.GESTARIO_UBS_OPTIONAL === "1"}
       suggestedProfession={String(metadata.profissao_declarada ?? "")}
       suggestedUbs={String(metadata.ubs_declarada ?? "")}
     />
