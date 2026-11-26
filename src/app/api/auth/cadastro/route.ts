@@ -1,3 +1,4 @@
+import { confirmationRedirectUrl } from "@/lib/auth/confirmation-origin";
 import { isValidNewPassword, PASSWORD_REQUIREMENTS } from "@/lib/validation/password-policy";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
@@ -154,7 +155,7 @@ export async function POST(request: Request) {
       const { data: signupData, error } = await auth.auth.signUp({
         email, password,
         options: {
-          emailRedirectTo: new URL("/login?email_confirmed=1", request.url).toString(),
+          emailRedirectTo: confirmationRedirectUrl(request.url),
           data: { full_name: nomeCompleto, ...(autonomous ? { profissao_declarada: profession } : {}), ubs_declarada: ubsId ?? "" },
         },
       });
@@ -220,7 +221,7 @@ export async function POST(request: Request) {
 
     }
     const confirmationRedirect =
-      `${new URL(request.url).origin}/login?email_confirmed=1`;
+      confirmationRedirectUrl(request.url);
 
     const { data, error } = await admin.auth.admin.createUser({
       email,

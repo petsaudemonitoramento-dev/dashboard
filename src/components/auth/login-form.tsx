@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { ResendConfirmation } from "@/components/auth/resend-confirmation";
 import { FormEvent, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { APP_CONFIG } from "@/config/app";
@@ -205,6 +206,7 @@ export function LoginForm() {
           <LogIn size={23} strokeWidth={1.7} />
           {loading ? "Entrando..." : "Entrar"}
         </button>
+        <ResendConfirmation email={identifier} disabled={loading} />
       </form>
 
       <div className="login-divider account-divider">

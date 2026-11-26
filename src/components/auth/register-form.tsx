@@ -3,6 +3,7 @@
 import { PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH } from "@/lib/validation/password-policy";
 
 import Link from "next/link";
+import { ResendConfirmation } from "@/components/auth/resend-confirmation";
 import {
   CheckCircle2,
   LoaderCircle,
@@ -24,6 +25,7 @@ export function RegisterForm({ ubsOptions, autonomous = false, optionalUbs = fal
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState("");
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -65,9 +67,10 @@ export function RegisterForm({ ubsOptions, autonomous = false, optionalUbs = fal
         throw new Error(body.error ?? "Não foi possível criar a conta.");
       }
 
+      setRegisteredEmail(String(form.get("email") ?? "").trim());
       setSuccess(true);
       setMessage(
-        (autonomous || body.completeAfterConfirmation === true) ? "Se o cadastro puder ser concluído, enviaremos a confirmação por e-mail. Depois, entre para completar o cadastro e acessar a demonstração." : "Se o cadastro puder ser concluído, enviaremos a confirmação por e-mail. Após confirmar, entre para acessar a demonstração."
+        (autonomous || body.completeAfterConfirmation === true) ? "Confira seu e-mail (inclusive o spam) para confirmar o cadastro. Se necessário, solicite um novo link abaixo. Depois, entre para completar o cadastro e acessar a demonstração." : "Confira seu e-mail (inclusive o spam) para confirmar o cadastro. Após confirmar, entre para acessar a demonstração. Se necessário, solicite um novo link abaixo."
       );
     } catch (error) {
       setMessage(
@@ -89,10 +92,11 @@ export function RegisterForm({ ubsOptions, autonomous = false, optionalUbs = fal
           </div>
           <h1>Solicitação enviada</h1>
           <p>{message}</p>
-          <div className="v20-form-actions">
+          <div className="v20-form-actions v20-confirmation-actions">
             <Link className="v20-primary-button" href="/login">
               Ir para o login
             </Link>
+            <ResendConfirmation email={registeredEmail} />
           </div>
         </section>
       </main>
