@@ -18,7 +18,7 @@ type UbsOption = {
   nome: string;
 };
 
-export function RegisterForm({ ubsOptions, autonomous = false, optionalUbs = false }: { ubsOptions: UbsOption[]; autonomous?: boolean; optionalUbs?: boolean }) {
+export function RegisterForm({ ubsOptions, autonomous = false, optionalUbs = false, previewOtherUbs = false }: { ubsOptions: UbsOption[]; autonomous?: boolean; optionalUbs?: boolean; previewOtherUbs?: boolean }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -29,6 +29,11 @@ export function RegisterForm({ ubsOptions, autonomous = false, optionalUbs = fal
     setMessage(null);
 
     const form = new FormData(event.currentTarget);
+    if (form.get("ubsId") === OTHER_UBS && previewOtherUbs && !autonomous && !optionalUbs) {
+      setMessage("A opção Outra UBS está disponível para avaliação visual nesta prévia. A gravação sem UBS ainda não foi liberada.");
+      setLoading(false);
+      return;
+    }
     const password = String(form.get("password") ?? "");
     const confirmation = String(form.get("passwordConfirmation") ?? "");
 
@@ -136,9 +141,9 @@ export function RegisterForm({ ubsOptions, autonomous = false, optionalUbs = fal
                     {ubs.nome}
                   </option>
                 ))}
-                {(autonomous || optionalUbs) && <option value={OTHER_UBS}>Outra UBS / unidade não cadastrada</option>}
+                {(autonomous || optionalUbs || previewOtherUbs) && <option value={OTHER_UBS}>Outra UBS / unidade não cadastrada</option>}
               </select>
-              {(autonomous || optionalUbs) && <small>Se sua UBS não estiver na lista, selecione Outra UBS. Não precisa informar o nome; o vínculo assistencial será verificado separadamente.</small>}
+              {(autonomous || optionalUbs || previewOtherUbs) && <small>Se sua UBS não estiver na lista, selecione Outra UBS. Não precisa informar o nome; o vínculo assistencial será verificado separadamente. {previewOtherUbs && !autonomous && !optionalUbs && "Nesta prévia, a opção ainda não permite concluir o cadastro."}</small>}
             </div>
 
             <div className="v20-field v20-field-wide">

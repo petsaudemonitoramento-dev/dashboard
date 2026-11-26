@@ -170,6 +170,10 @@ jobs:
       - name: pgTAP database tests
         run: supabase test db
 
+      - name: Validate proposed optional UBS RPC in ephemeral database only
+        run: |
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f database/PROPOSTA_UBS_OPCIONAL_V31.sql
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f tests/isolated/ubs-optional.sql
       - name: Show local migration state
         run: supabase migration list --local
 

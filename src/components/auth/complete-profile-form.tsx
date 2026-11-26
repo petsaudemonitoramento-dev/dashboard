@@ -23,6 +23,7 @@ type Props = {
   ubsOptions: UbsOption[];
   autonomous?: boolean;
   optionalUbs?: boolean;
+  previewOtherUbs?: boolean;
   suggestedProfession?: string;
   suggestedUbs?: string;
 };
@@ -33,6 +34,7 @@ export function CompleteProfileForm({
   ubsOptions,
   autonomous = false,
   optionalUbs = false,
+  previewOtherUbs = false,
   suggestedProfession = "",
   suggestedUbs = "",
 }: Props) {
@@ -45,6 +47,11 @@ export function CompleteProfileForm({
     setMessage(null);
 
     const form = new FormData(event.currentTarget);
+    if (form.get("ubsId") === OTHER_UBS && previewOtherUbs && !autonomous && !optionalUbs) {
+      setMessage("A opção Outra UBS está disponível para avaliação visual nesta prévia. A gravação sem UBS ainda não foi liberada.");
+      setLoading(false);
+      return;
+    }
 
     try {
       const response = await fetch("/api/perfil/completar", {
@@ -127,9 +134,9 @@ export function CompleteProfileForm({
                     {ubs.nome}
                   </option>
                 ))}
-                {(autonomous || optionalUbs) && <option value={OTHER_UBS}>Outra UBS / unidade não cadastrada</option>}
+                {(autonomous || optionalUbs || previewOtherUbs) && <option value={OTHER_UBS}>Outra UBS / unidade não cadastrada</option>}
               </select>
-              {(autonomous || optionalUbs) && <small>Se sua UBS não estiver na lista, selecione Outra UBS. Não precisa informar o nome; o vínculo assistencial será verificado separadamente.</small>}
+              {(autonomous || optionalUbs || previewOtherUbs) && <small>Se sua UBS não estiver na lista, selecione Outra UBS. Não precisa informar o nome; o vínculo assistencial será verificado separadamente. {previewOtherUbs && !autonomous && !optionalUbs && "Nesta prévia, a opção ainda não permite concluir o cadastro."}</small>}
             </div>
           </div>
 

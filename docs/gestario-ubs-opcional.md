@@ -1,3 +1,5 @@
 # Cadastro sem UBS listada
 A opção Outra UBS / unidade não cadastrada representa ausência de vínculo, nunca uma UBS fictícia. Não solicita o nome da unidade. A conta continua pendente sem UBS efetiva; após confirmação de e-mail pode acessar a demonstração existente. Dados clínicos ainda exigem autorização institucional e vínculo válido conforme o modelo atual.
 Para o fluxo legado, habilitar GESTARIO_UBS_OPTIONAL=1 somente após validar e aplicar PROPOSTA_UBS_OPCIONAL_V31.sql no ambiente correto. O fluxo por e-mail legado mantém os requisitos existentes de configuração de autenticação. O fluxo autônomo já permite UBS opcional e depende da própria proposta de onboarding. Não aplicar no banco compartilhado como parte do redesign. Testar e-mail, Google, aprovação, rejeição, conta revogada, acesso cruzado e UBS inválida.
+
+Prévia visual: VERCEL_ENV=preview exibe Outra UBS e explica que a gravação permanece bloqueada até a liberação da proposta. Não cria contas fictícias nem altera o banco compartilhado. CI executa a proposta SQL exclusivamente após a suíte de segurança em Supabase efêmero, e testa o perfil sem vínculo e pendente.
