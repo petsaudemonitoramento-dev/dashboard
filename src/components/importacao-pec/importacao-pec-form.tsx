@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { ChangeEvent, FormEvent, useState } from "react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { ImportHistory, type ImportHistoryRow } from "./import-history";
+import { ChangeEvent, FormEvent, useRef, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -63,10 +66,16 @@ type ImportResponse = {
 export function ImportacaoPecForm({
   ubsId,
   ubsName,
+  history,
+  historyUnavailable,
 }: {
   ubsId: string;
   ubsName: string;
+  history: ImportHistoryRow[];
+  historyUnavailable: boolean;
 }) {
+  const router = useRouter();
+  const fileInput=useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [structureReviewed, setStructureReviewed] = useState(false);
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
@@ -75,13 +84,15 @@ export function ImportacaoPecForm({
   const [loadingMode, setLoadingMode] =
     useState<"preview" | "import" | null>(null);
 
-  function handleFile(event: ChangeEvent<HTMLInputElement>) {
-    setFile(event.target.files?.[0] ?? null);
+  function chooseFile(selected:File|null) {
+    setFile(selected);
     setStructureReviewed(false);
     setPreview(null);
     setResult(null);
     setError(null);
   }
+
+  function handleFile(event:ChangeEvent<HTMLInputElement>){chooseFile(event.target.files?.[0]??null)}
 
   async function submit(mode: "preview" | "import") {
     if (!file) {
@@ -119,6 +130,7 @@ export function ImportacaoPecForm({
         setResult(null);
       } else {
         setResult(body);
+        router.refresh();
       }
     } catch (requestError) {
       setError(
@@ -163,20 +175,20 @@ export function ImportacaoPecForm({
     : null;
 
   return (
-    <div className="pec-import-grid">
+    <><section className="ga-pec-hero"><div><small>GESTÁRIO APS · IMPORTAR PEC</small><h1>Importar dados do PEC</h1><p>Importe seu relatório de acompanhamento pré-natal do PEC, confira as informações e atualize suas fichas com segurança.</p><button type="button" disabled={loadingMode!==null} onClick={()=>fileInput.current?.click()}>Selecionar arquivo CSV →</button></div><div className="ga-pec-brand" aria-hidden="true"><Image src="/brand/gestario-pec-symbol.svg" alt="" width={100} height={206} priority /></div></section><div className="pec-import-grid">
       <section className="pec-card pec-upload-card">
         <div className="pec-card-heading">
           <div className="pec-card-icon">
             <FileSpreadsheet size={25} />
           </div>
           <div>
-            <h2>Anexar relatório do PEC</h2>
+            <h2>Conciliação de dados do PEC</h2>
             <p>UBS vinculada: {ubsName}</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <label className="pec-file-drop">
+          <label className="pec-file-drop" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();if(loadingMode===null)chooseFile(e.dataTransfer.files[0]??null)}}>
             <Upload size={28} />
             <strong>
               {file ? file.name : "Selecionar arquivo CSV"}
@@ -186,6 +198,8 @@ export function ImportacaoPecForm({
               inclusive quando ela muda de posição.
             </span>
             <input
+              ref={fileInput}
+              disabled={loadingMode!==null}
               type="file"
               accept=".csv,text/csv"
               onChange={handleFile}
@@ -225,10 +239,7 @@ export function ImportacaoPecForm({
         <div className="pec-security-note">
           <ShieldCheck size={21} />
           <p>
-            Os identificadores entram em uma área restrita, são
-            criptografados e ligados a um código como
-            <strong> GST-AB12CD34</strong>. O site consulta somente os
-            dados pseudonimizados da própria UBS.
+            O CSV é analisado no servidor autorizado. A prévia não exibe nomes, CPF, CNS, telefone ou endereço. Na importação, os identificadores reconhecidos são criptografados e associados a códigos. O acesso às fichas depende das permissões da sua conta.
           </p>
         </div>
 
@@ -239,13 +250,14 @@ export function ImportacaoPecForm({
         )}
       </section>
 
-      <section className="pec-card">
-        <h2>Como a adaptação funciona</h2>
-        <ol className="pec-steps">
-          <li>Localiza a linha de cabeçalho por conteúdo, não por posição fixa.</li>
-          <li>Normaliza acentos, parênteses e pequenas mudanças nos nomes.</li>
-          <li>Guarda colunas clínicas novas em “dados extras”.</li>
-          <li>Não envia nome, CPF, CNS, telefone ou endereço para a tela.</li>
+      <section className="pec-card ga-pec-guide">
+        <h2>Entenda a análise do seu arquivo</h2>
+        <p>Não é necessário reorganizar as colunas do PEC antes de enviar. O Gestário verifica a estrutura antes de liberar a importação.</p>
+        <ol className="ga-pec-guide-list">
+          <li><strong>1. Encontra os títulos</strong><span>Localiza a linha com os nomes das colunas, mesmo quando o relatório possui informações antes da tabela.</span></li>
+          <li><strong>2. Reconhece os campos</strong><span>Identifica campos conhecidos, como idade gestacional e consultas, considerando pequenas diferenças de escrita.</span></li>
+          <li><strong>3. Confere mudanças</strong><span>Mostra colunas novas, duplicadas ou ausentes. Campos desconhecidos exigem revisão; conflitos podem impedir o envio. Não inventa valores clínicos.</span></li>
+          <li><strong>4. Protege a identidade</strong><span>Exibe uma prévia sem identificadores diretos. As fichas só são atualizadas depois da confirmação da importação.</span></li>
         </ol>
       </section>
 
@@ -438,6 +450,6 @@ export function ImportacaoPecForm({
           </div>
         </section>
       )}
-    </div>
+    </div><ImportHistory rows={history} unavailable={historyUnavailable}/></>
   );
 }

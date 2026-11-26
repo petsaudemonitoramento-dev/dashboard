@@ -1,0 +1,231 @@
+/* Identidade Gestário APS — escopo exclusivo da área autenticada. */
+.gestario-shell{--ga-navy:#00167a;--ga-ink:#102451;--ga-muted:#687897;display:grid;grid-template-columns:254px minmax(0,1fr);min-height:100vh;background:#f8faff;color:var(--ga-ink);transition:grid-template-columns .33s cubic-bezier(.2,.72,.2,1)}
+.gestario-shell .sidebar{position:sticky;top:0;height:100dvh;min-height:0;isolation:isolate;padding:20px 16px;color:var(--ga-navy);background:#f9fbff;border-right:1px solid #e6e9f5;overflow:auto;z-index:31;transition:transform .3s ease,opacity .28s,visibility .3s}
+.gestario-shell .sidebar:before{content:"";position:absolute;inset:0;z-index:-1;background:radial-gradient(ellipse at 26% 8%,#dff8ff 0,transparent 42%),radial-gradient(ellipse at 90% 23%,#ece3ff 0,transparent 42%),radial-gradient(ellipse at 94% 87%,#ffedf2 0,transparent 41%),radial-gradient(ellipse at 10% 95%,#fff3c6 0,transparent 34%);opacity:.63;pointer-events:none;animation:ga-breath 34s ease-in-out infinite alternate}
+@keyframes ga-breath{from{opacity:.55}to{opacity:.85}}
+.gestario-shell .sidebar-main{flex:1 0 auto}.gestario-shell .ga-brand{height:150px;display:flex;align-items:flex-start;justify-content:center;padding:0}.ga-brand img{width:190px;height:130px;object-fit:contain}.gestario-shell .sidebar nav{display:flex;flex-direction:column;gap:9px;flex:0 0 auto;padding:0;overflow:visible}.gestario-shell .sidebar nav a{color:#00167a;min-height:49px;padding:14px 13px;border-radius:13px;font-size:14px;font-weight:550;gap:14px}.gestario-shell .sidebar nav a svg{width:20px;height:20px;flex:none}.gestario-shell .sidebar nav a.active{background:#e0e7ff;font-weight:700}.gestario-shell .sidebar nav a:hover{background:#e0e7ffb8}
+.ga-quote{display:flex;gap:10px;background:#ffffffb3;border:1px solid #edf0fc;border-radius:15px;padding:13px 14px;margin:18px 0 16px;font-size:12px;line-height:1.53}.ga-quote b{color:#6c5ca7;font-size:11px}.ga-quote p{margin:5px 0 0}.ga-quote>span{font-size:21px}.gestario-shell .sidebar-footer{color:#56648c;border-color:#dce3f2;padding:15px 5px 0;font-size:11px}.gestario-shell .sidebar-footer span:last-child{color:#4957a0}
+.gestario-shell .main{min-width:0;min-height:100vh;background:radial-gradient(ellipse at 91% 3%,#ffe3df59,transparent 33%),radial-gradient(ellipse at 29% 26%,#dae9ff3d,transparent 42%),#f8faff}.gestario-shell .app-header{height:76px;flex-direction:row;align-items:center;gap:22px;padding:0 39px;background:#fffffff0;border-bottom:1px solid #e8ebf4;backdrop-filter:blur(15px);z-index:20}.ga-header-left{display:flex;align-items:center;gap:13px;min-width:0;flex:1}.gestario-shell .search{width:100%;max-width:535px;min-width:0;border-color:#dfe5f1;color:#6879a9;background:white}.gestario-shell .search svg{width:19px;flex:none}.gestario-shell .search input{font-size:13px;min-width:0}.gestario-shell .user{gap:11px;flex:none}.ga-icon,.gestario-shell .user>button{display:grid;place-items:center;width:42px;height:42px;flex:none;border:1px solid #e2e8f5;border-radius:13px;background:white;color:#00167a}.ga-icon:hover{background:#f1f4ff}.gestario-shell .content{padding:31px 37px 45px;max-width:1590px;min-width:0;margin:0 auto}.gestario-shell .heading p{color:#665baa;text-transform:uppercase;font-size:11px;letter-spacing:.075em;margin:0 0 13px}.gestario-shell .heading h1{font-size:30px;letter-spacing:-.04em;color:#0b2466;margin:0 0 8px}.gestario-shell .heading span{font-size:13px;color:#687897}.gestario-shell.ga-collapsed{grid-template-columns:0 minmax(0,1fr)}.ga-collapsed .sidebar{transform:translateX(-105%);opacity:0;visibility:hidden;pointer-events:none}.ga-backdrop{display:none}
+.ga-pec-hero{position:relative;overflow:hidden;min-height:168px;border-radius:19px;padding:29px 34px;background:linear-gradient(112deg,#1b1877,#5736a2 52%,#9579d3);color:white;display:flex;align-items:center;justify-content:space-between;gap:24px}.ga-pec-hero p{max-width:690px;font-size:13px;line-height:1.65;margin:0 0 12px}.ga-pec-hero h1{font-size:32px;color:white;line-height:1.15;letter-spacing:-.03em;margin:0 0 10px}.ga-pec-hero small{display:block;font-weight:800;letter-spacing:.12em;color:#e8e3ff;margin-bottom:10px}.ga-pec-hero button{border:1px solid #ffffff85;background:#ffffff25;color:white;padding:9px 13px;border-radius:10px;font-weight:700;font-size:12px}.ga-pec-hero svg{width:112px;height:112px;opacity:.55;flex:none}.gestario-shell .pec-import-grid{margin-top:19px;grid-template-columns:minmax(0,1.72fr) minmax(0,.87fr);gap:16px}.gestario-shell .pec-card{border-color:#e3e5f2;box-shadow:0 4px 17px #1a2f700a;border-radius:18px;color:#13296c}.gestario-shell .pec-card h2{color:#13296c;font-size:20px}.gestario-shell .pec-file-drop{background:linear-gradient(130deg,#fbfaff,#f7f5ff);border:1.5px dashed #a9a0f4;border-radius:15px;min-height:174px;color:#4837a0}.gestario-shell .pec-primary-button{background:#7456c6;color:white;border-color:#7958d1}.gestario-shell .pec-secondary-button{border-color:#aca4ec;color:#4f44b2}.gestario-shell .pec-security-note{background:#f2efff;color:#4d4b94}.gestario-shell .pec-table thead{background:#f2effb}
+.ga-profile-hero{display:flex;align-items:center;gap:18px;margin:24px 0 18px;padding:25px 27px;border:1px solid #e1e6f6;border-radius:21px;background:linear-gradient(112deg,#fff 20%,#f2f5ff 60%,#faeff9);box-shadow:0 10px 25px #0f2e7208}.ga-avatar{display:grid;place-items:center;flex:none;width:79px;height:79px;border:2px solid white;border-radius:22px;background:#e4eaff;color:#00167a;font-size:24px;font-weight:800}.ga-profile-hero h2{font-size:21px;color:#00167a;margin:0 0 5px;overflow-wrap:anywhere}.ga-profile-hero p{font-size:13px;color:#687897;margin:5px 0}.ga-profile-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.84fr);gap:17px;align-items:start}.ga-profile-stack{display:grid;gap:17px}.ga-profile-card{border:1px solid #e4e9f5;border-radius:19px;background:#fff;padding:23px;box-shadow:0 8px 24px #1b33770a;scroll-margin-top:90px}.ga-profile-card h3{font-size:17px;color:#1b316c;margin:0 0 6px}.ga-profile-card p{font-size:12px;color:#687897;line-height:1.6}.ga-fields{display:grid;grid-template-columns:1fr 1fr;gap:17px 18px}.ga-fields dt{font-size:12px;color:#687897;font-weight:690}.ga-fields dd{margin:6px 0 0;border-bottom:1px solid #edf0f7;padding:7px 0 11px;font-size:13px;color:#263a72;font-weight:650;overflow-wrap:anywhere}.ga-links{display:flex;flex-wrap:wrap;gap:9px}.ga-links a{background:#f8faff;border:1px solid #dbe3f2;border-radius:10px;padding:10px 14px;color:#264681;font-size:12px;font-weight:730}.ga-links a:hover{background:#e0e7ff}
+@media(max-width:1260px){.gestario-shell{grid-template-columns:227px minmax(0,1fr)}.gestario-shell .app-header{padding:0 26px}.gestario-shell .content{padding:28px 24px}.ga-brand img{width:178px}}
+@media(max-width:1120px){.ga-profile-grid{grid-template-columns:1fr}}
+@media(max-width:970px){.gestario-shell .pec-import-grid{grid-template-columns:1fr}}
+@media(max-width:930px){.gestario-shell,.gestario-shell.ga-collapsed{display:block}.gestario-shell .sidebar,.gestario-shell.ga-collapsed .sidebar{position:fixed;inset:0 auto 0 0;width:min(288px,87vw);height:100dvh;transform:translateX(-105%);opacity:0;visibility:hidden;pointer-events:none;z-index:41}.gestario-shell.ga-mobile-open .sidebar{transform:none;opacity:1;visibility:visible;pointer-events:auto;box-shadow:12px 0 38px #13205929}.ga-backdrop{display:block;position:fixed;inset:0;border:0;background:#0815474d;z-index:40}.gestario-shell .content{padding:24px 18px}}
+@media(max-width:550px){.gestario-shell .app-header{height:65px;padding:0 12px;gap:8px}.ga-header-left{gap:8px}.gestario-shell .user{gap:5px}.ga-icon,.gestario-shell .user>button{width:34px;height:36px;border-radius:10px}.gestario-shell .search{height:38px;padding:0 8px}.gestario-shell .search input{font-size:12px}.gestario-shell .content{padding:21px 12px}.gestario-shell .heading h1{font-size:26px}.ga-pec-hero{padding:22px 19px;gap:6px}.ga-pec-hero h1{font-size:25px}.ga-pec-hero svg{display:none}.ga-profile-hero{padding:19px 15px}.ga-avatar{width:58px;height:58px}.ga-fields{grid-template-columns:1fr}.ga-profile-card{padding:19px 16px}}
+@media(prefers-reduced-motion:reduce){.gestario-shell,.gestario-shell .sidebar{transition:none}.gestario-shell .sidebar:before{animation:none}}
+
+/* PEC banner — original mark from approved design, not a generic upload icon. */
+.ga-pec-hero{isolation:isolate;min-height:195px}
+.ga-pec-hero::before,.ga-pec-hero::after{content:"";position:absolute;pointer-events:none;z-index:-1;border-radius:50%}
+.ga-pec-hero::before{width:320px;height:230px;right:-35px;top:-120px;border:1px solid #ffffff26}
+.ga-pec-hero::after{width:420px;height:170px;right:-65px;bottom:-125px;background:#ffffff19}
+.ga-pec-brand{flex:0 0 140px;display:flex;align-items:center;justify-content:center}
+.ga-pec-brand img{width:auto;height:158px;max-width:100%;object-fit:contain;opacity:.56}
+.ga-pec-guide>p{font-size:13px;color:#465672;line-height:1.6}
+.ga-pec-guide-list{list-style:none;margin:17px 0 0;padding:0;display:grid;gap:13px}
+.ga-pec-guide-list li{display:grid;gap:5px;border-top:1px solid #e6eaf3;padding-top:12px;font-size:12px;line-height:1.55;color:#4f5e78}
+.ga-pec-guide-list li strong{color:#253b78;font-size:13px}
+.ga-pec-history{margin-top:20px}
+.ga-pec-history header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}
+.ga-pec-history header small{font-size:10px;letter-spacing:.12em;font-weight:800;color:#615198}
+.ga-pec-history header h2{margin:5px 0 0}
+.ga-pec-history header>span,.ga-history-status{border-radius:999px;background:#f0edf9;color:#534582;padding:6px 10px;font-size:11px;font-weight:700}
+.ga-history-status[data-tone="ok"]{background:#e5f4eb;color:#286146}
+.ga-history-status[data-tone="warning"]{background:#fff0de;color:#7e4e12}
+.ga-history-errors{display:block;font-size:11px;color:#80501c}
+.ga-history-note{font-size:12px;color:#596982;line-height:1.55;margin:15px 0 0}
+.ga-pec-history-empty{border:1px dashed #dce1ef;background:#f9faff;border-radius:12px;padding:22px;color:#53627e;font-size:13px}
+@media(max-width:550px){.ga-pec-brand{flex-basis:48px}.ga-pec-brand img{height:91px}.ga-pec-hero p{font-size:12px}.ga-pec-hero h1{font-size:23px}}
+
+.ga-pref-form{display:grid;gap:8px;margin-top:15px}.ga-pref-form label{display:flex;justify-content:space-between;gap:12px;align-items:center;border-bottom:1px solid #e6eaf3;padding:11px 0;color:#253e80;font-size:12px}.ga-pref-form label span{display:grid;gap:4px}.ga-pref-form small{color:#586981;font-size:11px}.ga-pref-form input{accent-color:#00167a;min-width:18px;width:18px;height:18px}.ga-pref-form select{max-width:50%;padding:8px;border:1px solid #dce3f1;background:#fff;border-radius:9px;color:#243a75}.ga-pref-form>button{justify-self:start;background:#00167a;color:#fff;padding:10px 14px;border-radius:10px;border:0;font-weight:700}.ga-pref-form p{margin:0}
+
+/* Login with official brand and unchanged authentication form. */
+.login-page.ga-login-page{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);align-items:center;min-height:100dvh;height:auto;overflow:visible;padding:clamp(22px,5vw,75px);gap:clamp(24px,5vw,80px);background:radial-gradient(ellipse at 0 5%,#dbeeee 0,transparent 50%),radial-gradient(ellipse at 50% 100%,#f9dad7 0,transparent 55%),#f6f5fc}
+.ga-login-page::before{display:none}
+.ga-login-brand{display:grid;justify-items:center;gap:18px;min-width:0;text-align:center;color:#00167a}
+.ga-login-brand h1{margin:0;display:flex;justify-content:center;width:100%}
+.ga-login-brand h1 img{width:min(400px,85%);height:auto;object-fit:contain}
+.ga-login-brand>p{font-size:16px;line-height:1.6;margin:0;max-width:310px;color:#445478}
+.ga-login-institutions{display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap;margin-top:16px}
+.ga-login-institutions img{width:auto;max-width:140px;height:48px;object-fit:contain}
+.ga-login-credit{color:#526181;font-size:11px}
+.ga-login-access{min-width:0;display:grid;justify-items:center;align-content:center;position:relative}
+.ga-login-page .login-card{width:min(100%,530px);max-height:none;overflow:visible;transform:none;padding:clamp(22px,3vw,40px);border:1px solid #e0e3f2;border-radius:26px;background:#fffffff2;box-shadow:0 20px 80px #00167a12}
+.ga-login-page .login-button{position:relative;isolation:isolate;overflow:hidden;border:1px solid #a3a2ed;color:#fff;background:linear-gradient(120deg,#00167a,#50409f 48%,#8266c4);box-shadow:0 8px 24px #5144aa40,inset 0 1px 0 #ffffff70}
+.ga-login-page .login-button::after{content:"";position:absolute;inset:-100% -50%;background:linear-gradient(110deg,transparent 40%,#ffffff38 49%,transparent 58%);transform:translateX(-70%);animation:ga-login-shine 4s 6s 2;pointer-events:none;z-index:-1}
+@keyframes ga-login-shine{0%,68%{transform:translateX(-70%)}100%{transform:translateX(70%)}}
+@media(max-width:850px){.login-page.ga-login-page{grid-template-columns:minmax(0,1fr);padding:28px 18px 42px;gap:20px}.ga-login-brand{gap:8px}.ga-login-brand h1 img{width:min(210px,70vw)}.ga-login-brand>p{font-size:13px}.ga-login-institutions{margin-top:4px;gap:14px}.ga-login-institutions img{height:32px;max-width:110px}.ga-login-page .login-card{width:min(100%,530px)}.ga-login-page .mobile-version{display:none}}
+@media(prefers-reduced-motion:reduce){.ga-login-page .login-button::after{animation:none}}
+
+/* Fit the complete default sign-in view to the available viewport.
+   Natural document scrolling is retained for narrow screens, zoom, keyboard and errors. */
+.login-page.ga-login-page{
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  grid-template-areas:"brand access" "compliance access";
+  grid-template-rows:auto auto;
+  align-content:center;
+  align-items:center;
+  justify-content:center;
+  column-gap:clamp(20px,4vw,64px);
+  row-gap:12px;
+  padding:clamp(12px,2.3vh,24px) clamp(20px,4vw,64px);
+}
+.ga-login-brand{grid-area:brand;align-self:end;gap:10px}
+.ga-login-brand h1 img{width:min(370px,85%,48vh);height:auto}
+.ga-login-brand>p{font-size:clamp(13px,1.7vh,16px);line-height:1.45}
+.ga-login-institutions{margin-top:2px;gap:16px}
+.ga-login-institutions img{height:40px;max-width:140px}
+.ga-login-credit{line-height:1.4;text-align:center}
+.ga-login-access{grid-area:access;align-self:center}
+.ga-login-page>.login-compliance{grid-area:compliance;align-self:start;justify-self:center;width:min(100%,420px);margin:0;padding:10px 13px;gap:6px;background:#ffffff90;line-height:1.4;font-size:11px}
+.ga-login-page .login-compliance small{font-size:11px}
+.ga-login-page .login-card{padding:clamp(18px,3vh,30px) clamp(22px,3vw,36px)}
+.ga-login-page .login-header{gap:13px}
+.ga-login-page .login-icon{width:48px;height:48px}
+.ga-login-page .login-header h2{font-size:clamp(27px,3.5vh,34px)}
+.ga-login-page .login-header p{font-size:13px;margin-top:4px}
+.ga-login-page .google-button{height:44px;min-height:44px;margin-top:14px;font-size:13px}
+.ga-login-page .google-button img{width:22px;height:22px}
+.ga-login-page .login-divider{margin:10px 0;gap:10px}
+.ga-login-page .login-divider p{font-size:11px}
+.ga-login-page .login-card form>label{font-size:13px;margin-bottom:5px}
+.ga-login-page .input-container{height:44px;min-height:44px;margin-bottom:10px;padding:0 12px;gap:10px}
+.ga-login-page .input-container input{font-size:14px}
+.ga-login-page .login-options{flex-direction:row;align-items:center;flex-wrap:wrap;gap:8px;margin-top:0}
+.ga-login-page .remember-option,.ga-login-page .forgot-button{font-size:12px}
+.ga-login-page .login-button{height:44px;min-height:44px;margin-top:12px;font-size:14px}
+.ga-login-page .create-account-button{height:44px;min-height:44px;font-size:13px}
+.ga-login-page .login-footer{margin-top:12px;font-size:11px;line-height:1.4;gap:7px}
+.ga-login-page .login-footer svg{flex-shrink:0}
+.ga-login-page .mobile-version{display:none}
+@media(min-width:741px) and (min-height:800px){
+  .ga-login-page .login-card{padding:30px 36px}
+  .ga-login-page .google-button,.ga-login-page .input-container,.ga-login-page .login-button,.ga-login-page .create-account-button{height:48px}
+  .ga-login-page .login-divider{margin:14px 0}
+  .ga-login-page .input-container{margin-bottom:14px}
+  .ga-login-page .login-button{margin-top:16px}
+  .ga-login-page .login-footer{margin-top:16px}
+}
+@media(max-width:740px){
+  .login-page.ga-login-page{grid-template-columns:minmax(0,1fr);grid-template-areas:"brand" "access" "compliance";grid-template-rows:auto auto auto;align-content:start;padding:14px 14px 20px;gap:12px}
+  .ga-login-brand{gap:6px}
+  .ga-login-brand h1 img{width:min(150px,55vw);height:auto}
+  .ga-login-brand>p{font-size:12px;max-width:none}
+  .ga-login-institutions{margin:0;gap:12px}
+  .ga-login-institutions img{height:28px;max-width:100px}
+  .ga-login-page .login-card{padding:18px 20px}
+  .ga-login-page>.login-compliance{width:min(100%,530px)}
+}
+
+/* Secondary technical credits: no card, border, shadow or competing headline. */
+.ga-login-page>.ga-login-footnote{
+  display:grid;
+  justify-items:center;
+  align-self:start;
+  width:min(100%,440px);
+  gap:4px;
+  padding:0 4px;
+  margin:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+  text-align:center;
+  color:#555c73;
+  font-size:11px;
+  line-height:1.45;
+  font-weight:400;
+}
+.ga-login-page>.ga-login-footnote p{display:block;margin:0;line-height:inherit;font-size:inherit;font-weight:400}
+.ga-login-page>.ga-login-footnote .ga-pec-reference{font-size:11px;max-width:410px}
+.ga-login-page>.ga-login-footnote a{color:#4b497d;font-weight:500;text-decoration:underline;text-underline-offset:2px}
+.ga-login-page>.ga-login-footnote a:hover{color:#00167a}
+@media(max-width:740px){.ga-login-page>.ga-login-footnote{padding:4px 6px 0;max-width:440px}}
+
+/* Approved annotated layout: full-size mark centered on the left,
+   a smaller sign-in card on the right, and secondary information in the footer. */
+.login-page.ga-login-page{
+  grid-template-areas:"brand access" "bottom bottom";
+  grid-template-rows:minmax(min-content,1fr) auto;
+  align-content:stretch;
+  row-gap:12px;
+  padding:clamp(12px,2.3vh,24px) clamp(20px,4vw,64px);
+}
+.ga-login-brand{align-self:center;justify-self:stretch}
+.ga-login-access{align-self:center;justify-self:stretch}
+.ga-login-page .login-card{
+  width:min(100%,480px);
+  padding:clamp(14px,2.1vh,24px) clamp(20px,2.6vw,30px);
+  border-radius:24px;
+}
+.ga-login-page .login-header{gap:12px}
+.ga-login-page .login-icon{width:44px;height:44px}
+.ga-login-page .login-header h2{font-size:clamp(26px,3.3vh,32px)}
+.ga-login-page .google-button{margin-top:10px}
+.ga-login-page .login-divider{margin:7px 0}
+.ga-login-page .login-card form>label{margin-bottom:4px}
+.ga-login-page .input-container{margin-bottom:8px}
+.ga-login-page .login-button{margin-top:9px}
+.ga-login-page .login-footer{margin-top:9px}
+.ga-login-bottom{
+  grid-area:bottom;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1.65fr) auto;
+  gap:clamp(12px,2.5vw,36px);
+  align-items:end;
+  min-width:0;
+}
+.ga-login-credits{display:grid;justify-items:start;gap:5px;min-width:0}
+.ga-login-credits .ga-login-institutions{justify-content:flex-start;margin:0;gap:12px}
+.ga-login-credits .ga-login-institutions img{height:32px;max-width:125px}
+.ga-login-credits .ga-login-credit{text-align:left;font-size:11px;line-height:1.4}
+.ga-login-source{display:grid;gap:3px;justify-items:center;text-align:center;font-size:11px;line-height:1.4;color:#555c73;font-weight:400;min-width:0}
+.ga-login-source p{margin:0}
+.ga-login-source a{color:#4b497d;text-decoration:underline;text-underline-offset:2px;font-weight:500}
+.ga-login-source a:hover{color:#00167a}
+.ga-login-replay{justify-self:end;align-self:end}
+.ga-login-replay>button{margin:0}
+@media(min-width:741px) and (max-height:700px){
+  .ga-login-page .login-card{padding:14px 24px}
+  .ga-login-page .login-icon{width:40px;height:40px}
+  .ga-login-page .login-header p{margin-top:3px}
+  .ga-login-page .login-divider{margin:6px 0}
+  .ga-login-page .login-footer{margin-top:8px}
+  .ga-login-bottom{gap:12px}
+}
+@media(max-width:740px){
+  .login-page.ga-login-page{grid-template-areas:"brand" "access" "bottom";grid-template-rows:auto auto auto;align-content:start}
+  .ga-login-page .login-card{padding:18px 20px}
+  .ga-login-bottom{grid-template-columns:1fr;justify-items:center;gap:12px}
+  .ga-login-credits{justify-items:center}
+  .ga-login-credits .ga-login-credit{text-align:center}
+  .ga-login-replay{justify-self:center}
+}
+
+/* Keep the approved sign-in geometry; distribute only the footer references. */
+@media(min-width:741px){
+ .ga-login-bottom{grid-template-columns:minmax(0,245px) minmax(0,1fr) auto;gap:clamp(10px,1.6vw,24px);align-items:center}
+ .ga-login-source{grid-template-columns:minmax(0,1fr) minmax(0,1.22fr) minmax(0,.8fr);align-items:center;justify-items:stretch;gap:clamp(7px,1vw,14px);text-align:center;line-height:1.4}
+ .ga-login-source p{min-width:0;overflow-wrap:break-word}
+ .ga-login-source p+p{border-left:1px solid #77768a30;padding-left:clamp(7px,1vw,14px)}
+ .ga-login-replay{align-self:center}
+}
+@media(min-width:741px) and (max-width:1000px){
+ .ga-login-bottom{grid-template-columns:minmax(0,175px) minmax(0,1fr) auto;gap:10px}
+ .ga-login-source{column-gap:7px}
+}
+@media(min-width:741px) and (max-width:850px){
+ .ga-login-bottom{grid-template-columns:minmax(0,1fr) auto;align-items:center}
+ .ga-login-source{grid-column:1/-1;grid-row:2;justify-self:stretch}
+ .ga-login-replay{grid-column:2;grid-row:1}
+}
+
+/* Reuse the existing account divider instead of adding another login row. */
+.ga-login-page .ga-confirmation-divider .confirmation-resend { min-width: 0; flex: 0 1 auto; }
+.ga-login-page .ga-confirmation-divider .confirmation-resend-button { display: inline-block; font-size: 11px; padding: 0 2px; line-height: 1.35; text-decoration: underline; text-underline-offset: 2px; }
+.ga-login-page .ga-confirmation-divider .confirmation-resend p { white-space: normal; }
+
+/* The card is already nearly opaque; avoid a live background blur during
+   the splash handoff, especially in mobile Safari. Geometry is unchanged. */
+.ga-login-page .login-card{backdrop-filter:none;-webkit-backdrop-filter:none}

@@ -1,3 +1,4 @@
+import { isValidNewPassword, PASSWORD_REQUIREMENTS } from "@/lib/validation/password-policy";
 import { NextResponse } from "next/server";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
 import {
@@ -28,15 +29,12 @@ export async function POST(request: Request) {
     typeof body.password === "string" ? body.password : "";
 
   if (
-    password.length < 10 ||
-    password.length > 128 ||
-    !/[A-Za-z]/.test(password) ||
-    !/\d/.test(password)
+    !isValidNewPassword(password)
   ) {
     return NextResponse.json(
       {
         error:
-          "A senha deve ter de 10 a 128 caracteres, com letras e números.",
+          PASSWORD_REQUIREMENTS,
       },
       { status: 400 }
     );

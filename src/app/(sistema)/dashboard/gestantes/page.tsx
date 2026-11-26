@@ -1,4 +1,9 @@
 import { redirect } from "next/navigation";
+import { workspaceToday } from "@/lib/workspace-date";
+import { isUuid } from "@/lib/security/request";
+import CadastroClinicoPage from "../cadastro-clinico/page";
+import ClassificacaoRiscoPage from "../classificacao-risco/page";
+import { ClinicalDrawer } from "@/components/gestantes/clinical-drawer";
 import { GestantesGrid } from "@/components/gestantes/gestantes-grid";
 import type { GestanteCardData } from "@/components/gestantes/gestantes-grid";
 import { createClient } from "@/lib/supabase/server";
@@ -7,6 +12,9 @@ import { logServerFailure } from "@/lib/security/request";
 type PageProps = {
   searchParams: Promise<{
     modo?: string | string[];
+    editar?: string | string[];
+    risco?: string | string[];
+    aba?: string | string[];
   }>;
 };
 
@@ -82,6 +90,8 @@ export default async function GestantesPage({
     ? params.modo[0]
     : params.modo;
   const presentationMode = modeValue === "apresentacao";
+  const editId=typeof params.editar==="string"&&isUuid(params.editar)?params.editar:null;
+  const riskId=typeof params.risco==="string"&&isUuid(params.risco)?params.risco:null;
 
   const supabase = await createClient();
   const {
@@ -127,6 +137,9 @@ export default async function GestantesPage({
       }
 
       const rows = (data ?? []) as DatabaseRow[];
+      const {data:planned,error:plannedError}=await supabase.from("rotina_profissional_tarefas_v1").select("gestante_id,data_prevista").eq("profissional_id",user.id).eq("tipo","consulta").neq("status","concluida").gte("data_prevista",workspaceToday()).order("data_prevista",{ascending:true}).limit(500);
+      const nextById=new Map<string,string>();
+      for(const task of planned??[])if(!nextById.has(task.gestante_id))nextById.set(task.gestante_id,task.data_prevista);
 gestantes = rows.map((row) => ({
         id: row.gestante_id,
         codigo: row.codigo,
@@ -162,6 +175,8 @@ gestantes = rows.map((row) => ({
         altaMotivo: row.alta_motivo,
         pendencias: Number(row.pendencias_count ?? 0),
         atualizadoEm: dateTimeToIso(row.atualizado_em),
+        proximoAtendimento: presentationMode?null:nextById.get(row.gestante_id)??null,
+        agendaConsultada: !presentationMode&&!plannedError&&(planned?.length??0)<500,
       }));
   } catch (error) {
       logServerFailure("gestantes-page-load", error);
@@ -172,8 +187,8 @@ gestantes = rows.map((row) => ({
     return (
       <>
         <section className="heading">
-          <p>PET-Saúde UFCG</p>
-          <h1>Gestantes monitoradas</h1>
+          <p>GESTÁRIO APS · ACOMPANHAMENTO</p>
+          <h1>Minhas gestantes</h1>
           <span>{loadError}</span>
         </section>
         <div className="pec-error">{loadError}</div>
@@ -184,10 +199,10 @@ gestantes = rows.map((row) => ({
 return (
     <>
       <section className="heading">
-        <p>PET-Saúde UFCG</p>
-        <h1>Gestantes monitoradas</h1>
+        <p>GESTÁRIO APS · ACOMPANHAMENTO</p>
+        <h1>Minhas gestantes</h1>
         <span>
-          Cards assistenciais com acesso direto ao cadastro clínico.
+          Acompanhe cada ficha com os dados essenciais à vista, sem precisar abrir várias telas.
         </span>
       </section>
 
@@ -196,6 +211,9 @@ return (
         presentationMode={presentationMode || !canShowIdentity}
         canShowIdentity={canShowIdentity}
       />
+      {!presentationMode&&(editId||riskId)&&<ClinicalDrawer title={editId?"Atualizar acompanhamento":"Classificação de risco"} key={editId??riskId}>
+        {editId?<CadastroClinicoPage searchParams={Promise.resolve({gestante:editId,aba:params.aba})}/>:<ClassificacaoRiscoPage searchParams={Promise.resolve({gestante:riskId??undefined})}/>}
+      </ClinicalDrawer>}
     </>
   );
 }

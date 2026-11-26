@@ -7,7 +7,8 @@ import type {
   UbsOption,
   VaccineConfig,
 } from "@/components/cadastro-clinico/types";
-import { isUuid } from "@/lib/security/request";
+import { isUuid, logServerFailure } from "@/lib/security/request";
+import { ClinicalAccessError } from "@/components/gestantes/clinical-access-error";
 import { createClient } from "@/lib/supabase/server";
 
 type PageProps = {
@@ -214,7 +215,8 @@ export default async function CadastroClinicoPage({
       );
 
     if (recordError || !recordData) {
-      redirect("/dashboard/gestantes");
+      logServerFailure("clinical-record-open", recordError);
+      return <ClinicalAccessError title="Atualizar acompanhamento" />;
     }
 
     record = recordData as ClinicalRecord;

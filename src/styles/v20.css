@@ -538,3 +538,7 @@
     width: 100%;
   }
 }
+
+/* Registration confirmation: center the existing primary action at every width. */
+.v20-status-card .v20-confirmation-actions { flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+.v20-status-card .v20-confirmation-actions .v20-primary-button { width: fit-content; max-width: 100%; }

@@ -44,19 +44,20 @@ export default async function ImportacoesPage() {
     );
   }
 
+  const { data: history, error: historyError } = await supabase
+    .from("importacoes_pec_resumo")
+    .select("id,total_linhas,total_processadas,total_erros,status,criado_em")
+    .eq("usuario_id", user.id)
+    .order("criado_em", {ascending:false})
+    .limit(15);
+
   return (
     <>
-      <section className="heading">
-        <p>PET-Saúde UFCG</p>
-        <h1>Importação adaptável do PEC</h1>
-        <span>
-          Anexe o arquivo CSV exportado do PEC/e-SUS APS.
-        </span>
-      </section>
-
       <ImportacaoPecForm
         ubsId={profile.ubs_id}
         ubsName={ubsRelation.nome}
+        history={history ?? []}
+        historyUnavailable={Boolean(historyError)}
       />
     </>
   );

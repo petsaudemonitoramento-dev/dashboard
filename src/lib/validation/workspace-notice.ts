@@ -1,0 +1,1 @@
+export const WORKSPACE_NOTICE = "Seu espaço é individual. Utilize dados de pacientes somente se tiver autorização legítima para tratá-los, respeitando a LGPD e as regras da sua instituição. O Gestário APS não confirma vínculo institucional nem habilitação profissional.";

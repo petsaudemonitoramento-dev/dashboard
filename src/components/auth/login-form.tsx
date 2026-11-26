@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { ResendConfirmation } from "@/components/auth/resend-confirmation";
 import { FormEvent, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { APP_CONFIG } from "@/config/app";
@@ -57,7 +58,7 @@ export function LoginForm() {
 
       setMessageType("success");
       setMessage("Login realizado com sucesso.");
-      window.location.href = "/dashboard";
+      window.location.href = "/dashboard?entrada=1";
     } catch (error) {
       setMessageType("error");
       setMessage(
@@ -207,10 +208,10 @@ export function LoginForm() {
         </button>
       </form>
 
-      <div className="login-divider account-divider">
-        <span />
-        <p>Não tem uma conta?</p>
-        <span />
+      <div className="login-divider account-divider ga-confirmation-divider">
+        <span aria-hidden="true" />
+        <ResendConfirmation email={identifier} disabled={loading} />
+        <span aria-hidden="true" />
       </div>
 
       <Link href="/cadastro" className="create-account-button">
@@ -225,23 +226,7 @@ export function LoginForm() {
         </span>
       </footer>
 
-      <section className="login-compliance" aria-label="Referências técnicas e legais">
-        <p>
-          <strong>Modelo PEC/e-SUS APS</strong>
-          <span>Relatório de acompanhamento de condições de saúde — Gestação e puerpério.</span>
-          <small>Layout de referência: 60 colunas, cabeçalho na linha 26. Versão do PEC não identificada na exportação.</small>
-        </p>
-        <p>
-          <strong>Proteção de dados pessoais</strong>
-          <a
-            href="https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709.htm"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            LGPD — Lei nº 13.709/2018
-          </a>
-        </p>
-      </section>
+
 
       <div className="mobile-version">
         <span>Versão {APP_CONFIG.version}</span>

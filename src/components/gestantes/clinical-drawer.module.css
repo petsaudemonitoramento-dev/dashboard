@@ -1,0 +1,6 @@
+.drawer{position:fixed;inset:0 0 0 auto;width:min(960px,100%);max-width:100%;height:100dvh;max-height:100dvh;margin:0;padding:0;border:0;background:#f8faff;color:#102451;box-shadow:-15px 0 55px #13205935;overflow:hidden}
+.drawer[open]{display:flex;flex-direction:column}.drawer::backdrop{background:#14234c70}
+.header{padding:20px 24px;border-bottom:1px solid #e3e8f5;background:linear-gradient(110deg,#f9fbff,#f3efff);display:flex;align-items:center;justify-content:space-between;gap:12px;flex:none}
+.header small{font-size:10px;color:#6456a5;font-weight:800;letter-spacing:.08em}.header h2{font-size:22px;color:#00167a;margin:6px 0 0}.header button{display:grid;place-items:center;width:44px;height:44px;flex:none;border:1px solid #dce4f0;border-radius:11px;color:#193571;background:white}
+.body{min-height:0;flex:1;overflow:auto;overscroll-behavior:contain;padding:22px;overflow-wrap:anywhere}
+@media(max-width:620px){.body{padding:12px}.header{padding:15px}.header h2{font-size:18px}}

@@ -57,6 +57,8 @@ export type GestanteCardData = {
   altaMotivo: string | null;
   pendencias: number;
   atualizadoEm: string;
+  proximoAtendimento?: string | null;
+  agendaConsultada?: boolean;
 };
 
 type Props = {
@@ -67,6 +69,8 @@ type Props = {
 
 type RiskTone = "high" | "intermediate" | "habitual" | "neutral";
 type StatusFilter = "ativas" | "altas" | "todas";
+type Organization = "atendimento" | "mes" | "todas";
+import { consultationPeriod, periodLabel } from "@/lib/gestantes-period";
 
 function normalize(value: string | null | undefined): string {
   return String(value ?? "")
@@ -213,6 +217,7 @@ function ActiveCard({
   onMoveToTrash: (gestante: GestanteCardData) => void;
 }) {
   const tone = riskTone(gestante.risco);
+  const riskLabel = { high: "Alto risco", intermediate: "Risco intermediário", habitual: "Risco habitual", neutral: "Risco não informado" }[tone];
   const ig =
     gestante.igSemanas === null
       ? "Não informada"
@@ -234,7 +239,7 @@ function ActiveCard({
 
         <div className={styles.headerActions}>
           <span className={`${styles.riskBadge} ${styles[`badge_${tone}`]}`}>
-            {gestante.risco ?? "Risco não informado"}
+            {riskLabel}
           </span>
 
           {!presentationMode && (
@@ -270,6 +275,7 @@ function ActiveCard({
           </div>
         </div>
 
+        {gestante.agendaConsultada&&<div className={styles.nextVisit}><CalendarDays size={16}/><span>Próxima consulta: <strong>{gestante.proximoAtendimento?formatDate(gestante.proximoAtendimento):"Sem agendamento registrado"}</strong></span></div>}
         {gestante.pendencias > 0 && (
           <div className={styles.pendingBadge}>
             <HeartPulse size={15} />
@@ -281,6 +287,17 @@ function ActiveCard({
           </div>
         )}
 
+        <details className={styles.checkDetails}>
+          <summary>Conferir informações da ficha</summary>
+          <ul>
+            {gestante.ultimaConsulta===null&&<li>Data da última consulta não informada.</li>}
+            {gestante.igSemanas===null&&<li>Idade gestacional não informada.</li>}
+            {gestante.dpp===null&&<li>DPP não informada.</li>}
+            {Object.entries(gestante.exames).filter(([,v])=>!v||v==="-"||normalize(v)==="nao informado").map(([k])=><li key={k}>{({hivPrimeiro:"HIV — 1º trimestre",sifilisPrimeiro:"Sífilis — 1º trimestre",hepatiteB:"Hepatite B",hepatiteC:"Hepatite C",hivTerceiro:"HIV — 3º trimestre",sifilisTerceiro:"Sífilis — 3º trimestre"} as Record<string,string>)[k]}: sem registro neste campo.</li>)}
+          </ul>
+          <small>Informações ausentes não significam procedimento não realizado ou indicação clínica. Confira a ficha completa.</small>
+          {!presentationMode&&<Link href={`/dashboard/gestantes?editar=${encodeURIComponent(gestante.id)}&aba=exames`} prefetch={false}>Conferir exames e pendências →</Link>}
+        </details>
         <section className={styles.section}>
           <h3>
             <Activity size={16} />
@@ -390,15 +407,19 @@ function ActiveCard({
         {!presentationMode && (
           <div className={styles.cardActions}>
             <Link
-              href={`/dashboard/cadastro-clinico?gestante=${gestante.id}`}
+              href={`/dashboard/gestantes?editar=${encodeURIComponent(gestante.id)}`}
+              prefetch={false}
               className={styles.primaryAction}
+              aria-label={`Atualizar ficha de ${gestante.nomeVisual}`}
             >
               <FilePenLine size={15} />
               Atualizar
             </Link>
             <Link
-              href={`/dashboard/classificacao-risco?gestante=${gestante.id}`}
+              href={`/dashboard/gestantes?risco=${encodeURIComponent(gestante.id)}`}
+              prefetch={false}
               className={styles.secondaryAction}
+              aria-label={`Classificar risco de ${gestante.nomeVisual}`}
             >
               <HeartPulse size={15} />
               Risco
@@ -462,6 +483,11 @@ export function GestantesGrid({
   const [isPending, startTransition] = useTransition();
 
   const [currentSearch, setCurrentSearch] = useState("");
+  const [pagination,setPagination]=useState({key:"",page:1});
+  const [organization,setOrganization] = useState<Organization>("atendimento");
+  const [year,setYear] = useState("todos");
+  const [month,setMonth] = useState("todos");
+  const years = useMemo(()=>[...new Set(gestantes.map(g=>consultationPeriod(g.ultimaConsulta)?.slice(0,4)).filter((v):v is string=>Boolean(v)))].sort().reverse(),[gestantes]);
   const [currentRisk, setCurrentRisk] = useState("todos");
   const [currentMicroarea, setCurrentMicroarea] = useState("todas");
   const [statusFilter, setStatusFilter] =
@@ -504,27 +530,43 @@ export function GestantesGrid({
           ? gestante.altaAtiva
           : !gestante.altaAtiva);
 
+      const period=consultationPeriod(gestante.ultimaConsulta);
+      const matchesPeriod=(year==="todos"|| (year==="sem-data"?!period:period?.startsWith(year+"-"))) && (month==="todos"||period?.slice(5,7)===month);
       return (
-        matchesSearch &&
+        matchesPeriod && matchesSearch &&
         matchesRisk &&
         matchesMicroarea &&
         matchesStatus
       );
-    });
+    }).sort((a,b)=>organization==="todas"?a.nomeVisual.localeCompare(b.nomeVisual,"pt-BR")||a.codigo.localeCompare(b.codigo): (b.ultimaConsulta??"").localeCompare(a.ultimaConsulta??"")||a.nomeVisual.localeCompare(b.nomeVisual,"pt-BR"));
   }, [
-    gestantes,
+    organization,year,month,gestantes,
     currentMicroarea,
     currentRisk,
     currentSearch,
     statusFilter,
   ]);
 
-  const activeGestantes = filtered.filter(
+  const pageSize=12;
+  const filterKey=JSON.stringify([currentSearch,currentRisk,currentMicroarea,statusFilter,organization,year,month]);
+  const pages=Math.max(1,Math.ceil(filtered.length/pageSize));
+  const page=Math.min(pages,pagination.key===filterKey?pagination.page:1);
+  const paged=filtered.slice((page-1)*pageSize,page*pageSize);
+  const activeGestantes = paged.filter(
     (gestante) => !gestante.altaAtiva
   );
-  const dischargedGestantes = filtered.filter(
+  const dischargedGestantes = paged.filter(
     (gestante) => gestante.altaAtiva
   );
+
+  const groups = (()=>{
+    const map=new Map<string,GestanteCardData[]>();
+    for(const g of paged.filter(g=>!g.altaAtiva)){
+      const key=organization==="mes"?(consultationPeriod(g.ultimaConsulta)??"sem-data"):"todas";
+      map.set(key,[...(map.get(key)??[]),g]);
+    }
+    return [...map.entries()];
+  })();
 
   async function confirmMoveToTrash() {
     if (!trashTarget) return;
@@ -581,6 +623,12 @@ export function GestantesGrid({
   return (
     <section className={styles.wrapper}>
       <div className={styles.toolbar}>
+        <div className={styles.organizeBar}>
+          <div className={styles.organizeTabs} role="group" aria-label="Organização das gestantes">
+            {([["atendimento","Por atendimento"],["mes","Por mês"],["todas","Todas as gestantes"]] as const).map(([value,label])=><button key={value} type="button" aria-pressed={organization===value} onClick={()=>{setOrganization(value);if(value==="todas"){setYear("todos");setMonth("todos");setStatusFilter("todas")}}}>{label}</button>)}
+          </div>
+          <span className={styles.periodHint}>{organization==="todas"?"Ordem alfabética":"Referência: última consulta pré-natal registrada"}</span>
+        </div>
         <div className={styles.filters}>
           <label className={styles.searchBox}>
             <Search size={18} />
@@ -634,6 +682,15 @@ export function GestantesGrid({
                 Microárea {microarea}
               </option>
             ))}
+          </select>
+          <select aria-label="Ano da última consulta" value={year} onChange={e=>{setYear(e.target.value);setMonth("todos")}}>
+            <option value="todos">Todos os anos</option>
+            {years.map(y=><option value={y} key={y}>{y}</option>)}
+            <option value="sem-data">Sem consulta registrada</option>
+          </select>
+          <select aria-label="Mês da última consulta" value={month} disabled={year==="sem-data"} onChange={e=>setMonth(e.target.value)}>
+            <option value="todos">Todos os meses</option>
+            {Array.from({length:12},(_,i)=>String(i+1).padStart(2,"0")).map(m=><option key={m} value={m}>{new Intl.DateTimeFormat("pt-BR",{month:"long",timeZone:"UTC"}).format(new Date("2026-"+m+"-01T12:00:00Z"))}</option>)}
           </select>
         </div>
 
@@ -701,18 +758,12 @@ export function GestantesGrid({
         </span>
       </div>
 
-      {activeGestantes.length > 0 && (
-        <div className={styles.grid}>
-          {activeGestantes.map((gestante) => (
-            <ActiveCard
-              gestante={gestante}
-              onMoveToTrash={setTrashTarget}
-              presentationMode={presentationMode}
-              key={gestante.id}
-            />
-          ))}
-        </div>
-      )}
+      {activeGestantes.length > 0 && groups.map(([period,items])=>(
+        <section key={period} className={styles.periodGroup} aria-label={period==="todas"?"Gestantes ativas":periodLabel(period)}>
+          {organization==="mes"&&<h2 className={styles.periodTitle}>{periodLabel(period)} <small>{items.length} ficha{items.length===1?"":"s"}</small></h2>}
+          <div className={styles.grid}>{items.map(gestante=><ActiveCard gestante={gestante} onMoveToTrash={setTrashTarget} presentationMode={presentationMode} key={gestante.id}/>)}</div>
+        </section>
+      ))}
 
       {dischargedGestantes.length > 0 && (
         <section className={styles.dischargedSection}>
@@ -736,6 +787,11 @@ export function GestantesGrid({
         </section>
       )}
 
+      {pages>1&&<nav className={styles.pagination} aria-label="Paginação das gestantes">
+        <button type="button" disabled={page<=1} onClick={()=>setPagination({key:filterKey,page:page-1})}>Anterior</button>
+        <span>Página {page} de {pages} · {filtered.length} fichas</span>
+        <button type="button" disabled={page>=pages} onClick={()=>setPagination({key:filterKey,page:page+1})}>Próxima</button>
+      </nav>}
       {filtered.length === 0 && (
         <div className={styles.emptyState}>
           <UserRound size={30} />

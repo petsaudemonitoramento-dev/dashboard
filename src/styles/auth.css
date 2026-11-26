@@ -923,3 +923,10 @@
 .login-compliance small { color: #716982; font-size: 10px; }
 .login-compliance a { color: #5544a0; font-weight: 740; text-decoration: underline; }
 .login-compliance a:focus-visible { outline: 3px solid #6554ad; outline-offset: 3px; }
+
+.confirmation-resend { text-align: center; max-width: 100%; }
+.confirmation-resend-button { color: #6e3fda; background: transparent; border: 0; font: inherit; font-size: 12px; padding: 8px 4px; cursor: pointer; line-height: 1.4; }
+.confirmation-resend-button:hover { text-decoration: underline; }
+.confirmation-resend-button:disabled { cursor: wait; opacity: .65; }
+.confirmation-resend p { font-size: 12px; line-height: 1.5; margin: 4px 0 0; color: var(--muted); }
+.confirmation-resend p.confirmation-resend-error { color: #b42318; }

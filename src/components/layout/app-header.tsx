@@ -2,7 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { LogOut, Search } from "lucide-react";
+import Link from "next/link";
+import { LogOut, Search, Menu, UserRound, Settings } from "lucide-react";
+import { parseGestarioPreferences,type GestarioPreferences } from "@/lib/gestario-preferences";
 import { AlertBell } from "./alert-bell";
 import type { ProfessionalAlert } from "@/lib/alertas/professional-alerts";
 
@@ -18,12 +20,12 @@ export function AppHeader({
   name,
   profile,
   alerts = [],
-  alertsError = false,
+  alertsError = false, onMenu, demo=false, preferences = parseGestarioPreferences(null),
 }: {
   name: string;
   profile: string;
   alerts?: ProfessionalAlert[];
-  alertsError?: boolean;
+  alertsError?: boolean; onMenu?:()=>void; demo?:boolean; preferences?:GestarioPreferences;
 }) {
   const router = useRouter();
 
@@ -35,22 +37,15 @@ export function AppHeader({
 
   return (
     <header className="app-header">
-      <div className="search">
-        <Search />
-        <input
-          aria-label="Pesquisar no sistema"
-          placeholder="Pesquisar no sistema..."
-        />
-      </div>
+      <div className="ga-header-left"><button className="ga-icon" type="button" aria-label="Alternar menu lateral" aria-controls="gestario-sidebar" onClick={onMenu}><Menu size={20}/></button>
+      {(demo||profile==="equipe_ubs")&&<Link href={demo?"/demonstracao?aba=gestantes":"/dashboard/gestantes"} className="search"><Search/><span>Pesquisar gestantes...</span></Link>}</div>
 
       <div className="user">
         {profile === "equipe_ubs" && (
-          <AlertBell initialAlerts={alerts} initialError={alertsError} />
+          <AlertBell initialAlerts={alerts} initialError={alertsError} preferences={preferences} />
         )}
-        <span>
-          <b>{name}</b>
-          <small>{PROFILE_LABELS[profile] ?? profile}</small>
-        </span>
+        <Link href={demo?"/demonstracao?aba=perfil":"/dashboard/perfil"} className="ga-icon" aria-label={`Perfil: ${name} — ${PROFILE_LABELS[profile]??profile}`} title="Meu perfil"><UserRound size={20}/></Link>
+        <Link href={demo?"/demonstracao?aba=perfil":"/dashboard/perfil#seguranca"} className="ga-icon" aria-label="Configurações da conta" title="Configurações"><Settings size={20}/></Link>
 
         <button
           aria-label="Sair da conta"

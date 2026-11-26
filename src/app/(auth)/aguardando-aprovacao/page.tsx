@@ -26,7 +26,7 @@ export default async function PendingApprovalPage() {
   const { data: profile, error: profileError } = await supabase
     .from("perfis")
     .select(
-      "nome_completo, cadastro_completo, aprovacao_status, perfil_solicitado, perfil_excluido_em, ubs_solicitada_id"
+      "nome_completo, cadastro_completo, aprovacao_status, perfil_solicitado, perfil_excluido_em, ubs_solicitada_id, perfil, ativo, status"
     )
     .eq("id", user.id)
     .maybeSingle();
@@ -44,6 +44,12 @@ export default async function PendingApprovalPage() {
     !profile.perfil_excluido_em
   ) {
     redirect("/dashboard");
+  }
+
+  if (profile.perfil === "aluno" && profile.perfil_solicitado === "equipe_ubs" &&
+      profile.aprovacao_status === "pendente" && profile.ativo &&
+      profile.status === "ativo" && !profile.perfil_excluido_em && user.email_confirmed_at) {
+    redirect(process.env.GESTARIO_SELF_SERVICE_CLINICAL === "1" ? "/completar-cadastro" : "/demonstracao");
   }
 
   let ubsNome: string | null = null;

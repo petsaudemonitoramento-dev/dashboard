@@ -1,3 +1,5 @@
+import { parseUbsChoice } from "@/lib/validation/ubs-choice";
+import { isDeclaredProfession } from "@/lib/validation/demo-onboarding";
 import { NextResponse } from "next/server";
 import {
   logServerFailure,
@@ -6,7 +8,6 @@ import {
 } from "@/lib/security/request";
 import { createClient } from "@/lib/supabase/server";
 import {
-  isUuid,
   normalizeBirthDate,
 } from "@/lib/validation/profile-input";
 
@@ -45,13 +46,47 @@ export async function POST(request: Request) {
       .replace(/\s+/g, " ")
       .trim();
     const dataNascimento = normalizeBirthDate(body.dataNascimento);
-    const ubsId = String(body.ubsId ?? "").trim();
+    const selfService = process.env.GESTARIO_SELF_SERVICE_CLINICAL === "1";
+    const autonomous = !selfService && process.env.GESTARIO_AUTONOMOUS_SIGNUP === "1";
+    const optionalUbs=selfService||autonomous||process.env.GESTARIO_UBS_OPTIONAL==="1";
+    const ubsId=parseUbsChoice(body.ubsId,optionalUbs,autonomous);
+    const profession = String(body.profissao ?? "");
 
     if (nomeCompleto.length < 5 || nomeCompleto.length > 160) {
       return NextResponse.json(
         { error: "Informe o nome completo." },
         { status: 400 }
       );
+    }
+
+    if (selfService) {
+      if (!user.email_confirmed_at) return NextResponse.json({ error: "Confirme seu e-mail." }, { status: 403 });
+      if (!dataNascimento || ubsId === undefined || body.workspaceNoticeAccepted !== true) {
+        return NextResponse.json({ error: "Confira seus dados, a UBS e as condições de uso." }, { status: 400 });
+      }
+      const { error } = await supabase.rpc("gestario_ativar_conta_individual_v32", {
+        p_nome_completo: nomeCompleto, p_data_nascimento: dataNascimento, p_ubs_id: ubsId, p_ciencia: true,
+      });
+      if (error) {
+        logServerFailure("individual-workspace-activation", error);
+        return NextResponse.json({ error: "Não foi possível liberar seu espaço individual. Confira os dados ou procure o suporte." }, { status: 403 });
+      }
+      return NextResponse.json({ ok: true, redirectTo: "/dashboard?entrada=1" }, { headers: { "Cache-Control": "no-store" } });
+    }
+
+    if (autonomous) {
+      if (!user.email_confirmed_at) return NextResponse.json({ error: "Confirme seu e-mail." }, { status: 403 });
+      if (!isDeclaredProfession(profession) || body.demoNoticeAccepted !== true || ubsId === undefined) {
+        return NextResponse.json({ error: "Confira a profissão, UBS opcional e ciência das condições." }, { status: 400 });
+      }
+      const { error } = await supabase.rpc("gestario_completar_demonstracao_v31", {
+        p_nome_completo: nomeCompleto, p_profissao: profession, p_ubs_id: ubsId || null, p_ciencia: true,
+      });
+      if (error) {
+        logServerFailure("demo-profile-completion", error);
+        return NextResponse.json({ error: "Não foi possível concluir o cadastro." }, { status: 400 });
+      }
+      return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
     }
 
     if (!dataNascimento) {
@@ -64,7 +99,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!isUuid(ubsId)) {
+    if (ubsId === undefined) {
       return NextResponse.json(
         { error: "Selecione uma UBS válida." },
         { status: 400 }
@@ -99,6 +134,7 @@ export async function POST(request: Request) {
       );
     }
 
+    if (ubsId !== null) {
     const { data: ubs, error: ubsError } = await supabase
       .from("ubs")
       .select("id")
@@ -120,6 +156,7 @@ export async function POST(request: Request) {
       );
     }
 
+    }
     const { error: completionError } = await supabase.rpc(
       "profissionais_completar_perfil_v30",
       {

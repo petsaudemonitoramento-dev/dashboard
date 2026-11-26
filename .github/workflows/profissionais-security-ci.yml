@@ -130,7 +130,7 @@ jobs:
         run: node scripts/check-legacy-surface.mjs
 
       - name: Lightweight origin protection regressions
-        run: node --experimental-strip-types --test tests/security/origin-check.test.mjs
+        run: node --experimental-strip-types --test tests/security/*.test.mjs
 
       - name: Guard browser code against dangerous DOM and eval sinks
         run: node scripts/check-browser-code-sinks.mjs
@@ -170,6 +170,16 @@ jobs:
       - name: pgTAP database tests
         run: supabase test db
 
+      - name: Validate proposed optional UBS RPC in ephemeral database only
+        run: |
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f database/PROPOSTA_UBS_OPCIONAL_V31.sql
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f tests/isolated/ubs-optional.sql
+      - name: Validate individual workspace proposal in ephemeral database only
+        run: |
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f database/PROPOSTA_ACESSO_INDIVIDUAL_V32.sql
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f tests/isolated/acesso-individual-v32.sql
+      - name: Repeat database regression suite after individual-workspace proposal
+        run: supabase test db
       - name: Show local migration state
         run: supabase migration list --local
 

@@ -1,5 +1,7 @@
 "use client";
 
+import { PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH } from "@/lib/validation/password-policy";
+
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 
@@ -66,8 +68,8 @@ export default function RedefinirSenhaPage() {
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             placeholder="Nova senha"
-            minLength={10}
-            maxLength={128}
+            minLength={PASSWORD_MIN_LENGTH}
+            maxLength={PASSWORD_MAX_LENGTH}
             required
           />
 
@@ -84,8 +86,8 @@ export default function RedefinirSenhaPage() {
               setConfirmacao(event.target.value)
             }
             placeholder="Confirme a nova senha"
-            minLength={10}
-            maxLength={128}
+            minLength={PASSWORD_MIN_LENGTH}
+            maxLength={PASSWORD_MAX_LENGTH}
             required
           />
 

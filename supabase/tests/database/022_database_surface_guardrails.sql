@@ -201,6 +201,7 @@ with allowlist(schema_name, function_name) as (
     ('public', 'profissionais_admin_publicar_aviso_v30'),
     ('public', 'profissionais_admin_remover_aviso_v30'),
     ('public', 'profissionais_completar_perfil_v30'),
+    ('public', 'gestario_ativar_conta_individual_v32'),
     ('public', 'profissionais_excluir_gestante_definitivamente_v30'),
     ('public', 'profissionais_importar_pec_v30'),
     ('public', 'profissionais_listar_gestantes_v30'),
