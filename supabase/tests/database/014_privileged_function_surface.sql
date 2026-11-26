@@ -92,6 +92,7 @@ select ok(
         'profissionais_excluir_gestante_definitivamente_v30',
         'profissionais_listar_lixeira_v30',
         'profissionais_completar_perfil_v30',
+        'gestario_ativar_conta_individual_v32',
         'profissionais_admin_listar_pendentes_v30',
         'profissionais_admin_listar_perfis_v30',
         'profissionais_admin_listar_ubs_v30',

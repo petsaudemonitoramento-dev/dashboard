@@ -178,6 +178,8 @@ jobs:
         run: |
           psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f database/PROPOSTA_ACESSO_INDIVIDUAL_V32.sql
           psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -v ON_ERROR_STOP=1 -f tests/isolated/acesso-individual-v32.sql
+      - name: Repeat database regression suite after individual-workspace proposal
+        run: supabase test db
       - name: Show local migration state
         run: supabase migration list --local
 
