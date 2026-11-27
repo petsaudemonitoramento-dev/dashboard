@@ -326,6 +326,7 @@ export default async function CadastroClinicoPage({
       </section>
 
       <ClinicalForm
+        openPendencies={firstParam(params.aba) === "pendencias"}
         initialTab={(["identificacao","gestacao","consultas","exames","vacinas","alta"].includes(firstParam(params.aba) ?? "") ? firstParam(params.aba) : "identificacao") as "identificacao" | "gestacao" | "consultas" | "exames" | "vacinas" | "alta"}
         data={{
           record,

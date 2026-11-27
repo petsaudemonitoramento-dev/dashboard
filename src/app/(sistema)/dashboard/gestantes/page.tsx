@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { workspaceToday } from "@/lib/workspace-date";
+import { pendingItems, weeksFromDum } from "@/lib/clinical-pendencies";
 import { isUuid } from "@/lib/security/request";
 import CadastroClinicoPage from "../cadastro-clinico/page";
 import ClassificacaoRiscoPage from "../classificacao-risco/page";
@@ -137,6 +138,35 @@ export default async function GestantesPage({
       }
 
       const rows = (data ?? []) as DatabaseRow[];
+      // Use the same eligibility rule as the editable clinical form, with RLS.
+      // Batches avoid URL limits; nested records are scoped to each own patient.
+      const [examConfigsResult, vaccineConfigsResult] = await Promise.all([
+        supabase.from("config_exames_pre_natal").select("codigo,nome,trimestre,semana_inicio,semana_fim,condicao_aplicacao").eq("ativo",true),
+        supabase.from("config_vacinas_gestante").select("codigo,nome,semana_inicio,semana_fim,condicao_aplicacao").eq("ativo",true),
+      ]);
+      const pendingById = new Map<string, {count: number | null; weeks: number | null}>();
+      if (!examConfigsResult.error && !vaccineConfigsResult.error) {
+        const exams = (examConfigsResult.data ?? []).map(x => ({codigo:x.codigo,nome:x.nome,trimestre:x.trimestre,semanaInicio:x.semana_inicio,semanaFim:x.semana_fim,condicaoAplicacao:x.condicao_aplicacao}));
+        const vaccines = (vaccineConfigsResult.data ?? []).map(x => ({codigo:x.codigo,nome:x.nome,semanaInicio:x.semana_inicio,semanaFim:x.semana_fim,condicaoAplicacao:x.condicao_aplicacao}));
+        const rowsById = new Map(rows.map(r => [r.gestante_id,r]));
+        for (let offset=0; offset<rows.length; offset+=50) {
+          const batch = rows.slice(offset,offset+50).map(r=>r.gestante_id);
+          const {data:details,error:detailsError} = await supabase.from("pec_gestantes")
+            .select("id,dum,situacao_acompanhamento,data_parto,alta_ativa,gestante_exames(codigo,trimestre,status),gestante_vacinas(codigo,status)")
+            .eq("profissional_responsavel_id",user.id).in("id",batch);
+          if (detailsError) { logServerFailure("gestantes-pendencies-load",detailsError); continue; }
+          for (const detail of details ?? []) {
+            const row = rowsById.get(detail.id);
+            if (!row) continue;
+            const weeks = weeksFromDum(detail.dum,workspaceToday(),row.ig_semanas);
+            const active = !detail.alta_ativa && detail.situacao_acompanhamento !== "puerperio" && !detail.data_parto;
+            const count = active && weeks === null ? null :
+              pendingItems(exams,detail.gestante_exames ?? [],weeks,"exam",active).length +
+              pendingItems(vaccines,detail.gestante_vacinas ?? [],weeks,"vaccine",active).length;
+            pendingById.set(detail.id,{count,weeks});
+          }
+        }
+      }
       const {data:planned,error:plannedError}=await supabase.from("rotina_profissional_tarefas_v1").select("gestante_id,data_prevista").eq("profissional_id",user.id).eq("tipo","consulta").neq("status","concluida").gte("data_prevista",workspaceToday()).order("data_prevista",{ascending:true}).limit(500);
       const nextById=new Map<string,string>();
       for(const task of planned??[])if(!nextById.has(task.gestante_id))nextById.set(task.gestante_id,task.data_prevista);
@@ -173,7 +203,7 @@ gestantes = rows.map((row) => ({
         altaAtiva: row.alta_ativa,
         altaData: dateToIso(row.alta_data),
         altaMotivo: row.alta_motivo,
-        pendencias: Number(row.pendencias_count ?? 0),
+        pendencias: pendingById.get(row.gestante_id)?.count ?? null,
         atualizadoEm: dateTimeToIso(row.atualizado_em),
         proximoAtendimento: presentationMode?null:nextById.get(row.gestante_id)??null,
         agendaConsultada: !presentationMode&&!plannedError&&(planned?.length??0)<500,

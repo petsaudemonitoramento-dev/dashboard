@@ -25,6 +25,8 @@ import {
   FormEvent,
   type ReactNode,
   useMemo,
+  useEffect,
+  useRef,
   useState,
 } from "react";
 import type {
@@ -37,6 +39,8 @@ import type {
 import styles from "./clinical-form.module.css";
 import c3styles from "./c3-coverage.module.css";
 import { evaluateC3Coverage } from "@/lib/c3/coverage";
+import { pendingItems, weeksFromDum } from "@/lib/clinical-pendencies";
+import { workspaceToday } from "@/lib/workspace-date";
 import { PatientTimeline } from "./patient-timeline";
 import quickStyles from "./quick-actions.module.css";
 
@@ -368,16 +372,6 @@ function imcLabel(value: number | null): string {
   return "Obesidade grave";
 }
 
-function isExamDone(status: ExamItem["status"]): boolean {
-  return status === "realizado" || status === "nao_se_aplica";
-}
-
-function isVaccineDone(
-  status: VaccineItem["status"]
-): boolean {
-  return status === "realizada" || status === "nao_se_aplica";
-}
-
 function Field({
   label,
   children,
@@ -429,10 +423,12 @@ function NumberInput({
 export function ClinicalForm({
   data,
   initialTab = "identificacao",
+  openPendencies = false,
   onDemoSave,
 }: {
   data: ClinicalPageData;
   initialTab?: TabId;
+  openPendencies?: boolean;
   onDemoSave?: (record: ClinicalRecord) => void;
 }) {
   const router = useRouter();
@@ -450,7 +446,26 @@ export function ClinicalForm({
       tipo: "pre_natal",
       observacao: "",
     });
-  const [showAlerts, setShowAlerts] = useState(false);
+  const [showAlerts, setShowAlerts] = useState(openPendencies);
+  const alertsRef = useRef<HTMLElement>(null);
+  const [pendingTarget, setPendingTarget] = useState<string | null>(null);
+  useEffect(() => {
+    if (!openPendencies) return;
+    const frame = requestAnimationFrame(() => {
+      alertsRef.current?.focus({preventScroll:true});
+      alertsRef.current?.scrollIntoView({block:"start",behavior:"auto"});
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [openPendencies]);
+  useEffect(() => {
+    if (!pendingTarget) return;
+    const el = document.getElementById(pendingTarget);
+    if (el instanceof HTMLDetailsElement) {
+      el.open = true;
+      el.querySelector("summary")?.focus({preventScroll:true});
+      el.scrollIntoView({block:"nearest",behavior:"auto"});
+    }
+  }, [pendingTarget, activeTab, examTrimester]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{
     tone: "success" | "error";
@@ -469,12 +484,10 @@ export function ClinicalForm({
     [record.gestacao.dum]
   );
 
-  const currentWeeks =
-    calculatedPregnancy.weeks ??
-    record.gestacao.igSemanas;
+  const currentWeeks = weeksFromDum(record.gestacao.dum, workspaceToday(), record.gestacao.igSemanas ?? record.gestacao.igEcografiaSemanas);
 
   const currentDays =
-    calculatedPregnancy.days ?? record.gestacao.igDias;
+    calculatedPregnancy.days ?? record.gestacao.igDias ?? record.gestacao.igEcografiaDias;
 
   const currentTrimester =
     trimesterFromWeeks(currentWeeks);
@@ -488,72 +501,9 @@ export function ClinicalForm({
     [record.gestacao.alturaCm, record.gestacao.pesoKg]
   );
 
-  const pendingExams = useMemo(() => {
-    const examMap = new Map(
-      record.exames.map((item) => [
-        `${item.codigo}:${item.trimestre}`,
-        item,
-      ])
-    );
-
-    return data.examConfigs.filter((config) => {
-      const item = examMap.get(
-        `${config.codigo}:${config.trimestre}`
-      );
-
-      if (item && isExamDone(item.status)) {
-        return false;
-      }
-
-      // Itens condicionais não geram alerta automático sem
-      // confirmação clínica; continuam visíveis no trimestre.
-      if (config.condicaoAplicacao) {
-        return item?.status === "pendente";
-      }
-
-      if (
-        config.semanaInicio !== null &&
-        currentWeeks !== null &&
-        currentWeeks < config.semanaInicio
-      ) {
-        return false;
-      }
-
-      return config.trimestre <= currentTrimester;
-    });
-  }, [
-    currentTrimester,
-    currentWeeks,
-    data.examConfigs,
-    record.exames,
-  ]);
-
-  const pendingVaccines = useMemo(() => {
-    const vaccineMap = new Map(
-      record.vacinas.map((item) => [item.codigo, item])
-    );
-
-    return data.vaccineConfigs.filter((config) => {
-      const item = vaccineMap.get(config.codigo);
-
-      if (item && isVaccineDone(item.status)) {
-        return false;
-      }
-
-      if (config.semanaInicio === null) {
-        return item?.status === "pendente";
-      }
-
-      return (
-        currentWeeks !== null &&
-        currentWeeks >= config.semanaInicio
-      );
-    });
-  }, [
-    currentWeeks,
-    data.vaccineConfigs,
-    record.vacinas,
-  ]);
+  const prenatalActive = !record.alta.ativa && record.gestacao.situacao === "gestacao_em_curso" && !record.gestacao.dataParto;
+  const pendingExams = useMemo(() => pendingItems(data.examConfigs, record.exames, currentWeeks, "exam", prenatalActive), [data.examConfigs, record.exames, currentWeeks, prenatalActive]);
+  const pendingVaccines = useMemo(() => pendingItems(data.vaccineConfigs, record.vacinas, currentWeeks, "vaccine", prenatalActive), [data.vaccineConfigs, record.vacinas, currentWeeks, prenatalActive]);
 
   const totalPending =
     pendingExams.length + pendingVaccines.length;
@@ -942,7 +892,7 @@ export function ClinicalForm({
           <AlertCircle size={18} />
           <span>
             Pendências sugeridas
-            <strong>{totalPending}</strong>
+            <strong>{prenatalActive && currentWeeks === null ? "—" : totalPending}</strong>
             <small>Clique para conferir</small>
           </span>
           <ChevronDown size={17} />
@@ -950,15 +900,17 @@ export function ClinicalForm({
       </section>
 
       {showAlerts && (
-        <section className={styles.alertPanel}>
+        <section className={styles.alertPanel} ref={alertsRef} tabIndex={-1} aria-label="Pendências sugeridas por idade gestacional">
           <div>
             <strong>Exames</strong>
+            {prenatalActive && currentWeeks === null && <p>Informe a idade gestacional antes de calcular pendências por fase.</p>}
+            {!prenatalActive && <p>Esta lista é destinada ao pré-natal em curso. Consulte o acompanhamento do puerpério ou histórico conforme o caso.</p>}
             {pendingExams.length === 0 ? (
-              <span>Nenhuma pendência automática.</span>
+              <span>{prenatalActive && currentWeeks === null ? "Cálculo indisponível." : "Nenhuma pendência automática nesta fase."}</span>
             ) : (
               <ul>
                 {pendingExams.map((item) => (
-                  <li key={item.codigo}>{item.nome}</li>
+                  <li key={`${item.codigo}:${item.trimestre}`}><button type="button" onClick={() => { setActiveTab("exames"); setExamTrimester(item.trimestre); setPendingTarget(`pend-exame-${item.codigo}-${item.trimestre}`); }}>{item.nome} · {item.trimestre}º trimestre →</button></li>
                 ))}
               </ul>
             )}
@@ -967,18 +919,18 @@ export function ClinicalForm({
           <div>
             <strong>Vacinas</strong>
             {pendingVaccines.length === 0 ? (
-              <span>Nenhuma pendência automática.</span>
+              <span>{prenatalActive && currentWeeks === null ? "Cálculo indisponível." : "Nenhuma pendência automática nesta fase."}</span>
             ) : (
               <ul>
                 {pendingVaccines.map((item) => (
-                  <li key={item.codigo}>{item.nome}</li>
+                  <li key={item.codigo}><button type="button" onClick={() => { setActiveTab("vacinas"); setPendingTarget(`pend-vacina-${item.codigo}`); }}>{item.nome} →</button></li>
                 ))}
               </ul>
             )}
           </div>
 
           <p>
-            Os alertas auxiliam o acompanhamento e devem ser
+            A lista considera a fase da gestação e a indicação registrada. Ausência de informação não significa procedimento não realizado. Os alertas auxiliam o acompanhamento e devem ser
             confirmados pela profissional conforme histórico,
             indicação clínica e protocolo vigente.
           </p>
@@ -2068,6 +2020,7 @@ export function ClinicalForm({
                   <details
                     className={styles.examItem}
                     key={`${item.codigo}:${item.trimestre}`}
+                    id={`pend-exame-${item.codigo}-${item.trimestre}`}
                   >
                     <summary>
                       <span
@@ -2226,6 +2179,7 @@ export function ClinicalForm({
                   <details
                     className={styles.examItem}
                     key={item.codigo}
+                    id={`pend-vacina-${item.codigo}`}
                   >
                     <summary>
                       <span
