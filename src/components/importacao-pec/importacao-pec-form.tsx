@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ImportHistory, type ImportHistoryRow } from "./import-history";
-import { ChangeEvent, FormEvent, useRef, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -76,6 +76,9 @@ export function ImportacaoPecForm({
 }) {
   const router = useRouter();
   const fileInput=useRef<HTMLInputElement>(null);
+  const previewRef=useRef<HTMLElement>(null);
+  const resultRef=useRef<HTMLElement>(null);
+  const errorRef=useRef<HTMLDivElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [structureReviewed, setStructureReviewed] = useState(false);
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
@@ -83,6 +86,16 @@ export function ImportacaoPecForm({
   const [error, setError] = useState<string | null>(null);
   const [loadingMode, setLoadingMode] =
     useState<"preview" | "import" | null>(null);
+
+  useEffect(() => {
+    if (!loadingMode) {
+      const target = error ? errorRef.current : result ? resultRef.current : preview ? previewRef.current : null;
+      if (target) {
+        target.focus({ preventScroll: true });
+        target.scrollIntoView({block:"start", behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"instant":"smooth"});
+      }
+    }
+  }, [loadingMode, error, result, preview]);
 
   function chooseFile(selected:File|null) {
     setFile(selected);
@@ -244,7 +257,7 @@ export function ImportacaoPecForm({
         </div>
 
         {error && (
-          <div className="pec-error" role="alert" aria-live="assertive">
+          <div ref={errorRef} tabIndex={-1} style={{scrollMarginTop:"110px"}} className="pec-error" role="alert" aria-live="assertive">
             {error}
           </div>
         )}
@@ -262,7 +275,7 @@ export function ImportacaoPecForm({
       </section>
 
       {preview && (
-        <section className="pec-card pec-preview-card">
+        <section ref={previewRef} tabIndex={-1} style={{scrollMarginTop:"110px"}} className="pec-card pec-preview-card">
           <div className="pec-preview-summary">
             <div>
               <span>Linha de títulos</span>
@@ -410,6 +423,7 @@ export function ImportacaoPecForm({
 
       {result && resultVisual && (
         <section
+          ref={resultRef} tabIndex={-1} style={{scrollMarginTop:"110px"}}
           className={`pec-card pec-result-card ${resultVisual.className}`}
           role={result.erros > 0 ? "alert" : "status"}
           aria-live="polite"
