@@ -137,6 +137,14 @@ export default async function GestantesPage({
       }
 
       const rows = (data ?? []) as DatabaseRow[];
+      // Busca somente metadados de importações e fichas da profissional autenticada (RLS).
+      const { data: pecMeta, error: pecMetaError } = await supabase.from("pec_gestantes").select("id,criado_em,importacao_id,importacoes_pec_resumo(criado_em)").eq("profissional_responsavel_id", user.id).not("importacao_id", "is", null).limit(1000);
+      const reviewById = new Map<string, string>();
+      if (!pecMetaError) for (const meta of pecMeta ?? []) {
+        const linked = Array.isArray(meta.importacoes_pec_resumo) ? meta.importacoes_pec_resumo[0] : meta.importacoes_pec_resumo;
+        const importedAt = (linked as { criado_em?: string } | null)?.criado_em;
+        if (importedAt && Date.parse(importedAt) > Date.parse(meta.criado_em)) reviewById.set(meta.id, importedAt);
+      }
       const {data:planned,error:plannedError}=await supabase.from("rotina_profissional_tarefas_v1").select("gestante_id,data_prevista").eq("profissional_id",user.id).eq("tipo","consulta").neq("status","concluida").gte("data_prevista",workspaceToday()).order("data_prevista",{ascending:true}).limit(500);
       const nextById=new Map<string,string>();
       for(const task of planned??[])if(!nextById.has(task.gestante_id))nextById.set(task.gestante_id,task.data_prevista);
@@ -175,6 +183,7 @@ gestantes = rows.map((row) => ({
         altaMotivo: row.alta_motivo,
         pendencias: Number(row.pendencias_count ?? 0),
         atualizadoEm: dateTimeToIso(row.atualizado_em),
+        revisaoPecEm: reviewById.get(row.gestante_id) ?? null,
         proximoAtendimento: presentationMode?null:nextById.get(row.gestante_id)??null,
         agendaConsultada: !presentationMode&&!plannedError&&(planned?.length??0)<500,
       }));
