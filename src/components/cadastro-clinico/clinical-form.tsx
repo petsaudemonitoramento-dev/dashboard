@@ -39,7 +39,8 @@ import type {
 import styles from "./clinical-form.module.css";
 import c3styles from "./c3-coverage.module.css";
 import { evaluateC3Coverage } from "@/lib/c3/coverage";
-import { pendingItems } from "@/lib/clinical-pendencies";
+import { pendingItems, weeksFromDum } from "@/lib/clinical-pendencies";
+import { workspaceToday } from "@/lib/workspace-date";
 import { PatientTimeline } from "./patient-timeline";
 import quickStyles from "./quick-actions.module.css";
 
@@ -449,10 +450,12 @@ export function ClinicalForm({
   const alertsRef = useRef<HTMLElement>(null);
   const [pendingTarget, setPendingTarget] = useState<string | null>(null);
   useEffect(() => {
-    if (openPendencies && alertsRef.current) {
-      alertsRef.current.focus({preventScroll:true});
-      alertsRef.current.scrollIntoView({block:"start",behavior:"auto"});
-    }
+    if (!openPendencies) return;
+    const frame = requestAnimationFrame(() => {
+      alertsRef.current?.focus({preventScroll:true});
+      alertsRef.current?.scrollIntoView({block:"start",behavior:"auto"});
+    });
+    return () => cancelAnimationFrame(frame);
   }, [openPendencies]);
   useEffect(() => {
     if (!pendingTarget) return;
@@ -481,12 +484,10 @@ export function ClinicalForm({
     [record.gestacao.dum]
   );
 
-  const currentWeeks =
-    calculatedPregnancy.weeks ??
-    record.gestacao.igSemanas;
+  const currentWeeks = weeksFromDum(record.gestacao.dum, workspaceToday(), record.gestacao.igSemanas ?? record.gestacao.igEcografiaSemanas);
 
   const currentDays =
-    calculatedPregnancy.days ?? record.gestacao.igDias;
+    calculatedPregnancy.days ?? record.gestacao.igDias ?? record.gestacao.igEcografiaDias;
 
   const currentTrimester =
     trimesterFromWeeks(currentWeeks);
@@ -891,7 +892,7 @@ export function ClinicalForm({
           <AlertCircle size={18} />
           <span>
             Pendências sugeridas
-            <strong>{totalPending}</strong>
+            <strong>{prenatalActive && currentWeeks === null ? "—" : totalPending}</strong>
             <small>Clique para conferir</small>
           </span>
           <ChevronDown size={17} />
@@ -902,8 +903,10 @@ export function ClinicalForm({
         <section className={styles.alertPanel} ref={alertsRef} tabIndex={-1} aria-label="Pendências sugeridas por idade gestacional">
           <div>
             <strong>Exames</strong>
+            {prenatalActive && currentWeeks === null && <p>Informe a idade gestacional antes de calcular pendências por fase.</p>}
+            {!prenatalActive && <p>Esta lista é destinada ao pré-natal em curso. Consulte o acompanhamento do puerpério ou histórico conforme o caso.</p>}
             {pendingExams.length === 0 ? (
-              <span>Nenhuma pendência automática.</span>
+              <span>{prenatalActive && currentWeeks === null ? "Cálculo indisponível." : "Nenhuma pendência automática nesta fase."}</span>
             ) : (
               <ul>
                 {pendingExams.map((item) => (
@@ -916,7 +919,7 @@ export function ClinicalForm({
           <div>
             <strong>Vacinas</strong>
             {pendingVaccines.length === 0 ? (
-              <span>Nenhuma pendência automática.</span>
+              <span>{prenatalActive && currentWeeks === null ? "Cálculo indisponível." : "Nenhuma pendência automática nesta fase."}</span>
             ) : (
               <ul>
                 {pendingVaccines.map((item) => (
