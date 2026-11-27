@@ -57,6 +57,7 @@ export type GestanteCardData = {
   altaMotivo: string | null;
   pendencias: number;
   atualizadoEm: string;
+  revisaoPecEm?: string | null;
   proximoAtendimento?: string | null;
   agendaConsultada?: boolean;
 };
@@ -276,6 +277,12 @@ function ActiveCard({
         </div>
 
         {gestante.agendaConsultada&&<div className={styles.nextVisit}><CalendarDays size={16}/><span>Próxima consulta: <strong>{gestante.proximoAtendimento?formatDate(gestante.proximoAtendimento):"Sem agendamento registrado"}</strong></span></div>}
+        {!presentationMode && gestante.revisaoPecEm && (
+          <div className={styles.pendingBadge} role="note">
+            <CalendarDays size={15} />
+            <span>PEC atualizado em {formatDate(gestante.revisaoPecEm.slice(0, 10))}. Revise os dados complementares e manuais da ficha.</span>
+          </div>
+        )}
         {gestante.pendencias > 0 && (
           <div className={styles.pendingBadge}>
             <HeartPulse size={15} />

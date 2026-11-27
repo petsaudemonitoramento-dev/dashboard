@@ -257,7 +257,8 @@ export function ImportacaoPecForm({
           <li><strong>1. Encontra os títulos</strong><span>Localiza a linha com os nomes das colunas, mesmo quando o relatório possui informações antes da tabela.</span></li>
           <li><strong>2. Reconhece os campos</strong><span>Identifica campos conhecidos, como idade gestacional e consultas, considerando pequenas diferenças de escrita.</span></li>
           <li><strong>3. Confere mudanças</strong><span>Mostra colunas novas, duplicadas ou ausentes. Campos desconhecidos exigem revisão; conflitos podem impedir o envio. Não inventa valores clínicos.</span></li>
-          <li><strong>4. Protege a identidade</strong><span>Exibe uma prévia sem identificadores diretos. As fichas só são atualizadas depois da confirmação da importação.</span></li>
+          <li><strong>4. Atualiza sem duplicar</strong><span>Fichas já identificadas no seu diário são atualizadas pelo PEC. Informações complementares e correções manuais devem ser revisadas após a importação.</span></li>
+          <li><strong>5. Protege a identidade</strong><span>Exibe uma prévia sem identificadores diretos. As fichas só são atualizadas depois da confirmação da importação.</span></li>
         </ol>
       </section>
 
@@ -425,14 +426,13 @@ export function ImportacaoPecForm({
 
             {typeof result.pacientesExistentesAntes === "number" && !result.jaImportado && (
               <div className="pec-warning" style={{marginTop:12}}>
-                <strong>Comparação com fichas existentes antes do envio</strong>
+                <strong>Fichas já existentes no seu diário</strong>
                 <p>
                   {result.pacientesExistentesAntes} ficha(s) já encontradas sob sua responsabilidade e
                   {" "}{result.fichasComCorrecoesManuaisAntes ?? 0} com campos manuais protegidos.
                 </p>
                 <small>
-                  Essa contagem foi feita antes de importar; não representa, sozinha, quantidade final de novas pacientes,
-                  alterações efetivas nem validação oficial do C3.
+                  Quando a ficha é reconhecida, os dados disponíveis do PEC atualizam a ficha existente, sem criar outra. Confira os dados complementares e as correções manuais após o envio. As contagens acima são anteriores à importação.
                 </small>
               </div>
             )}
