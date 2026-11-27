@@ -55,7 +55,7 @@ export type GestanteCardData = {
   altaAtiva: boolean;
   altaData: string | null;
   altaMotivo: string | null;
-  pendencias: number;
+  pendencias: number | null;
   atualizadoEm: string;
   proximoAtendimento?: string | null;
   agendaConsultada?: boolean;
@@ -276,15 +276,13 @@ function ActiveCard({
         </div>
 
         {gestante.agendaConsultada&&<div className={styles.nextVisit}><CalendarDays size={16}/><span>Próxima consulta: <strong>{gestante.proximoAtendimento?formatDate(gestante.proximoAtendimento):"Sem agendamento registrado"}</strong></span></div>}
-        {gestante.pendencias > 0 && (
-          <div className={styles.pendingBadge}>
-            <HeartPulse size={15} />
-            <span>
-              {gestante.pendencias} pendência
-              {gestante.pendencias === 1 ? "" : "s"} sugerida
-              {gestante.pendencias === 1 ? "" : "s"}
-            </span>
-          </div>
+        {gestante.pendencias === null ? (
+          <span className={styles.pendingBadge}>Pendências não calculadas. Confira a ficha.</span>
+        ) : (
+          presentationMode ? <div className={styles.pendingBadge}><HeartPulse size={15}/>{gestante.pendencias} pendência(s) sugerida(s)</div> :
+          <Link className={styles.pendingBadge} href={`/dashboard/gestantes?editar=${encodeURIComponent(gestante.id)}&aba=pendencias`} prefetch={false} aria-label={`Conferir ${gestante.pendencias} pendências de ${gestante.nomeVisual}`}>
+            <HeartPulse size={15}/><span>{gestante.pendencias} pendência{gestante.pendencias === 1 ? "" : "s"} sugerida{gestante.pendencias === 1 ? "" : "s"} · Conferir →</span>
+          </Link>
         )}
 
         <details className={styles.checkDetails}>
@@ -293,10 +291,10 @@ function ActiveCard({
             {gestante.ultimaConsulta===null&&<li>Data da última consulta não informada.</li>}
             {gestante.igSemanas===null&&<li>Idade gestacional não informada.</li>}
             {gestante.dpp===null&&<li>DPP não informada.</li>}
-            {Object.entries(gestante.exames).filter(([,v])=>!v||v==="-"||normalize(v)==="nao informado").map(([k])=><li key={k}>{({hivPrimeiro:"HIV — 1º trimestre",sifilisPrimeiro:"Sífilis — 1º trimestre",hepatiteB:"Hepatite B",hepatiteC:"Hepatite C",hivTerceiro:"HIV — 3º trimestre",sifilisTerceiro:"Sífilis — 3º trimestre"} as Record<string,string>)[k]}: sem registro neste campo.</li>)}
+            {Object.entries(gestante.exames).filter(([k,v])=>gestante.igSemanas!==null&&(!k.endsWith("Terceiro")||gestante.igSemanas>=28)&&(!v||v==="-"||normalize(v)==="nao informado")).map(([k])=><li key={k}>{({hivPrimeiro:"HIV — 1º trimestre",sifilisPrimeiro:"Sífilis — 1º trimestre",hepatiteB:"Hepatite B",hepatiteC:"Hepatite C",hivTerceiro:"HIV — 3º trimestre",sifilisTerceiro:"Sífilis — 3º trimestre"} as Record<string,string>)[k]}: sem registro neste campo.</li>)}
           </ul>
           <small>Informações ausentes não significam procedimento não realizado ou indicação clínica. Confira a ficha completa.</small>
-          {!presentationMode&&<Link href={`/dashboard/gestantes?editar=${encodeURIComponent(gestante.id)}&aba=exames`} prefetch={false}>Conferir exames e pendências →</Link>}
+          {!presentationMode&&<Link href={`/dashboard/gestantes?editar=${encodeURIComponent(gestante.id)}&aba=pendencias`} prefetch={false}>Conferir exames e pendências →</Link>}
         </details>
         <section className={styles.section}>
           <h3>
