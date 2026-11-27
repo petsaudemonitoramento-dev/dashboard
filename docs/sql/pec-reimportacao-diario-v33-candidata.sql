@@ -7,7 +7,7 @@ LANGUAGE plpgsql
 SET search_path TO pg_catalog, public, private, extensions
 AS $$
 DECLARE
-  v_hash text := private.identidade_hash(p_canonical, p_ubs_id);
+  v_hash text;
   v_key text := private.pii_key();
   v_cpf text := regexp_replace(coalesce(p_canonical->>'cpf',''), '\D','','g');
   v_cns text := regexp_replace(coalesce(p_canonical->>'cns',''), '\D','','g');
@@ -34,6 +34,10 @@ BEGIN
   END IF;
   -- One lock per professional: serializes differing files and manual creations.
   PERFORM pg_advisory_xact_lock(hashtextextended('gestario-diario:'||p_usuario_id::text,0));
+  -- New identity keys are namespaced by the professional, not the establishment.
+  -- Existing keys remain valid when the owner-scoped lookup matches an old record.
+  v_hash := encode(extensions.hmac(concat_ws('|', 'gestario-diario-v33', p_usuario_id::text,
+    v_cpf, v_cns, v_nome, coalesce(to_char(v_nasc,'YYYY-MM-DD'),'')), v_key, 'sha256'), 'hex');
   FOR v_candidate IN
     SELECT i.identidade_hash AS h, g.excluida_em AS deleted_at,
       regexp_replace(coalesce(extensions.pgp_sym_decrypt(i.cpf_enc,v_key),''),'\D','','g') AS cpf,
@@ -458,7 +462,6 @@ AS $function$
 declare
   v_resultado jsonb;
   v_importacao_id uuid;
-  v_cached public.importacoes_pec_resumo%rowtype;
   v_existentes_antes integer := 0;
   v_protegidos_antes integer := 0;
 begin
@@ -480,49 +483,13 @@ begin
   -- Serializa todas as importações do mesmo diário, não apenas hashes iguais.
   perform pg_advisory_xact_lock(hashtextextended('gestario-diario:'||p_usuario_id::text,0));
 
-  -- Uma importação nunca pode atualizar silenciosamente uma gestante
-  -- já pertencente a outro profissional.
-  if exists (
-    select 1
-    from jsonb_array_elements(coalesce(p_linhas, '[]'::jsonb)) item
-    join private.identidades_gestantes i
-      on i.identidade_hash = private.resolver_identidade_diario_v33(coalesce(item->'canonical', '{}'::jsonb), p_ubs_id, p_usuario_id)
-    join public.pec_gestantes g
-      on g.id = i.gestante_id
-    where g.profissional_responsavel_id is distinct from p_usuario_id
-  ) then
-    raise exception 'Importação contém gestante já vinculada a outro profissional';
-  end if;
+  -- The identity resolver considers this diary only. A second professional may
+  -- legitimately import the exact same source, including the same CPF and CNS.
+  -- Reprocess even when the file checksum occurred in history: the last
+  -- confirmed import updates the same records, not a second set of records.
+  -- Preserve the history and manual field protection; do not cache across imports.
 
-  -- Serializa lotes identicos do mesmo usuario e UBS; evita duplicacao concorrente.
-  perform pg_catalog.pg_advisory_xact_lock(
-    pg_catalog.hashtextextended(
-      p_ubs_id::text || ':' || p_usuario_id::text || ':' || p_arquivo_sha256, 0
-    )
-  );
-
-  select r.*
-    into v_cached
-  from public.importacoes_pec_resumo r
-  where r.ubs_id = p_ubs_id
-    and r.usuario_id = p_usuario_id
-    and r.arquivo_sha256 = p_arquivo_sha256
-    and r.status = 'concluida'
-    and r.total_erros = 0
-  order by r.concluido_em desc nulls last
-  limit 1;
-
-  if found then
-    return jsonb_build_object(
-      'importacao_id', v_cached.id,
-      'total', v_cached.total_linhas,
-      'processadas', v_cached.total_processadas,
-      'erros', v_cached.total_erros,
-      'jaImportado', true
-    );
-  end if;
-
-  -- Comparação sem revelar identidade: wrapper já vetou pacientes de outro profissional.
+  -- Comparação sem revelar identidade: somente fichas do próprio diário.
   select
     count(distinct g.id)::integer,
     count(distinct g.id) filter (
